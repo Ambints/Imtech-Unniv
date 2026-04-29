@@ -1,0 +1,23 @@
+import { AcademicService } from './academic.service';
+export declare class AcademicController {
+    private readonly svc;
+    constructor(svc: AcademicService);
+    createParcours(tid: string, dto: any): Promise<import("./academic.entities").Parcours[]>;
+    getParcours(tid: string): Promise<import("./academic.entities").Parcours[]>;
+    createUE(tid: string, dto: any): Promise<import("./academic.entities").UniteEnseignement[]>;
+    getUE(tid: string, pid: string): Promise<import("./academic.entities").UniteEnseignement[]>;
+    saisirNote(tid: string, dto: any): Promise<any>;
+    getNotes(tid: string, eid: string, annee: string): Promise<import("./academic.entities").Note[]>;
+    deliberer(tid: string, body: any): Promise<{
+        message: string;
+        count: number;
+    }>;
+    inscrire(tid: string, dto: any): Promise<import("./academic.entities").Inscription[]>;
+    getInscriptions(tid: string, pid?: string): Promise<import("./academic.entities").Inscription[]>;
+    saisirAbsence(tid: string, dto: any): Promise<import("./academic.entities").Presence[]>;
+    getAbsences(tid: string, eid: string): Promise<import("./academic.entities").Presence[]>;
+    createSalle(tid: string, dto: any): Promise<import("./academic.entities").Salle[]>;
+    getSalles(tid: string): Promise<import("./academic.entities").Salle[]>;
+    createEDT(tid: string, dto: any): Promise<import("./academic.entities").EmploiDuTemps[]>;
+    getEDT(tid: string, pid: string): Promise<import("./academic.entities").EmploiDuTemps[]>;
+}
