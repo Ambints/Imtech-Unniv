@@ -35,7 +35,10 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
             await queryRunner.connect();
             this.logger.log(`Création du schéma: ${schemaName}`);
             await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
-            const sqlScript = (0, fs_1.readFileSync)((0, path_1.join)(__dirname, 'tenant-schema.sql'), 'utf-8');
+            const sqlPath = process.env.NODE_ENV === 'production'
+                ? (0, path_1.join)(__dirname, 'tenant-schema.sql')
+                : (0, path_1.join)(__dirname, '../../src/tenants/tenant-schema.sql');
+            const sqlScript = (0, fs_1.readFileSync)(sqlPath, 'utf-8');
             this.logger.log(`Initialisation des tables dans ${schemaName}`);
             const statements = this.splitSqlScript(sqlScript);
             for (const statement of statements) {

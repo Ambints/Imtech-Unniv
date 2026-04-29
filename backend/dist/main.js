@@ -6,7 +6,11 @@ const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
+        bodyParser: true,
+    });
+    app.use(require('express').json({ limit: '10mb' }));
+    app.use(require('express').urlencoded({ limit: '10mb', extended: true }));
     app.setGlobalPrefix('api/v1');
     const isDev = process.env.NODE_ENV !== 'production';
     app.enableCors({

@@ -16,7 +16,7 @@ export class Tenant {
   @Column({ nullable: true, length: 255 })
   slogan: string;
 
-  @Column({ name: 'logo_url', nullable: true, length: 500 })
+  @Column({ name: 'logo_url', nullable: true, type: 'text' })
   logoUrl: string;
 
   @Column({ name: 'couleur_principale', default: '#1a7a4a', length: 7 })

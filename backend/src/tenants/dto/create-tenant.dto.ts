@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsUrl, Length, Matches, IsEnum, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsUrl, Length, Matches, IsEnum, IsNumber, IsDateString, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTenantDto {
@@ -19,8 +19,8 @@ export class CreateTenantDto {
   @Length(0, 255)
   slogan?: string;
 
-  @ApiPropertyOptional({ description: 'URL du logo', example: 'https://cdn.imtech.edu/logos/saint-paul.png' })
-  @IsUrl()
+  @ApiPropertyOptional({ description: 'URL du logo ou data URL (base64)', example: 'https://cdn.imtech.edu/logos/saint-paul.png' })
+  @IsString()
   @IsOptional()
   logoUrl?: string;
 
@@ -80,6 +80,7 @@ export class CreateTenantDto {
   emailContact?: string;
 
   @ApiPropertyOptional({ description: 'Site web', example: 'https://www.saint-paul.edu' })
+  @ValidateIf((o) => o.siteWeb && o.siteWeb.length > 0)
   @IsUrl({}, { message: 'Format d\'URL invalide' })
   @IsOptional()
   siteWeb?: string;

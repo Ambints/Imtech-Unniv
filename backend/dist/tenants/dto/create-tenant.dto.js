@@ -36,8 +36,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTenantDto.prototype, "slogan", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ description: 'URL du logo', example: 'https://cdn.imtech.edu/logos/saint-paul.png' }),
-    (0, class_validator_1.IsUrl)(),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'URL du logo ou data URL (base64)', example: 'https://cdn.imtech.edu/logos/saint-paul.png' }),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateTenantDto.prototype, "logoUrl", void 0);
@@ -107,6 +107,7 @@ __decorate([
 ], CreateTenantDto.prototype, "emailContact", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'Site web', example: 'https://www.saint-paul.edu' }),
+    (0, class_validator_1.ValidateIf)((o) => o.siteWeb && o.siteWeb.length > 0),
     (0, class_validator_1.IsUrl)({}, { message: 'Format d\'URL invalide' }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

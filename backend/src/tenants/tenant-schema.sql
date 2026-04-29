@@ -3,9 +3,9 @@
 -- Ce script crée toutes les tables nécessaires pour un nouveau tenant
 -- =============================================================================
 
--- Extensions nécessaires
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Les extensions sont créées au niveau public par le service
+-- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- =============================================================================
 -- MODULE : AUTHENTIFICATION & UTILISATEURS

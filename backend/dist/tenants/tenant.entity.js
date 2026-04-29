@@ -35,7 +35,7 @@ __decorate([
     __metadata("design:type", String)
 ], Tenant.prototype, "slogan", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'logo_url', nullable: true, length: 500 }),
+    (0, typeorm_1.Column)({ name: 'logo_url', nullable: true, type: 'text' }),
     __metadata("design:type", String)
 ], Tenant.prototype, "logoUrl", void 0);
 __decorate([

@@ -31,10 +31,12 @@ export class TenantCreationService {
       await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 
       // 2. Lire et exécuter le script SQL de création des tables
-      const sqlScript = readFileSync(
-        join(__dirname, 'tenant-schema.sql'),
-        'utf-8'
-      );
+      // Utiliser le chemin source car le fichier SQL n'est pas copié dans dist
+      const sqlPath = process.env.NODE_ENV === 'production'
+        ? join(__dirname, 'tenant-schema.sql')
+        : join(__dirname, '../../src/tenants/tenant-schema.sql');
+      
+      const sqlScript = readFileSync(sqlPath, 'utf-8');
 
       // 3. Exécuter le script dans le contexte du nouveau schéma
       this.logger.log(`Initialisation des tables dans ${schemaName}`);
