@@ -4,8 +4,8 @@ import { tenantsApi } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { Tenant } from '../../types/tenant';
 import { 
-  Building2, Plus, Edit, Trash2, Eye, 
-  CheckCircle, XCircle, ExternalLink, Search, Filter, MoreHorizontal 
+  Building2, Plus, Edit, Trash2, 
+  CheckCircle, XCircle, Search, Filter, MoreHorizontal 
 } from 'lucide-react';
 
 interface KpiCardProps {
@@ -280,14 +280,8 @@ export const SuperAdminDashboard: React.FC = () => {
                     </td>
                     <td style={{ padding: '12px 16px', verticalAlign: 'middle', textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
-                        <button onClick={() => navigate(`/super-admin/tenant/${tenant.id}`)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9AA3AE' }} title="Voir">
-                          <Eye style={{ width: 14, height: 14 }} />
-                        </button>
                         <button onClick={() => navigate(`/super-admin/tenant/${tenant.id}/edit`)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9AA3AE' }} title="Modifier">
                           <Edit style={{ width: 14, height: 14 }} />
-                        </button>
-                        <button onClick={() => window.open(`https://${tenant.slug}.imtech.edu`, '_blank')} style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9AA3AE' }} title="Ouvrir">
-                          <ExternalLink style={{ width: 14, height: 14 }} />
                         </button>
                         {deleteConfirm === tenant.id ? (
                           <>

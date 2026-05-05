@@ -40,6 +40,13 @@ export declare class FinanceService {
     creerBudget(tid: string, dto: any): Promise<Budget[]>;
     getBudgets(tid: string, anneeAcademiqueId?: string): Promise<Budget[]>;
     ajouterDepense(tid: string, dto: any, demandePar: string): Promise<Depense[]>;
+    getDepenses(tid: string, anneeAcademiqueId?: string): Promise<Depense[]>;
+    updateBudget(tid: string, id: string, dto: any): Promise<any>;
+    updateDepense(tid: string, id: string, dto: any): Promise<any>;
+    deleteDepense(tid: string, id: string): Promise<{
+        message: string;
+    }>;
+    updateContrat(tid: string, id: string, dto: any): Promise<any>;
     getRapportFinancier(tid: string, anneeAcademiqueId: string): Promise<{
         anneeAcademiqueId: string;
         totalRecettes: number;

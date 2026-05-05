@@ -78,51 +78,96 @@ export const plansApi = {
 };
 
 export const usersApi = {
-  getAll: (tenantId?: string, role?: string) => {
+  getAll: async (tenantId?: string, role?: string, university?: string) => {
     const params = new URLSearchParams();
     if (tenantId) params.append('tenantId', tenantId);
     if (role) params.append('role', role);
-    return api.get(`/users?${params}`);
+    if (university) params.append('university', university);
+    return (await api.get(`/users?${params}`)).data;
   },
-  create: (dto: any) => api.post('/users', dto),
-  update: (id: string, dto: any) => api.patch(`/users/${id}`, dto),
-  remove: (id: string) => api.delete(`/users/${id}`),
+  getOne: async (id: string) => (await api.get(`/users/${id}`)).data,
+  create: async (dto: any) => (await api.post('/users', dto)).data,
+  update: async (id: string, dto: any) => (await api.patch(`/users/${id}`, dto)).data,
+  remove: async (id: string) => (await api.delete(`/users/${id}`)).data,
 };
 
 export const academicApi = {
+  // Parcours
   getParcours: (tid: string) => api.get(`/academic/${tid}/parcours`),
   createParcours: (tid: string, dto: any) => api.post(`/academic/${tid}/parcours`, dto),
+  updateParcours: (tid: string, id: string, dto: any) => api.patch(`/academic/${tid}/parcours/${id}`, dto),
+  deleteParcours: (tid: string, id: string) => api.delete(`/academic/${tid}/parcours/${id}`),
+  
+  // Départements
+  getDepartements: (tid: string) => api.get(`/academic/${tid}/departements`),
+  createDepartement: (tid: string, dto: any) => api.post(`/academic/${tid}/departements`, dto),
+  
+  // UE
   getUE: (tid: string, parcoursId: string) => api.get(`/academic/${tid}/ue?parcoursId=${parcoursId}`),
   createUE: (tid: string, dto: any) => api.post(`/academic/${tid}/ue`, dto),
+  updateUE: (tid: string, id: string, dto: any) => api.patch(`/academic/${tid}/ue/${id}`, dto),
+  deleteUE: (tid: string, id: string) => api.delete(`/academic/${tid}/ue/${id}`),
+  
+  // Étudiants
+  getEtudiants: (tid: string) => api.get(`/academic/${tid}/etudiants`),
+  createEtudiant: (tid: string, dto: any) => api.post(`/academic/${tid}/etudiants`, dto),
+  updateEtudiant: (tid: string, id: string, dto: any) => api.patch(`/academic/${tid}/etudiants/${id}`, dto),
+  deleteEtudiant: (tid: string, id: string) => api.delete(`/academic/${tid}/etudiants/${id}`),
+  
+  // Notes
   saisirNote: (tid: string, dto: any) => api.post(`/academic/${tid}/notes`, dto),
   getNotes: (tid: string, etudiantId: string, annee: string) =>
     api.get(`/academic/${tid}/notes/${etudiantId}?annee=${annee}`),
   deliberer: (tid: string, dto: any) => api.post(`/academic/${tid}/deliberation`, dto),
+  
+  // Inscriptions
   inscrire: (tid: string, dto: any) => api.post(`/academic/${tid}/inscriptions`, dto),
   getInscriptions: (tid: string, parcoursId?: string) =>
     api.get(`/academic/${tid}/inscriptions${parcoursId ? `?parcoursId=${parcoursId}` : ''}`),
+  
+  // Absences
   saisirAbsence: (tid: string, dto: any) => api.post(`/academic/${tid}/absences`, dto),
   getAbsences: (tid: string, etudiantId: string) => api.get(`/academic/${tid}/absences/${etudiantId}`),
+  
+  // Salles et EDT
   getSalles: (tid: string) => api.get(`/academic/${tid}/salles`),
   getEDT: (tid: string, parcoursId: string) => api.get(`/academic/${tid}/edt?parcoursId=${parcoursId}`),
 };
 
 export const financeApi = {
+  // Paiements
   payer: (tid: string, dto: any) => api.post(`/finance/${tid}/paiements`, dto),
   getTousPaiements: (tid: string, date?: string) =>
     api.get(`/finance/${tid}/paiements${date ? `?date=${date}` : ''}`),
   getPaiementsEtudiant: (tid: string, etudiantId: string) =>
     api.get(`/finance/${tid}/paiements/${etudiantId}`),
+  
+  // Caisse
   getCaisse: (tid: string) => api.get(`/finance/${tid}/caisse`),
   cloturerCaisse: (tid: string, userId: string) =>
     api.post(`/finance/${tid}/caisse/cloturer`, { userId }),
+  
+  // Budgets
   getBudgets: (tid: string, annee?: string) =>
     api.get(`/finance/${tid}/budgets${annee ? `?annee=${annee}` : ''}`),
   creerBudget: (tid: string, dto: any) => api.post(`/finance/${tid}/budgets`, dto),
+  updateBudget: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/budgets/${id}`, dto),
+  deleteBudget: (tid: string, id: string) => api.delete(`/finance/${tid}/budgets/${id}`),
+  
+  // Dépenses
+  getDepenses: (tid: string, annee?: string) =>
+    api.get(`/finance/${tid}/depenses${annee ? `?annee=${annee}` : ''}`),
   ajouterDepense: (tid: string, dto: any) => api.post(`/finance/${tid}/depenses`, dto),
-  getRapport: (tid: string, annee: string) => api.get(`/finance/${tid}/rapport?annee=${annee}`),
+  updateDepense: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/depenses/${id}`, dto),
+  deleteDepense: (tid: string, id: string) => api.delete(`/finance/${tid}/depenses/${id}`),
+  
+  // Contrats
   creerContrat: (tid: string, dto: any) => api.post(`/finance/${tid}/contrats`, dto),
   getContrats: (tid: string) => api.get(`/finance/${tid}/contrats`),
+  updateContrat: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/contrats/${id}`, dto),
+  
+  // Rapports
+  getRapport: (tid: string, annee: string) => api.get(`/finance/${tid}/rapport?annee=${annee}`),
 };
 
 export const logisticsApi = {

@@ -86,9 +86,12 @@ export const NewUniversity: React.FC = () => {
         dataToSend.logoUrl = logoPreview; // Envoyer le base64
       }
       
-      await tenantsApi.create(dataToSend);
-      toast.success('Université créée avec succès!');
-      navigate('/super-admin');
+      // Créer l'université sans abonnement
+      const createdTenant = await tenantsApi.create(dataToSend);
+      toast.success('Université créée avec succès! Vous pouvez maintenant configurer son abonnement.');
+      
+      // Rediriger vers la page des abonnements
+      navigate('/super-admin/subscriptions');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Erreur lors de la création');
     } finally {
@@ -146,7 +149,7 @@ export const NewUniversity: React.FC = () => {
               </div>
               <div>
                 <label style={labelStyle}>Slug (URL) <span style={{ color: '#DC2626' }}>*</span></label>
-                <input type="text" name="slug" value={formData.slug} onChange={handleChange} required pattern="[a-z0-9-]+" style={inputStyle} placeholder="universite-catholique-madagascar" />
+                <input type="text" name="slug" value={formData.slug} onChange={handleChange} required pattern="[a-z0-9\-]+" style={inputStyle} placeholder="universite-catholique-madagascar" />
                 <p style={{ fontSize: '11px', color: '#9AA3AE', marginTop: '4px' }}>URL: <span style={{ color: '#2563eb', fontWeight: 600 }}>{formData.slug}.imtech.edu</span></p>
               </div>
               <div>

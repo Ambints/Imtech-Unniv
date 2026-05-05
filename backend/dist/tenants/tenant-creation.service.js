@@ -33,34 +33,70 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
         const queryRunner = this.dataSource.createQueryRunner();
         try {
             await queryRunner.connect();
-            this.logger.log(`Création du schéma: ${schemaName}`);
-            await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+            this.logger.log(`🔧 Création du schéma: ${schemaName}`);
+            const createSchemaResult = await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+            this.logger.log(`✅ Schéma ${schemaName} créé ou déjà existant`);
+            const schemaCheck = await queryRunner.query(`
+        SELECT schema_name
+        FROM information_schema.schemata
+        WHERE schema_name = $1
+      `, [schemaName]);
+            if (schemaCheck.length === 0) {
+                throw new Error(`Le schéma ${schemaName} n'a pas été créé correctement`);
+            }
+            this.logger.log(`✅ Vérification: schéma ${schemaName} existe dans la base`);
+            this.logger.log(`🔧 Création des extensions PostgreSQL...`);
+            await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public`);
+            await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto" SCHEMA public`);
+            this.logger.log(`✅ Extensions créées dans le schéma public`);
             const sqlPath = process.env.NODE_ENV === 'production'
                 ? (0, path_1.join)(__dirname, 'tenant-schema.sql')
                 : (0, path_1.join)(__dirname, '../../src/tenants/tenant-schema.sql');
-            const sqlScript = (0, fs_1.readFileSync)(sqlPath, 'utf-8');
-            this.logger.log(`Initialisation des tables dans ${schemaName}`);
-            const statements = this.splitSqlScript(sqlScript);
-            for (const statement of statements) {
-                const trimmed = statement.trim();
-                if (trimmed && !trimmed.startsWith('--') && !trimmed.startsWith('/*')) {
-                    try {
-                        await queryRunner.query(`SET search_path TO "${schemaName}"; ${trimmed}`);
-                    }
-                    catch (error) {
-                        const msg = getErrorMessage(error);
-                        if (!msg.includes('already exists') && !msg.includes('n\'existe pas')) {
-                            this.logger.warn(`Commande ignorée: ${msg}`);
-                        }
+            this.logger.log(`📄 Lecture du script SQL: ${sqlPath}`);
+            let sqlScript = (0, fs_1.readFileSync)(sqlPath, 'utf-8');
+            this.logger.log(`🔧 Initialisation des tables dans ${schemaName}`);
+            await queryRunner.query(`SET search_path TO "${schemaName}"`);
+            this.logger.log(`✅ search_path défini sur ${schemaName}`);
+            const statements = this.parseSqlStatements(sqlScript);
+            this.logger.log(`📊 ${statements.length} instructions SQL à exécuter`);
+            let successCount = 0;
+            let skipCount = 0;
+            for (let i = 0; i < statements.length; i++) {
+                const stmt = statements[i];
+                try {
+                    await queryRunner.query(stmt);
+                    successCount++;
+                    if ((i + 1) % 10 === 0) {
+                        this.logger.log(`   ⏳ Progression: ${i + 1}/${statements.length} instructions exécutées`);
                     }
                 }
+                catch (error) {
+                    const msg = getErrorMessage(error);
+                    if (!msg.includes('already exists') && !msg.includes('n\'existe pas') && !msg.includes('does not exist')) {
+                        this.logger.error(`❌ Instruction ${i + 1} ÉCHOUÉE:`);
+                        this.logger.error(`   SQL: ${stmt.substring(0, 200)}...`);
+                        this.logger.error(`   Erreur: ${msg}`);
+                    }
+                    skipCount++;
+                }
             }
-            await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
-            await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
-            this.logger.log(`Schéma ${schemaName} créé avec succès`);
+            this.logger.log(`✅ Exécution terminée: ${successCount} réussies, ${skipCount} ignorées`);
+            await queryRunner.query(`SET search_path TO public`);
+            const tableCheck = await queryRunner.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = $1
+        LIMIT 5
+      `, [schemaName]);
+            this.logger.log(`✅ ${tableCheck.length} tables créées dans ${schemaName}`);
+            if (tableCheck.length > 0) {
+                this.logger.log(`   Tables: ${tableCheck.map((t) => t.table_name).join(', ')}`);
+            }
+            this.logger.log(`🎉 Schéma ${schemaName} créé avec succès avec toutes ses tables`);
         }
         catch (error) {
-            this.logger.error(`Erreur lors de la création du schéma ${schemaName}: ${getErrorMessage(error)}`);
+            this.logger.error(`❌ Erreur lors de la création du schéma ${schemaName}: ${getErrorMessage(error)}`);
+            this.logger.error(`Stack trace: ${error instanceof Error ? error.stack : 'N/A'}`);
             throw error;
         }
         finally {
@@ -88,42 +124,40 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
         try {
             await queryRunner.connect();
             this.logger.log(`Insertion des données initiales dans ${schemaName}`);
+            await queryRunner.query(`SET search_path TO "${schemaName}"`);
             await queryRunner.query(`
-        SET search_path TO "${schemaName}";
         INSERT INTO annee_academique (libelle, date_debut, date_fin, active)
         VALUES ('2025-2026', '2025-09-01', '2026-07-31', TRUE)
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT DO NOTHING
       `);
             await queryRunner.query(`
-        SET search_path TO "${schemaName}";
         INSERT INTO utilisateur (email, password_hash, nom, prenom, role, actif, email_verifie)
         VALUES (
-          '${adminEmail}',
-          crypt('${adminPassword}', gen_salt('bf')),
+          $1,
+          public.crypt($2, public.gen_salt('bf')),
           'ADMIN',
           'Système',
           'admin',
           TRUE,
           TRUE
         )
-        ON CONFLICT (email) DO NOTHING;
-      `);
+        ON CONFLICT (email) DO NOTHING
+      `, [adminEmail, adminPassword]);
             await queryRunner.query(`
-        SET search_path TO "${schemaName}";
         INSERT INTO departement (code, nom) VALUES
           ('INFO', 'Département Informatique et Numérique'),
           ('GESTION', 'Département Gestion et Commerce'),
           ('DROIT', 'Département Droit et Sciences Politiques')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT DO NOTHING
       `);
             await queryRunner.query(`
-        SET search_path TO "${schemaName}";
         INSERT INTO batiment (nom, code) VALUES
           ('Bloc A - Sciences', 'BLOCA'),
           ('Bloc B - Administration', 'BLOCB'),
           ('Amphithéâtre Central', 'AMPHI')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT DO NOTHING
       `);
+            await queryRunner.query(`SET search_path TO public`);
             this.logger.log(`Données initiales insérées dans ${schemaName}`);
         }
         catch (error) {
@@ -134,16 +168,40 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
             await queryRunner.release();
         }
     }
-    splitSqlScript(script) {
+    parseSqlStatements(script) {
         const statements = [];
         let current = '';
+        let inBlockComment = false;
+        let inLineComment = false;
         let inDollarQuote = false;
         let dollarTag = '';
         for (let i = 0; i < script.length; i++) {
             const char = script[i];
-            const nextChars = script.substring(i, i + 10);
+            const nextChar = script[i + 1] || '';
+            if (!inBlockComment && !inLineComment && !inDollarQuote && char === '/' && nextChar === '*') {
+                inBlockComment = true;
+                i++;
+                continue;
+            }
+            if (inBlockComment && char === '*' && nextChar === '/') {
+                inBlockComment = false;
+                i++;
+                continue;
+            }
+            if (inBlockComment || inLineComment) {
+                if (inLineComment && char === '\n') {
+                    inLineComment = false;
+                }
+                continue;
+            }
+            if (!inDollarQuote && char === '-' && nextChar === '-') {
+                inLineComment = true;
+                i++;
+                continue;
+            }
             if (!inDollarQuote && char === '$') {
-                const match = nextChars.match(/\$(\w*)\$/);
+                const remaining = script.substring(i);
+                const match = remaining.match(/^\$(\w*)\$/);
                 if (match) {
                     inDollarQuote = true;
                     dollarTag = match[1];
@@ -154,25 +212,29 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
             }
             if (inDollarQuote && char === '$') {
                 const endTag = `$${dollarTag}$`;
-                if (script.substring(i, i + endTag.length) === endTag) {
+                const remaining = script.substring(i);
+                if (remaining.startsWith(endTag)) {
                     inDollarQuote = false;
-                    dollarTag = '';
                     current += endTag;
                     i += endTag.length - 1;
                     continue;
                 }
             }
             if (!inDollarQuote && char === ';') {
-                statements.push(current);
+                const trimmed = current.trim();
+                if (trimmed) {
+                    statements.push(trimmed + ';');
+                }
                 current = '';
                 continue;
             }
             current += char;
         }
-        if (current.trim()) {
-            statements.push(current);
+        const trimmed = current.trim();
+        if (trimmed) {
+            statements.push(trimmed + (trimmed.endsWith(';') ? '' : ';'));
         }
-        return statements;
+        return statements.filter(s => s.length > 0 && !s.startsWith('--'));
     }
 };
 exports.TenantCreationService = TenantCreationService;

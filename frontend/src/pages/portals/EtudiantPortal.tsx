@@ -103,7 +103,7 @@ export const EtudiantPortal: React.FC = () => {
                   <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.reference} · {p.mode}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#148f77' }}>{Number(p.montant).toLocaleString('fr')} FCFA</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#148f77' }}>{Number(p.montant).toLocaleString('fr')} Ar</div>
                   <div style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(p.createdAt).toLocaleDateString('fr-FR')}</div>
                 </div>
               </div>

@@ -21,8 +21,8 @@ let UsersController = class UsersController {
         this.svc = svc;
     }
     create(dto) { return this.svc.create(dto); }
-    findAll(tid, role) {
-        return this.svc.findAll(tid, role);
+    findAll(tid, role, university) {
+        return this.svc.findAll(tid, role, university);
     }
     findOne(id) { return this.svc.findOne(id); }
     update(id, dto) { return this.svc.update(id, dto); }
@@ -42,10 +42,12 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Lister les utilisateurs' }),
     (0, swagger_1.ApiQuery)({ name: 'tenantId', required: false }),
     (0, swagger_1.ApiQuery)({ name: 'role', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'university', required: false }),
     __param(0, (0, common_1.Query)('tenantId')),
     __param(1, (0, common_1.Query)('role')),
+    __param(2, (0, common_1.Query)('university')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
 __decorate([

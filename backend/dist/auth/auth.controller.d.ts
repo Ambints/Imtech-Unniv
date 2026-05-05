@@ -9,12 +9,25 @@ export declare class AuthController {
         accessToken: string;
         refreshToken: string;
         user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+            photoUrl: any;
+            tenantId?: undefined;
+        };
+    } | {
+        accessToken: string;
+        refreshToken: string;
+        user: {
             id: any;
             email: any;
             firstName: any;
             lastName: any;
             role: any;
             photoUrl: any;
+            tenantId: any;
         };
     }>;
     refresh(body: {

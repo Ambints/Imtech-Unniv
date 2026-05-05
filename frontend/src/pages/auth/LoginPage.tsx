@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { authApi } from '../../api/client';
+import { authApi, tenantsApi } from '../../api/client';
 import toast from 'react-hot-toast';
 import { GraduationCap, Clock, Lock, Eye, EyeOff } from 'lucide-react';
 
@@ -31,16 +31,29 @@ export const LoginPage: React.FC = () => {
       const { data } = await authApi.login(email, password);
       console.log('Login réussi, données:', data);
       console.log('User role:', data.user?.role);
-      
+      console.log('TenantId:', data.user?.tenantId);
+
       // Stocker dans le store
       login(data.user, data.accessToken, data.refreshToken);
-      
+
+      // Charger les informations du tenant si on a un tenantId
+      if (data.user?.tenantId) {
+        try {
+          const tenantData = await tenantsApi.getOne(data.user.tenantId);
+          // Stocker le tenant dans le store
+          useAuthStore.getState().setTenant(tenantData);
+          console.log('Tenant chargé:', tenantData);
+        } catch (tenantErr) {
+          console.warn('Impossible de charger les infos du tenant:', tenantErr);
+        }
+      }
+
       // Vérifier que le token est bien stocké
       const stored = localStorage.getItem('imtech-auth-v1');
       console.log('Token stocké:', stored ? 'Oui' : 'Non');
-      
+
       toast.success('Connexion réussie !');
-      
+
       // Petite attente pour s'assurer que le store est mis à jour
       setTimeout(() => {
         const route = ROLE_ROUTES[data.user.role] || '/president';

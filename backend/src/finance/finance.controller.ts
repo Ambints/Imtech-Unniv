@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 
@@ -52,6 +52,30 @@ export class FinanceController {
     return this.svc.ajouterDepense(tid, dto, 'user');
   }
 
+  @Get(':tid/depenses')
+  @ApiOperation({ summary: 'Liste des depenses' })
+  getDepenses(@Param('tid') tid: string, @Query('annee') annee?: string) {
+    return this.svc.getDepenses(tid, annee);
+  }
+
+  @Patch(':tid/depenses/:id')
+  @ApiOperation({ summary: 'Modifier une depense' })
+  updateDepense(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateDepense(tid, id, dto);
+  }
+
+  @Delete(':tid/depenses/:id')
+  @ApiOperation({ summary: 'Supprimer une depense' })
+  deleteDepense(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteDepense(tid, id);
+  }
+
+  @Patch(':tid/budgets/:id')
+  @ApiOperation({ summary: 'Modifier un budget' })
+  updateBudget(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateBudget(tid, id, dto);
+  }
+
   @Get(':tid/rapport')
   @ApiOperation({ summary: 'Rapport financier annuel (President / Economat)' })
   rapport(@Param('tid') tid: string, @Query('annee') annee: string) {
@@ -66,6 +90,12 @@ export class FinanceController {
   @ApiOperation({ summary: 'Contrats RH' })
   getContrats(@Param('tid') tid: string, @Query('personnelId') pid?: string) {
     return this.svc.getContrats(tid, pid);
+  }
+
+  @Patch(':tid/contrats/:id')
+  @ApiOperation({ summary: 'Modifier un contrat' })
+  updateContrat(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateContrat(tid, id, dto);
   }
 
   @Post(':tid/echeanciers')

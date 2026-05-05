@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
-  Building2, Gem, Eye, LayoutDashboard, GraduationCap, Banknote, Users, PenLine, Scale, TrendingUp, Calendar,
+  Building2, Gem, GraduationCap, Banknote, Users, Scale, Calendar,
   BookOpen, BookText, UserCog, FileEdit, Trophy, BarChart3, ClipboardList, FolderOpen, Send, FileText,
   Clock, AlertTriangle, EyeIcon, CheckCircle, CalendarDays, Scroll, BanknoteIcon, Receipt, CircleDot,
   Briefcase, ArrowRightLeft, Landmark, CreditCard, Printer, Wallet, MapPin, Sparkles, Target,
   Wrench, School, Package, Brush, Zap, Map, Droplets, Home, MessageSquare, User, Pencil, CheckSquare,
-  GraduationCap as GradCap, Folder, FlaskConical, LogOut, X, Menu
+  GraduationCap as GradCap, Folder, FlaskConical, LogOut, X, Menu, Settings, Shield
 } from 'lucide-react';
 
 type MenuItem = { label: string; icon: React.ReactNode; path: string; badge?: number };
@@ -15,18 +15,31 @@ type MenuItem = { label: string; icon: React.ReactNode; path: string; badge?: nu
 const MENUS: Record<string, MenuItem[]> = {
   super_admin: [
     { label: 'Universités', icon: <Building2 size={18} />, path: '/super-admin' },
+    { label: 'Utilisateurs', icon: <Users size={18} />, path: '/super-admin/users' },
     { label: 'Abonnements', icon: <Gem size={18} />, path: '/super-admin/subscriptions' },
-    { label: 'Supervision', icon: <Eye size={18} />, path: '/super-admin/supervision' },
+  ],
+  admin: [
+    { label: 'Dashboard', icon: <Home size={18} />, path: '/admin' },
+    { label: 'Configuration', icon: <Settings size={18} />, path: '/admin/config' },
+    { label: 'Comptes Portails', icon: <Users size={18} />, path: '/admin/portals' },
+    { label: 'Gestion Utilisateurs', icon: <UserCog size={18} />, path: '/admin/users' },
+    { label: 'Académique', icon: <BookOpen size={18} />, path: '/admin/academic' },
+    { label: 'Finance', icon: <Banknote size={18} />, path: '/admin/finance' },
+    { label: 'RH', icon: <Briefcase size={18} />, path: '/admin/rh' },
+    { label: 'Communication', icon: <MessageSquare size={18} />, path: '/admin/communication' },
+    { label: 'Discipline', icon: <Scale size={18} />, path: '/admin/discipline' },
+    { label: 'Logistique', icon: <Package size={18} />, path: '/admin/logistics' },
   ],
   president: [
-    { label: 'Tableau de Bord', icon: <LayoutDashboard size={18} />, path: '/president' },
-    { label: 'Académique', icon: <GraduationCap size={18} />, path: '/president/academic' },
-    { label: 'Finance', icon: <Banknote size={18} />, path: '/president/finance' },
-    { label: 'Ressources Humaines', icon: <Users size={18} />, path: '/president/rh' },
-    { label: 'Signature Électronique', icon: <PenLine size={18} />, path: '/president/signatures' },
-    { label: 'Conseils de Discipline', icon: <Scale size={18} />, path: '/president/discipline' },
-    { label: 'Rapports & KPIs', icon: <TrendingUp size={18} />, path: '/president/rapports' },
-    { label: 'Calendrier Académique', icon: <Calendar size={18} />, path: '/president/calendrier' },
+    { label: 'Tableau de Bord', icon: <Home size={18} />, path: '/president' },
+    { label: 'Vue d\'Ensemble', icon: <BarChart3 size={18} />, path: '/president' },
+    { label: 'Supervision', icon: <EyeIcon size={18} />, path: '/president' },
+  ],
+  communication: [
+    { label: 'Actualités', icon: <MessageSquare size={18} />, path: '/communication' },
+    { label: 'Événements', icon: <Calendar size={18} />, path: '/communication' },
+    { label: 'Campagnes', icon: <Send size={18} />, path: '/communication' },
+    { label: 'Statistiques', icon: <BarChart3 size={18} />, path: '/communication' },
   ],
   responsable_pedagogique: [
     { label: 'Mes Parcours', icon: <BookOpen size={18} />, path: '/academic/parcours' },
@@ -121,7 +134,7 @@ const MENUS: Record<string, MenuItem[]> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Administrateur', president: 'Président', responsable_pedagogique: 'Resp. Pédagogique',
+  super_admin: 'Super Administrateur', responsable_pedagogique: 'Resp. Pédagogique',
   secretaire_parcours: 'Secrétaire Parcours', surveillant_general: 'Surveillant Général',
   scolarite: 'Service Scolarité', economat: 'Économat (CFO)', caissier: 'Caissier',
   rh: 'Ressources Humaines', responsable_logistique: 'Resp. Logistique',
@@ -276,10 +289,13 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Navigation */}
       <nav className="flex-grow-1 p-2 overflow-auto">
         {menu.map((item) => {
-          const isActive = active === item.path;
+          // Check if current path matches exactly or starts with item.path for nested routes
+          // Special handling for /admin to avoid matching /admin/xxx routes
+          const isActive = active === item.path ||
+            (item.path !== '/' && item.path !== '/admin' && active.startsWith(item.path + '/'));
           return (
             <a
-              key={item.path}
+              key={`${item.path}-${item.label}`}
               href={item.path}
               onClick={(e) => onNavigate(e, item.path)}
               className={`d-flex align-items-center gap-3 text-decoration-none mb-1 position-relative overflow-hidden ${

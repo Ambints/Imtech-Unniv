@@ -1,0 +1,44 @@
+import { CommunicationService } from './communication.service';
+export declare class CommunicationController {
+    private readonly svc;
+    constructor(svc: CommunicationService);
+    createAnnonce(dto: any, user: any): Promise<import("./communication.entities").Annonce>;
+    findAnnonces(cible?: string, type?: string): Promise<import("./communication.entities").Annonce[]>;
+    findAllAnnonces(filters: any): Promise<import("./communication.entities").Annonce[]>;
+    findAnnonceById(id: string): Promise<import("./communication.entities").Annonce>;
+    publierAnnonce(id: string): Promise<import("./communication.entities").Annonce>;
+    depublierAnnonce(id: string): Promise<import("./communication.entities").Annonce>;
+    deleteAnnonce(id: string): Promise<void>;
+    dupliquerAnnonce(id: string, user: any): Promise<import("./communication.entities").Annonce>;
+    createEvenement(dto: any, user: any): Promise<any>;
+    findEvenements(dateDebut?: string, dateFin?: string, type?: string): Promise<any[]>;
+    findEvenementsAvenir(limit?: number): Promise<any[]>;
+    updateEvenement(id: string, dto: any): Promise<any>;
+    createCampagne(dto: any, user: any): Promise<any>;
+    findCampagnes(statut?: string): Promise<any[]>;
+    activerCampagne(id: string): Promise<any>;
+    envoyerCampagne(id: string): Promise<any>;
+    envoyerNotificationCiblee(dto: any): Promise<any>;
+    getStatsNotifications(dateDebut?: string, dateFin?: string): Promise<any>;
+    createAlerte(dto: any, user: any): Promise<any>;
+    findAlertesActives(): Promise<any[]>;
+    desactiverAlerte(id: string): Promise<any>;
+    publierResultats(dto: any): Promise<any>;
+    verifierResultats(sessionId: string): Promise<any>;
+    publierSurReseaux(dto: any): Promise<any>;
+    getStatsReseaux(): Promise<any>;
+    envoyerMessage(dto: any, user: any): Promise<import("./communication.entities").Message>;
+    getMessagesRecus(user: any, nonLus?: boolean): Promise<import("./communication.entities").Message[]>;
+    getMessagesEnvoyes(user: any): Promise<import("./communication.entities").Message[]>;
+    marquerLu(id: string): Promise<import("./communication.entities").Message>;
+    createSujetForum(dto: any, user: any): Promise<any>;
+    findSujetsForum(categorie?: string): Promise<any[]>;
+    repondreForum(sujetId: string, dto: any, user: any): Promise<any>;
+    modererSujet(id: string, dto: {
+        action: 'masquer' | 'supprimer';
+        motif: string;
+    }): Promise<any>;
+    genererDossierPresse(dto: any): Promise<any>;
+    getStatsPromotion(): Promise<any>;
+    getDashboard(): Promise<any>;
+}

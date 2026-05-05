@@ -20,10 +20,51 @@ let AcademicController = class AcademicController {
     constructor(svc) {
         this.svc = svc;
     }
+    getDepartements(tid) { return this.svc.getDepartements(tid); }
+    createDepartement(tid, dto) { return this.svc.createDepartement(tid, dto); }
+    updateDepartement(tid, id, dto) {
+        return this.svc.updateDepartement(tid, id, dto);
+    }
+    deleteDepartement(tid, id) {
+        return this.svc.deleteDepartement(tid, id);
+    }
     createParcours(tid, dto) { return this.svc.createParcours(tid, dto); }
     getParcours(tid) { return this.svc.getParcours(tid); }
+    updateParcours(tid, id, dto) {
+        return this.svc.updateParcours(tid, id, dto);
+    }
+    deleteParcours(tid, id) {
+        return this.svc.deleteParcours(tid, id);
+    }
     createUE(tid, dto) { return this.svc.createUE(tid, dto); }
     getUE(tid, pid) { return this.svc.getUEByParcours(tid, pid); }
+    updateUE(tid, id, dto) {
+        return this.svc.updateUE(tid, id, dto);
+    }
+    deleteUE(tid, id) {
+        return this.svc.deleteUE(tid, id);
+    }
+    getEtudiants(tid, pid) {
+        return this.svc.getEtudiants(tid, pid);
+    }
+    async createEtudiant(tid, dto) {
+        console.log('[DEBUG] createEtudiant called with tid:', tid, 'dto:', dto);
+        try {
+            const result = await this.svc.createEtudiant(tid, dto);
+            console.log('[DEBUG] createEtudiant success:', result);
+            return result;
+        }
+        catch (error) {
+            console.error('[DEBUG] createEtudiant error:', error);
+            throw error;
+        }
+    }
+    updateEtudiant(tid, id, dto) {
+        return this.svc.updateEtudiant(tid, id, dto);
+    }
+    deleteEtudiant(tid, id) {
+        return this.svc.deleteEtudiant(tid, id);
+    }
     saisirNote(tid, dto) { return this.svc.saisirNote(tid, dto, 'system'); }
     getNotes(tid, eid, annee) {
         return this.svc.getReleverNotes(tid, eid, annee);
@@ -46,6 +87,42 @@ let AcademicController = class AcademicController {
 };
 exports.AcademicController = AcademicController;
 __decorate([
+    (0, common_1.Get)(':tid/departements'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des departements' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "getDepartements", null);
+__decorate([
+    (0, common_1.Post)(':tid/departements'),
+    (0, swagger_1.ApiOperation)({ summary: 'Creer un departement' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "createDepartement", null);
+__decorate([
+    (0, common_1.Patch)(':tid/departements/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un departement' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "updateDepartement", null);
+__decorate([
+    (0, common_1.Delete)(':tid/departements/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un departement' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "deleteDepartement", null);
+__decorate([
     (0, common_1.Post)(':tid/parcours'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer un parcours (Responsable Pedagogique)' }),
     __param(0, (0, common_1.Param)('tid')),
@@ -62,6 +139,25 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AcademicController.prototype, "getParcours", null);
+__decorate([
+    (0, common_1.Patch)(':tid/parcours/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un parcours' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "updateParcours", null);
+__decorate([
+    (0, common_1.Delete)(':tid/parcours/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un parcours' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "deleteParcours", null);
 __decorate([
     (0, common_1.Post)(':tid/ue'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer une UE (maquette LMD, credits ECTS)' }),
@@ -80,6 +176,62 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AcademicController.prototype, "getUE", null);
+__decorate([
+    (0, common_1.Patch)(':tid/ue/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier une UE' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "updateUE", null);
+__decorate([
+    (0, common_1.Delete)(':tid/ue/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer une UE' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "deleteUE", null);
+__decorate([
+    (0, common_1.Get)(':tid/etudiants'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des etudiants' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Query)('parcoursId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "getEtudiants", null);
+__decorate([
+    (0, common_1.Post)(':tid/etudiants'),
+    (0, swagger_1.ApiOperation)({ summary: 'Creer un etudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AcademicController.prototype, "createEtudiant", null);
+__decorate([
+    (0, common_1.Patch)(':tid/etudiants/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un etudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "updateEtudiant", null);
+__decorate([
+    (0, common_1.Delete)(':tid/etudiants/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un etudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "deleteEtudiant", null);
 __decorate([
     (0, common_1.Post)(':tid/notes'),
     (0, swagger_1.ApiOperation)({ summary: 'Saisir une note - calcul automatique moyenne' }),

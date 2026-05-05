@@ -31,6 +31,12 @@ export declare class FinanceController {
     creerBudget(tid: string, dto: any): Promise<import("./finance.entities").Budget[]>;
     getBudgets(tid: string, annee?: string): Promise<import("./finance.entities").Budget[]>;
     ajouterDepense(tid: string, dto: any): Promise<import("./finance.entities").Depense[]>;
+    getDepenses(tid: string, annee?: string): Promise<import("./finance.entities").Depense[]>;
+    updateDepense(tid: string, id: string, dto: any): Promise<any>;
+    deleteDepense(tid: string, id: string): Promise<{
+        message: string;
+    }>;
+    updateBudget(tid: string, id: string, dto: any): Promise<any>;
     rapport(tid: string, annee: string): Promise<{
         anneeAcademiqueId: string;
         totalRecettes: number;
@@ -41,6 +47,7 @@ export declare class FinanceController {
     }>;
     creerContrat(tid: string, dto: any): Promise<import("./finance.entities").ContratPersonnel[]>;
     getContrats(tid: string, pid?: string): Promise<import("./finance.entities").ContratPersonnel[]>;
+    updateContrat(tid: string, id: string, dto: any): Promise<any>;
     creerEcheancier(tid: string, dto: any): Promise<import("./finance.entities").Echeancier[]>;
     getEcheanciers(tid: string, eid?: string): Promise<import("./finance.entities").Echeancier[]>;
 }

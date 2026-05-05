@@ -5,10 +5,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TenantsModule } from './tenants/tenants.module';
+import { AdminModule } from './admin/admin.module';
 import { AcademicModule } from './academic/academic.module';
 import { FinanceModule } from './finance/finance.module';
 import { LogisticsModule } from './logistics/logistics.module';
 import { CommunicationModule } from './communication/communication.module';
+import { DisciplineModule } from './discipline/discipline.module';
+import { ExamensModule } from './examens/examens.module';
+import { DocumentsModule } from './documents/documents.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { PortailModule } from './portail/portail.module';
+import { RHModule } from './rh/rh.module';
+import { EconomatModule } from './economat/economat.module';
+import { CaissierModule } from './caissier/caissier.module';
 import { Tenant } from './tenants/tenant.entity';
 import { User } from './users/user.entity';
 import { SuperAdmin } from './users/super-admin.entity';
@@ -27,6 +36,9 @@ import {
   PlanningEntretien, RapportEntretien
 } from './logistics/logistics.entities';
 import { Annonce, Notification, Message } from './communication/communication.entities';
+import { Incident, Sanction, Avertissement } from './discipline/discipline.entities';
+import { SujetExamen, Deliberation, Jury, PVNote } from './examens/examens.entities';
+import { ReleveNote, Attestation, Diplome } from './documents/documents.entities';
 import { Plan } from './tenants/plan.entity';
 import { PlansModule } from './plans/plans.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -69,6 +81,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
         TicketMaintenance, ReservationSalle, Stock, MouvementStock,
         PlanningEntretien, RapportEntretien,
         Annonce, Notification, Message,
+        Incident, Sanction, Avertissement,
+        SujetExamen, Deliberation, Jury, PVNote,
+        ReleveNote, Attestation, Diplome,
       ],
       synchronize: false,
       logging: false,
@@ -76,12 +91,21 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     AuthModule,
     UsersModule,
     TenantsModule,
+    AdminModule,
     AcademicModule,
     FinanceModule,
     LogisticsModule,
     CommunicationModule,
     PlansModule,
     SubscriptionsModule,
+    DisciplineModule,
+    ExamensModule,
+    DocumentsModule,
+    DashboardModule,
+    PortailModule,
+    RHModule,
+    CaissierModule,
+    EconomatModule,
   ],
 })
 export class AppModule {}

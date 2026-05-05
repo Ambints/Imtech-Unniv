@@ -16,8 +16,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Lister les utilisateurs' })
   @ApiQuery({ name: 'tenantId', required: false })
   @ApiQuery({ name: 'role', required: false })
-  findAll(@Query('tenantId') tid?: string, @Query('role') role?: string) {
-    return this.svc.findAll(tid, role);
+  @ApiQuery({ name: 'university', required: false })
+  findAll(@Query('tenantId') tid?: string, @Query('role') role?: string, @Query('university') university?: string) {
+    return this.svc.findAll(tid, role, university);
   }
 
   @Get(':id')

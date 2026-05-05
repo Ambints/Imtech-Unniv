@@ -59,7 +59,7 @@ __decorate([
     __metadata("design:type", Date)
 ], User.prototype, "derniereConnexion", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'token_reset', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'token_reset', type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], User.prototype, "tokenReset", void 0);
 __decorate([

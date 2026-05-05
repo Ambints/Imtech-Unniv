@@ -53,55 +53,62 @@ let AuthService = class AuthService {
         this.jwt = jwt;
     }
     async login(email, password) {
-        const superAdmin = await this.users.findSuperAdminByEmail(email);
-        if (superAdmin) {
-            const valid = await bcrypt.compare(password, superAdmin.password);
+        try {
+            const superAdmin = await this.users.findSuperAdminByEmail(email);
+            if (superAdmin) {
+                const valid = await bcrypt.compare(password, superAdmin.password);
+                if (!valid)
+                    throw new common_1.UnauthorizedException('Identifiants invalides');
+                if (!superAdmin.actif)
+                    throw new common_1.UnauthorizedException('Compte desactive');
+                const payload = { sub: superAdmin.id, email: superAdmin.email, role: 'super_admin' };
+                const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
+                const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
+                await this.users.updateSuperAdminLastLogin(superAdmin.id);
+                return {
+                    accessToken,
+                    refreshToken,
+                    user: {
+                        id: superAdmin.id,
+                        email: superAdmin.email,
+                        firstName: superAdmin.prenom,
+                        lastName: superAdmin.nom,
+                        role: 'super_admin',
+                        photoUrl: null,
+                    },
+                };
+            }
+            const user = await this.users.findByEmail(email);
+            if (!user)
+                throw new common_1.UnauthorizedException('Identifiants invalides');
+            const valid = await bcrypt.compare(password, user.password);
             if (!valid)
                 throw new common_1.UnauthorizedException('Identifiants invalides');
-            if (!superAdmin.actif)
+            if (!user.actif)
                 throw new common_1.UnauthorizedException('Compte desactive');
-            const payload = { sub: superAdmin.id, email: superAdmin.email, role: 'super_admin' };
+            const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
             const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
             const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
-            await this.users.updateSuperAdminLastLogin(superAdmin.id);
+            await this.users.updateRefreshToken(user.id, refreshToken);
+            await this.users.update(user.id, { derniereConnexion: new Date() });
             return {
                 accessToken,
                 refreshToken,
                 user: {
-                    id: superAdmin.id,
-                    email: superAdmin.email,
-                    firstName: superAdmin.prenom,
-                    lastName: superAdmin.nom,
-                    role: 'super_admin',
-                    photoUrl: null,
+                    id: user.id,
+                    email: user.email,
+                    firstName: user.prenom,
+                    lastName: user.nom,
+                    role: user.role,
+                    photoUrl: user.photoUrl,
+                    tenantId: user.tenantId,
                 },
             };
         }
-        const user = await this.users.findByEmail(email);
-        if (!user)
-            throw new common_1.UnauthorizedException('Identifiants invalides');
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid)
-            throw new common_1.UnauthorizedException('Identifiants invalides');
-        if (!user.actif)
-            throw new common_1.UnauthorizedException('Compte desactive');
-        const payload = { sub: user.id, email: user.email, role: user.role };
-        const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
-        const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
-        await this.users.updateRefreshToken(user.id, refreshToken);
-        await this.users.update(user.id, { derniereConnexion: new Date() });
-        return {
-            accessToken,
-            refreshToken,
-            user: {
-                id: user.id,
-                email: user.email,
-                firstName: user.prenom,
-                lastName: user.nom,
-                role: user.role,
-                photoUrl: user.photoUrl,
-            },
-        };
+        catch (error) {
+            console.error('[AuthService.login] Error:', error);
+            throw error;
+        }
     }
     async refresh(userId, token) {
         const user = await this.users.findOne(userId);
@@ -109,7 +116,7 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Token invalide');
         if (user.tokenResetExpiry && user.tokenResetExpiry < new Date())
             throw new common_1.UnauthorizedException('Token expire');
-        const payload = { sub: user.id, email: user.email, role: user.role };
+        const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
         return { accessToken: this.jwt.sign(payload, { expiresIn: '8h' }) };
     }
     async logout(userId) {

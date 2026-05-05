@@ -37,7 +37,7 @@ export const CaissePage: React.FC = () => {
     }
   };
 
-  const fmt = (n: number) => Number(n || 0).toLocaleString('fr') + ' FCFA';
+  const fmt = (n: number) => Number(n || 0).toLocaleString('fr') + ' Ar';
 
   return (
     <div style={{ padding: 32, background: '#F5F5F0', minHeight: '100vh' }}>
@@ -74,7 +74,7 @@ export const CaissePage: React.FC = () => {
           <form onSubmit={handlePaiement}>
             {[
               { label: 'Matricule / ID Étudiant', key: 'etudiantId', type: 'text', placeholder: 'ETU-2024-001' },
-              { label: 'Montant (FCFA)', key: 'montant', type: 'number', placeholder: '150000' },
+              { label: 'Montant (Ar)', key: 'montant', type: 'number', placeholder: '150000' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{f.label}</label>
@@ -132,7 +132,7 @@ export const CaissePage: React.FC = () => {
                   ['N° Reçu', recu.numeroRecu],
                   ['Date', new Date(recu.date).toLocaleDateString('fr-FR')],
                   ['Étudiant', recu.etudiantId],
-                  ['Montant', Number(recu.montant).toLocaleString('fr') + ' FCFA'],
+                  ['Montant', Number(recu.montant).toLocaleString('fr') + ' Ar'],
                   ['Mode', recu.mode.toUpperCase()],
                   ['Motif', recu.motif],
                   ['Statut', 'PAYÉ'],
@@ -161,7 +161,7 @@ export const CaissePage: React.FC = () => {
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.motif} · {p.mode}</div>
                   </div>
                   <span style={{ fontSize: 14, fontWeight: 700, color: '#148f77' }}>
-                    {Number(p.montant).toLocaleString('fr')} FCFA
+                    {Number(p.montant).toLocaleString('fr')} Ar
                   </span>
                 </div>
               ))

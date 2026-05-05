@@ -3,6 +3,9 @@ import { CreateTenantDto, UpdateTenantDto } from './dto';
 export declare class TenantsController {
     private readonly svc;
     constructor(svc: TenantsService);
+    getMyTenantConfig(req: any): Promise<import("./tenant.entity").Tenant>;
+    updateMyTenantConfig(req: any, dto: UpdateTenantDto): Promise<import("./tenant.entity").Tenant>;
+    getMyTenantStats(req: any): Promise<any>;
     create(dto: CreateTenantDto): Promise<import("./tenant.entity").Tenant>;
     findAll(): Promise<import("./tenant.entity").Tenant[]>;
     findOne(id: string): Promise<import("./tenant.entity").Tenant>;

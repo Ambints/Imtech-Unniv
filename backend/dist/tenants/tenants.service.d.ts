@@ -30,4 +30,7 @@ export declare class TenantsService {
     removeSubscription(id: string): Promise<{
         message: string;
     }>;
+    getMyTenantConfig(tenantId: string): Promise<Tenant>;
+    updateMyTenantConfig(tenantId: string, dto: UpdateTenantDto): Promise<Tenant>;
+    getMyTenantStats(tenantId: string): Promise<any>;
 }

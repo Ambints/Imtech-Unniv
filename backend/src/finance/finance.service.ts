@@ -6,13 +6,13 @@ import { GrilleTarifaire, Echeancier, Paiement, Budget, Depense, ContratPersonne
 @Injectable()
 export class FinanceService {
   constructor(
-    @InjectRepository(GrilleTarifaire) private grilleRepo: Repository<GrilleTarifaire>,
-    @InjectRepository(Echeancier) private echeancierRepo: Repository<Echeancier>,
-    @InjectRepository(Paiement) private paiementRepo: Repository<Paiement>,
-    @InjectRepository(Budget) private budgetRepo: Repository<Budget>,
-    @InjectRepository(Depense) private depenseRepo: Repository<Depense>,
-    @InjectRepository(ContratPersonnel) private contratRepo: Repository<ContratPersonnel>,
-    @InjectRepository(FichePaie) private fichePaieRepo: Repository<FichePaie>,
+    @InjectRepository(GrilleTarifaire, 'tenant') private grilleRepo: Repository<GrilleTarifaire>,
+    @InjectRepository(Echeancier, 'tenant') private echeancierRepo: Repository<Echeancier>,
+    @InjectRepository(Paiement, 'tenant') private paiementRepo: Repository<Paiement>,
+    @InjectRepository(Budget, 'tenant') private budgetRepo: Repository<Budget>,
+    @InjectRepository(Depense, 'tenant') private depenseRepo: Repository<Depense>,
+    @InjectRepository(ContratPersonnel, 'tenant') private contratRepo: Repository<ContratPersonnel>,
+    @InjectRepository(FichePaie, 'tenant') private fichePaieRepo: Repository<FichePaie>,
   ) {}
 
   async enregistrerPaiement(tid: string, dto: any, caissierId: string) {
@@ -103,6 +103,37 @@ export class FinanceService {
       }
     }
     return depense;
+  }
+
+  getDepenses(tid: string, anneeAcademiqueId?: string) {
+    const where: any = {};
+    if (anneeAcademiqueId) where.anneeAcademiqueId = anneeAcademiqueId;
+    return this.depenseRepo.find({ where, order: { dateDepense: 'DESC' } });
+  }
+
+  async updateBudget(tid: string, id: string, dto: any) {
+    const budget = await this.budgetRepo.findOne({ where: { id } });
+    if (!budget) throw new NotFoundException('Budget non trouvé');
+    return this.budgetRepo.save({ ...budget, ...dto });
+  }
+
+  async updateDepense(tid: string, id: string, dto: any) {
+    const depense = await this.depenseRepo.findOne({ where: { id } });
+    if (!depense) throw new NotFoundException('Dépense non trouvée');
+    return this.depenseRepo.save({ ...depense, ...dto });
+  }
+
+  async deleteDepense(tid: string, id: string) {
+    const depense = await this.depenseRepo.findOne({ where: { id } });
+    if (!depense) throw new NotFoundException('Dépense non trouvée');
+    await this.depenseRepo.delete(id);
+    return { message: 'Dépense supprimée avec succès' };
+  }
+
+  async updateContrat(tid: string, id: string, dto: any) {
+    const contrat = await this.contratRepo.findOne({ where: { id } });
+    if (!contrat) throw new NotFoundException('Contrat non trouvé');
+    return this.contratRepo.save({ ...contrat, ...dto });
   }
 
   async getRapportFinancier(tid: string, anneeAcademiqueId: string) {

@@ -13,7 +13,7 @@ export class User {
   @Column({ default: true, name: 'actif' }) actif: boolean;
   @Column({ name: 'email_verifie', default: false }) emailVerifie: boolean;
   @Column({ name: 'derniere_connexion', nullable: true }) derniereConnexion: Date;
-  @Column({ name: 'token_reset', nullable: true }) tokenReset: string;
+  @Column({ name: 'token_reset', type: 'text', nullable: true }) tokenReset: string;
   @Column({ name: 'token_reset_expiry', nullable: true }) tokenResetExpiry: Date;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;

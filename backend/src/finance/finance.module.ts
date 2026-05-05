@@ -11,7 +11,7 @@ import {
   imports: [TypeOrmModule.forFeature([
     GrilleTarifaire, Echeancier, Paiement, Budget, Depense,
     ContratPersonnel, CongePersonnel, FichePaie
-  ])],
+  ], 'tenant')],
   controllers: [FinanceController],
   providers: [FinanceService],
   exports: [FinanceService],

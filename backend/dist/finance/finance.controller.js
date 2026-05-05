@@ -40,12 +40,27 @@ let FinanceController = class FinanceController {
     ajouterDepense(tid, dto) {
         return this.svc.ajouterDepense(tid, dto, 'user');
     }
+    getDepenses(tid, annee) {
+        return this.svc.getDepenses(tid, annee);
+    }
+    updateDepense(tid, id, dto) {
+        return this.svc.updateDepense(tid, id, dto);
+    }
+    deleteDepense(tid, id) {
+        return this.svc.deleteDepense(tid, id);
+    }
+    updateBudget(tid, id, dto) {
+        return this.svc.updateBudget(tid, id, dto);
+    }
     rapport(tid, annee) {
         return this.svc.getRapportFinancier(tid, annee);
     }
     creerContrat(tid, dto) { return this.svc.creerContrat(tid, dto); }
     getContrats(tid, pid) {
         return this.svc.getContrats(tid, pid);
+    }
+    updateContrat(tid, id, dto) {
+        return this.svc.updateContrat(tid, id, dto);
     }
     creerEcheancier(tid, dto) { return this.svc.creerEcheancier(tid, dto); }
     getEcheanciers(tid, eid) {
@@ -125,6 +140,44 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "ajouterDepense", null);
 __decorate([
+    (0, common_1.Get)(':tid/depenses'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des depenses' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Query)('annee')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getDepenses", null);
+__decorate([
+    (0, common_1.Patch)(':tid/depenses/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier une depense' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "updateDepense", null);
+__decorate([
+    (0, common_1.Delete)(':tid/depenses/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer une depense' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "deleteDepense", null);
+__decorate([
+    (0, common_1.Patch)(':tid/budgets/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un budget' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "updateBudget", null);
+__decorate([
     (0, common_1.Get)(':tid/rapport'),
     (0, swagger_1.ApiOperation)({ summary: 'Rapport financier annuel (President / Economat)' }),
     __param(0, (0, common_1.Param)('tid')),
@@ -151,6 +204,16 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getContrats", null);
+__decorate([
+    (0, common_1.Patch)(':tid/contrats/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un contrat' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "updateContrat", null);
 __decorate([
     (0, common_1.Post)(':tid/echeanciers'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer un echeancier de paiement' }),

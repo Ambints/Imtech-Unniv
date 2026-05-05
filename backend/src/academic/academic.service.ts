@@ -1,34 +1,156 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps } from './academic.entities';
+import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps, Departement, Etudiant } from './academic.entities';
+import { TenantConnectionService } from '../tenants/tenant-connection.service';
 
 @Injectable()
 export class AcademicService {
   constructor(
-    @InjectRepository(Parcours) private parcoursRepo: Repository<Parcours>,
-    @InjectRepository(UniteEnseignement) private ueRepo: Repository<UniteEnseignement>,
-    @InjectRepository(Note) private noteRepo: Repository<Note>,
-    @InjectRepository(Inscription) private inscriptionRepo: Repository<Inscription>,
-    @InjectRepository(Presence) private presenceRepo: Repository<Presence>,
-    @InjectRepository(Salle) private salleRepo: Repository<Salle>,
-    @InjectRepository(EmploiDuTemps) private edtRepo: Repository<EmploiDuTemps>,
+    @InjectRepository(Parcours, 'tenant') private parcoursRepo: Repository<Parcours>,
+    @InjectRepository(UniteEnseignement, 'tenant') private ueRepo: Repository<UniteEnseignement>,
+    @InjectRepository(Note, 'tenant') private noteRepo: Repository<Note>,
+    @InjectRepository(Inscription, 'tenant') private inscriptionRepo: Repository<Inscription>,
+    @InjectRepository(Presence, 'tenant') private presenceRepo: Repository<Presence>,
+    @InjectRepository(Salle, 'tenant') private salleRepo: Repository<Salle>,
+    @InjectRepository(EmploiDuTemps, 'tenant') private edtRepo: Repository<EmploiDuTemps>,
+    @InjectRepository(Departement, 'tenant') private departementRepo: Repository<Departement>,
+    @InjectRepository(Etudiant, 'tenant') private etudiantRepo: Repository<Etudiant>,
+    private readonly tenantConnection: TenantConnectionService,
   ) {}
 
+  // Departements
+  async getDepartements(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.departementRepo.find({ where: { actif: true }, order: { nom: 'ASC' } });
+  }
+
+  async createDepartement(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.departementRepo.save(this.departementRepo.create(dto));
+  }
+
+  async updateDepartement(tid: string, id: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const dept = await this.departementRepo.findOne({ where: { id } });
+    if (!dept) throw new NotFoundException('Département non trouvé');
+    return this.departementRepo.save({ ...dept, ...dto });
+  }
+
+  async deleteDepartement(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const dept = await this.departementRepo.findOne({ where: { id } });
+    if (!dept) throw new NotFoundException('Département non trouvé');
+    await this.departementRepo.update(id, { actif: false });
+    return { message: 'Département supprimé avec succès' };
+  }
+
   // Parcours
-  createParcours(tid: string, dto: any) {
+  async createParcours(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
     return this.parcoursRepo.save(this.parcoursRepo.create(dto));
   }
-  getParcours(tid?: string) {
-    return this.parcoursRepo.find({ where: { actif: true } });
+
+  async getParcours(tid?: string) {
+    if (tid) await this.tenantConnection.setTenantSchema(tid);
+    return this.parcoursRepo.find({ where: { actif: true }, order: { nom: 'ASC' } });
+  }
+
+  async updateParcours(tid: string, id: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const parcours = await this.parcoursRepo.findOne({ where: { id } });
+    if (!parcours) throw new NotFoundException('Parcours non trouvé');
+    return this.parcoursRepo.save({ ...parcours, ...dto });
+  }
+
+  async deleteParcours(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const parcours = await this.parcoursRepo.findOne({ where: { id } });
+    if (!parcours) throw new NotFoundException('Parcours non trouvé');
+    await this.parcoursRepo.update(id, { actif: false });
+    return { message: 'Parcours supprimé avec succès' };
   }
 
   // UE
-  createUE(tid: string, dto: any) {
+  async createUE(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
     return this.ueRepo.save(this.ueRepo.create(dto));
   }
-  getUEByParcours(tid: string, parcoursId: string) {
-    return this.ueRepo.find({ where: { parcoursId } });
+
+  async getUEByParcours(tid: string, parcoursId: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.ueRepo.find({ where: { parcoursId, actif: true }, order: { semestre: 'ASC', code: 'ASC' } });
+  }
+
+  async updateUE(tid: string, id: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const ue = await this.ueRepo.findOne({ where: { id } });
+    if (!ue) throw new NotFoundException('UE non trouvée');
+    return this.ueRepo.save({ ...ue, ...dto });
+  }
+
+  async deleteUE(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const ue = await this.ueRepo.findOne({ where: { id } });
+    if (!ue) throw new NotFoundException('UE non trouvée');
+    await this.ueRepo.update(id, { actif: false });
+    return { message: 'UE supprimée avec succès' };
+  }
+
+  // Etudiants
+  async getEtudiants(tid: string, parcoursId?: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    console.log('[DEBUG Backend] getEtudiants called, fetching from schema...');
+    if (parcoursId) {
+      // Get students enrolled in a specific parcours
+      const inscriptions = await this.inscriptionRepo.find({
+        where: { parcoursId },
+        order: { createdAt: 'DESC' }
+      });
+      const etudiantIds = inscriptions.map(i => i.etudiantId);
+      if (etudiantIds.length === 0) return [];
+      return this.etudiantRepo.findByIds(etudiantIds);
+    }
+    return this.etudiantRepo.find({ where: { actif: true }, order: { nom: 'ASC', prenom: 'ASC' } });
+  }
+
+  async createEtudiant(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    console.log('[DEBUG] Service createEtudiant called with dto:', dto);
+    const data = { ...dto };
+    if (data.dateNaissance) {
+      data.dateNaissance = new Date(data.dateNaissance);
+    }
+    console.log('[DEBUG] Prepared data:', data);
+    try {
+      const entity = this.etudiantRepo.create(data);
+      console.log('[DEBUG] Entity created:', entity);
+      const result = await this.etudiantRepo.save(entity);
+      console.log('[DEBUG] Entity saved:', result);
+      return result;
+    } catch (error) {
+      console.error('[DEBUG] Error saving etudiant:', error);
+      throw error;
+    }
+  }
+
+  async updateEtudiant(tid: string, id: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const etudiant = await this.etudiantRepo.findOne({ where: { id } });
+    if (!etudiant) throw new NotFoundException('Etudiant non trouvé');
+    const data = { ...dto };
+    if (data.dateNaissance) {
+      data.dateNaissance = new Date(data.dateNaissance);
+    }
+    return this.etudiantRepo.save({ ...etudiant, ...data });
+  }
+
+  async deleteEtudiant(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const etudiant = await this.etudiantRepo.findOne({ where: { id } });
+    if (!etudiant) throw new NotFoundException('Etudiant non trouvé');
+    await this.etudiantRepo.update(id, { actif: false });
+    return { message: 'Etudiant supprimé avec succès' };
   }
 
   // Notes

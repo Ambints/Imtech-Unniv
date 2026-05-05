@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AcademicService } from './academic.service';
 
@@ -8,6 +8,28 @@ import { AcademicService } from './academic.service';
 export class AcademicController {
   constructor(private readonly svc: AcademicService) {}
 
+  // Departements
+  @Get(':tid/departements')
+  @ApiOperation({ summary: 'Liste des departements' })
+  getDepartements(@Param('tid') tid: string) { return this.svc.getDepartements(tid); }
+
+  @Post(':tid/departements')
+  @ApiOperation({ summary: 'Creer un departement' })
+  createDepartement(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createDepartement(tid, dto); }
+
+  @Patch(':tid/departements/:id')
+  @ApiOperation({ summary: 'Modifier un departement' })
+  updateDepartement(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateDepartement(tid, id, dto);
+  }
+
+  @Delete(':tid/departements/:id')
+  @ApiOperation({ summary: 'Supprimer un departement' })
+  deleteDepartement(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteDepartement(tid, id);
+  }
+
+  // Parcours
   @Post(':tid/parcours')
   @ApiOperation({ summary: 'Creer un parcours (Responsable Pedagogique)' })
   createParcours(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createParcours(tid, dto); }
@@ -16,6 +38,19 @@ export class AcademicController {
   @ApiOperation({ summary: 'Lister les parcours' })
   getParcours(@Param('tid') tid: string) { return this.svc.getParcours(tid); }
 
+  @Patch(':tid/parcours/:id')
+  @ApiOperation({ summary: 'Modifier un parcours' })
+  updateParcours(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateParcours(tid, id, dto);
+  }
+
+  @Delete(':tid/parcours/:id')
+  @ApiOperation({ summary: 'Supprimer un parcours' })
+  deleteParcours(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteParcours(tid, id);
+  }
+
+  // UE
   @Post(':tid/ue')
   @ApiOperation({ summary: 'Creer une UE (maquette LMD, credits ECTS)' })
   createUE(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createUE(tid, dto); }
@@ -23,6 +58,51 @@ export class AcademicController {
   @Get(':tid/ue')
   @ApiOperation({ summary: 'UE par parcours' })
   getUE(@Param('tid') tid: string, @Query('parcoursId') pid: string) { return this.svc.getUEByParcours(tid, pid); }
+
+  @Patch(':tid/ue/:id')
+  @ApiOperation({ summary: 'Modifier une UE' })
+  updateUE(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateUE(tid, id, dto);
+  }
+
+  @Delete(':tid/ue/:id')
+  @ApiOperation({ summary: 'Supprimer une UE' })
+  deleteUE(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteUE(tid, id);
+  }
+
+  // Etudiants
+  @Get(':tid/etudiants')
+  @ApiOperation({ summary: 'Liste des etudiants' })
+  getEtudiants(@Param('tid') tid: string, @Query('parcoursId') pid?: string) {
+    return this.svc.getEtudiants(tid, pid);
+  }
+
+  @Post(':tid/etudiants')
+  @ApiOperation({ summary: 'Creer un etudiant' })
+  async createEtudiant(@Param('tid') tid: string, @Body() dto: any) {
+    console.log('[DEBUG] createEtudiant called with tid:', tid, 'dto:', dto);
+    try {
+      const result = await this.svc.createEtudiant(tid, dto);
+      console.log('[DEBUG] createEtudiant success:', result);
+      return result;
+    } catch (error) {
+      console.error('[DEBUG] createEtudiant error:', error);
+      throw error;
+    }
+  }
+
+  @Patch(':tid/etudiants/:id')
+  @ApiOperation({ summary: 'Modifier un etudiant' })
+  updateEtudiant(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateEtudiant(tid, id, dto);
+  }
+
+  @Delete(':tid/etudiants/:id')
+  @ApiOperation({ summary: 'Supprimer un etudiant' })
+  deleteEtudiant(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteEtudiant(tid, id);
+  }
 
   @Post(':tid/notes')
   @ApiOperation({ summary: 'Saisir une note - calcul automatique moyenne' })

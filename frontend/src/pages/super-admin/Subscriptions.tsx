@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { tenantsApi, plansApi } from '../../api/client';
-import { Gem, Calendar, CheckCircle, XCircle, DollarSign, MoreHorizontal, Filter, Download, Loader2, Plus, Pencil, Trash2, X, Building2, Settings } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Gem, Calendar, CheckCircle, XCircle, DollarSign, MoreHorizontal, Filter, Download, Loader2, Plus, Pencil, Trash2, X, Building2, Settings, Play, Pause } from 'lucide-react';
 
 interface KpiCardProps {
   icon: React.ReactNode;
@@ -34,10 +36,13 @@ interface Subscription {
   monthlyPrice: number;
   maxUsers: number;
   currentUsers: number;
+  maxStudents?: number;
+  currentStudents?: number;
   features: string[];
 }
 
 export const Subscriptions: React.FC = () => {
+  const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -88,8 +93,8 @@ export const Subscriptions: React.FC = () => {
     tenantId: '',
     plan: 'basic',
     status: 'active',
-    monthlyPrice: 50000,
-    maxUsers: 100,
+    monthlyPrice: 0,
+    maxUsers: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   });
@@ -202,8 +207,41 @@ export const Subscriptions: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await tenantsApi.getSubscriptions();
-      setSubscriptions(response.subscriptions || []);
-      setStats(response.stats || { totalRevenue: 0, activeSubscriptions: 0, expiringSoon: 0, suspended: 0 });
+      
+      // Appliquer la logique d'expiration automatique
+      const now = new Date();
+      const updatedSubscriptions = (response.subscriptions || []).map((sub: Subscription) => {
+        const endDate = new Date(sub.endDate);
+        // Si la date de fin est dépassée et le statut est encore actif, marquer comme expiré
+        if (endDate < now && sub.status === 'active') {
+          return { ...sub, status: 'expired' as const };
+        }
+        return sub;
+      });
+      
+      setSubscriptions(updatedSubscriptions);
+      
+      // Recalculer les statistiques
+      const activeCount = updatedSubscriptions.filter((s: Subscription) => s.status === 'active').length;
+      const suspendedCount = updatedSubscriptions.filter((s: Subscription) => s.status === 'suspended').length;
+      
+      // Expirent bientôt : dans les 7 jours et statut actif
+      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const expiringSoonCount = updatedSubscriptions.filter((s: Subscription) => {
+        const endDate = new Date(s.endDate);
+        return s.status === 'active' && endDate > now && endDate <= sevenDaysFromNow;
+      }).length;
+      
+      const totalRevenue = updatedSubscriptions
+        .filter((s: Subscription) => s.status === 'active')
+        .reduce((sum: number, s: Subscription) => sum + s.monthlyPrice, 0);
+      
+      setStats({
+        totalRevenue,
+        activeSubscriptions: activeCount,
+        expiringSoon: expiringSoonCount,
+        suspended: suspendedCount,
+      });
     } catch (err: any) {
       console.error('Error fetching subscriptions:', err);
       setError(err.response?.data?.message || 'Erreur lors du chargement des abonnements');
@@ -215,12 +253,16 @@ export const Subscriptions: React.FC = () => {
   const handleOpenCreate = () => {
     setModalMode('create');
     setSelectedSubscription(null);
+    // Initialiser avec le premier plan actif disponible
+    const firstPlan = plans.find(p => p.isActive);
+    // Utiliser le nom du plan en minuscule comme code par défaut
+    const planCode = firstPlan?.name?.toLowerCase() || 'basic';
     setFormData({
       tenantId: '',
-      plan: 'basic',
+      plan: planCode as any,
       status: 'active',
-      monthlyPrice: 50000,
-      maxUsers: 100,
+      monthlyPrice: firstPlan?.monthlyPrice || 0,
+      maxUsers: firstPlan?.maxUsers || 0,
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     });
@@ -229,19 +271,8 @@ export const Subscriptions: React.FC = () => {
   };
 
   const handleOpenEdit = (sub: Subscription) => {
-    setModalMode('edit');
-    setSelectedSubscription(sub);
-    setFormData({
-      tenantId: sub.tenantId,
-      plan: sub.plan,
-      status: sub.status,
-      monthlyPrice: sub.monthlyPrice,
-      maxUsers: sub.maxUsers,
-      startDate: new Date(sub.startDate).toISOString().split('T')[0],
-      endDate: new Date(sub.endDate).toISOString().split('T')[0],
-    });
-    setFormError(null);
-    setShowModal(true);
+    // Navigate to the dedicated EditSubscription page
+    navigate(`/super-admin/subscriptions/edit/${sub.id}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,21 +294,17 @@ export const Subscriptions: React.FC = () => {
         endDate: formData.endDate,
       };
 
-      // Find the tenant ID by slug
-      const tenant = subscriptions.find(s => s.tenantId === formData.tenantId);
-      if (!tenant && modalMode === 'edit' && selectedSubscription) {
-        await tenantsApi.updateSubscription(selectedSubscription.id, dto);
-      } else if (tenant) {
-        await tenantsApi.updateSubscription(tenant.id, dto);
-      } else {
-        throw new Error('Université non trouvée');
-      }
-
+      // formData.tenantId contient maintenant l'ID réel du tenant (pas le slug)
+      // On utilise directement cet ID pour créer/mettre à jour l'abonnement
+      await tenantsApi.updateSubscription(formData.tenantId, dto);
+      
+      toast.success('Abonnement créé/modifié avec succès');
       setShowModal(false);
       fetchSubscriptions();
     } catch (err: any) {
       console.error('Error saving subscription:', err);
-      setFormError(err.message || 'Erreur lors de la sauvegarde');
+      setFormError(err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+      toast.error(err.response?.data?.message || 'Erreur lors de la sauvegarde');
     } finally {
       setIsSubmitting(false);
     }
@@ -290,10 +317,36 @@ export const Subscriptions: React.FC = () => {
 
     try {
       await tenantsApi.removeSubscription(sub.id);
+      toast.success('Abonnement résilié avec succès');
       fetchSubscriptions();
     } catch (err: any) {
       console.error('Error removing subscription:', err);
-      setError(err.response?.data?.message || 'Erreur lors de la suppression');
+      toast.error(err.response?.data?.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleToggleStatus = async (sub: Subscription) => {
+    const newStatus = sub.status === 'active' ? 'suspended' : 'active';
+    const action = newStatus === 'active' ? 'activer' : 'suspendre';
+    
+    if (!window.confirm(`Voulez-vous vraiment ${action} l'abonnement de ${sub.tenantName} ?`)) {
+      return;
+    }
+
+    try {
+      await tenantsApi.updateSubscription(sub.id, {
+        plan: sub.plan,
+        status: newStatus,
+        monthlyPrice: sub.monthlyPrice,
+        maxUsers: sub.maxUsers,
+        startDate: new Date(sub.startDate).toISOString().split('T')[0],
+        endDate: new Date(sub.endDate).toISOString().split('T')[0],
+      });
+      toast.success(`Abonnement ${newStatus === 'active' ? 'activé' : 'suspendu'} avec succès`);
+      fetchSubscriptions();
+    } catch (err: any) {
+      console.error('Error toggling subscription status:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors de la modification');
     }
   };
 
@@ -386,9 +439,11 @@ export const Subscriptions: React.FC = () => {
                   <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Plan</th>
                   <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Status</th>
                   <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Utilisateurs</th>
+                  <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Étudiants</th>
                   <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Prix/Mois</th>
                   <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Expiration</th>
-                  <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'right', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Actions</th>
+                  <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Action</th>
+                  <th style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA3AE', textAlign: 'right', padding: '12px 16px', borderBottom: '1px solid rgba(15,25,35,0.10)' }}>Gestion</th>
                 </tr>
               </thead>
               <tbody>
@@ -420,20 +475,73 @@ export const Subscriptions: React.FC = () => {
                         <div style={{ height: '4px', borderRadius: '2px', background: '#2563eb', width: `${(sub.currentUsers / sub.maxUsers) * 100}%` }} />
                       </div>
                     </td>
+                    <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                      {(() => {
+                        // Chercher le plan par nom en minuscule
+                        const planInfo = plans.find(p => p.name.toLowerCase() === sub.plan.toLowerCase());
+                        const maxStudents = planInfo?.maxStudents || planInfo?.max_etudiants || 0;
+                        const currentStudents = sub.currentStudents || 0;
+                        return (
+                          <>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F1923' }}>{currentStudents} <span style={{ color: '#9AA3AE' }}>/ {maxStudents}</span></div>
+                            {maxStudents > 0 && (
+                              <div style={{ width: '80px', height: '4px', background: '#F5F5F0', borderRadius: '2px', marginTop: '4px' }}>
+                                <div style={{ height: '4px', borderRadius: '2px', background: '#7C3AED', width: `${Math.min((currentStudents / maxStudents) * 100, 100)}%` }} />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td style={{ padding: '12px 16px', verticalAlign: 'middle', fontSize: '12px', fontWeight: 600, color: '#0F1923' }}>{sub.monthlyPrice.toLocaleString()} <span style={{ fontWeight: 400, color: '#9AA3AE' }}>Ar</span></td>
                     <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F1923' }}>{new Date(sub.endDate).toLocaleDateString('fr-FR')}</div>
                       <div style={{ fontSize: '11px', color: '#9AA3AE' }}>{getDaysRemaining(sub.endDate)}</div>
                     </td>
+                    <td style={{ padding: '12px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      {sub.status === 'expired' ? (
+                        <span style={{ fontSize: '11px', color: '#9AA3AE', fontStyle: 'italic' }}>Expiré</span>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleStatus(sub)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: sub.status === 'active' ? '#FEF3C7' : '#D1FAE5',
+                            color: sub.status === 'active' ? '#D97706' : '#059669',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title={sub.status === 'active' ? 'Suspendre' : 'Activer'}
+                        >
+                          {sub.status === 'active' ? (
+                            <>
+                              <Pause style={{ width: 12, height: 12 }} />
+                              Suspendre
+                            </>
+                          ) : (
+                            <>
+                              <Play style={{ width: 12, height: 12 }} />
+                              Activer
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </td>
                     <td style={{ padding: '12px 16px', verticalAlign: 'middle', textAlign: 'right' }}>
-                      <button 
+                      <button
                         onClick={() => handleOpenEdit(sub)}
                         style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: '#DBEAFE', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', marginRight: '4px' }}
                         title="Modifier"
                       >
                         <Pencil style={{ width: 14, height: 14 }} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(sub)}
                         style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: '#FEE2E2', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626' }}
                         title="Résilier"
@@ -507,7 +615,7 @@ export const Subscriptions: React.FC = () => {
                 >
                   <option value="">Sélectionner une université</option>
                   {subscriptions.map(sub => (
-                    <option key={sub.id} value={sub.tenantId}>
+                    <option key={sub.id} value={sub.id}>
                       {sub.tenantName}
                     </option>
                   ))}
@@ -517,18 +625,61 @@ export const Subscriptions: React.FC = () => {
               {/* Plan */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#5A6472', marginBottom: '6px' }}>
-                  Plan d'abonnement
+                  Plan d'abonnement <span style={{ color: '#DC2626' }}>*</span>
                 </label>
                 <select
                   value={formData.plan}
-                  onChange={(e) => setFormData({ ...formData, plan: e.target.value as any })}
+                  onChange={(e) => {
+                    const selectedPlanCode = e.target.value;
+                    const selectedPlan = plans.find(p => p.name.toLowerCase() === selectedPlanCode);
+                    setFormData({
+                      ...formData,
+                      plan: selectedPlanCode as any,
+                      monthlyPrice: selectedPlan?.monthlyPrice || 0,
+                      maxUsers: selectedPlan?.maxUsers || 0,
+                    });
+                  }}
+                  required
                   style={{ width: '100%', padding: '10px 14px', fontSize: '13px', border: '1px solid rgba(15,25,35,0.15)', borderRadius: '10px', background: '#fff', color: '#0F1923' }}
                 >
-                  <option value="basic">Basic</option>
-                  <option value="standard">Standard</option>
-                  <option value="premium">Premium</option>
-                  <option value="enterprise">Enterprise</option>
+                  {plans.filter(p => p.isActive).map(plan => (
+                    <option key={plan.id} value={plan.name.toLowerCase()}>
+                      {plan.name} - {Number(plan.monthlyPrice || 0).toLocaleString()} Ar/mois
+                    </option>
+                  ))}
                 </select>
+                
+                {/* Informations du plan sélectionné */}
+                {(() => {
+                  const selectedPlan = plans.find(p => p.name.toLowerCase() === formData.plan);
+                  return selectedPlan ? (
+                    <div style={{ marginTop: '12px', padding: '12px', background: '#F5F5F0', borderRadius: '8px', border: '1px solid rgba(15,25,35,0.10)' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#0F1923', marginBottom: '8px' }}>
+                        Détails du plan
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#9AA3AE', marginBottom: '2px' }}>Prix mensuel</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#059669' }}>
+                            {Number(selectedPlan.monthlyPrice || 0).toLocaleString()} <span style={{ fontSize: '10px', fontWeight: 500, color: '#9AA3AE' }}>Ar</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#9AA3AE', marginBottom: '2px' }}>Max utilisateurs</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#2563eb' }}>
+                            {selectedPlan.maxUsers || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#9AA3AE', marginBottom: '2px' }}>Max étudiants</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#7C3AED' }}>
+                            {selectedPlan.maxStudents || selectedPlan.max_etudiants || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Statut */}
@@ -545,34 +696,6 @@ export const Subscriptions: React.FC = () => {
                   <option value="suspended">Suspendu</option>
                   <option value="expired">Expiré</option>
                 </select>
-              </div>
-
-              {/* Prix et Utilisateurs */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#5A6472', marginBottom: '6px' }}>
-                    Prix mensuel (Ar)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.monthlyPrice}
-                    onChange={(e) => setFormData({ ...formData, monthlyPrice: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '13px', border: '1px solid rgba(15,25,35,0.15)', borderRadius: '10px', background: '#fff', color: '#0F1923' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#5A6472', marginBottom: '6px' }}>
-                    Max utilisateurs
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.maxUsers}
-                    onChange={(e) => setFormData({ ...formData, maxUsers: parseInt(e.target.value) || 0 })}
-                    min="1"
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '13px', border: '1px solid rgba(15,25,35,0.15)', borderRadius: '10px', background: '#fff', color: '#0F1923' }}
-                  />
-                </div>
               </div>
 
               {/* Dates */}

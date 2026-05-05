@@ -107,6 +107,37 @@ let FinanceService = class FinanceService {
         }
         return depense;
     }
+    getDepenses(tid, anneeAcademiqueId) {
+        const where = {};
+        if (anneeAcademiqueId)
+            where.anneeAcademiqueId = anneeAcademiqueId;
+        return this.depenseRepo.find({ where, order: { dateDepense: 'DESC' } });
+    }
+    async updateBudget(tid, id, dto) {
+        const budget = await this.budgetRepo.findOne({ where: { id } });
+        if (!budget)
+            throw new common_1.NotFoundException('Budget non trouvé');
+        return this.budgetRepo.save({ ...budget, ...dto });
+    }
+    async updateDepense(tid, id, dto) {
+        const depense = await this.depenseRepo.findOne({ where: { id } });
+        if (!depense)
+            throw new common_1.NotFoundException('Dépense non trouvée');
+        return this.depenseRepo.save({ ...depense, ...dto });
+    }
+    async deleteDepense(tid, id) {
+        const depense = await this.depenseRepo.findOne({ where: { id } });
+        if (!depense)
+            throw new common_1.NotFoundException('Dépense non trouvée');
+        await this.depenseRepo.delete(id);
+        return { message: 'Dépense supprimée avec succès' };
+    }
+    async updateContrat(tid, id, dto) {
+        const contrat = await this.contratRepo.findOne({ where: { id } });
+        if (!contrat)
+            throw new common_1.NotFoundException('Contrat non trouvé');
+        return this.contratRepo.save({ ...contrat, ...dto });
+    }
     async getRapportFinancier(tid, anneeAcademiqueId) {
         const paiements = await this.paiementRepo.find({ where: { datePaiement: (0, typeorm_2.Between)(new Date(anneeAcademiqueId), new Date()) } });
         const budgets = await this.budgetRepo.find({ where: { anneeAcademiqueId } });
@@ -146,13 +177,13 @@ let FinanceService = class FinanceService {
 exports.FinanceService = FinanceService;
 exports.FinanceService = FinanceService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(finance_entities_1.GrilleTarifaire)),
-    __param(1, (0, typeorm_1.InjectRepository)(finance_entities_1.Echeancier)),
-    __param(2, (0, typeorm_1.InjectRepository)(finance_entities_1.Paiement)),
-    __param(3, (0, typeorm_1.InjectRepository)(finance_entities_1.Budget)),
-    __param(4, (0, typeorm_1.InjectRepository)(finance_entities_1.Depense)),
-    __param(5, (0, typeorm_1.InjectRepository)(finance_entities_1.ContratPersonnel)),
-    __param(6, (0, typeorm_1.InjectRepository)(finance_entities_1.FichePaie)),
+    __param(0, (0, typeorm_1.InjectRepository)(finance_entities_1.GrilleTarifaire, 'tenant')),
+    __param(1, (0, typeorm_1.InjectRepository)(finance_entities_1.Echeancier, 'tenant')),
+    __param(2, (0, typeorm_1.InjectRepository)(finance_entities_1.Paiement, 'tenant')),
+    __param(3, (0, typeorm_1.InjectRepository)(finance_entities_1.Budget, 'tenant')),
+    __param(4, (0, typeorm_1.InjectRepository)(finance_entities_1.Depense, 'tenant')),
+    __param(5, (0, typeorm_1.InjectRepository)(finance_entities_1.ContratPersonnel, 'tenant')),
+    __param(6, (0, typeorm_1.InjectRepository)(finance_entities_1.FichePaie, 'tenant')),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

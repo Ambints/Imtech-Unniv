@@ -8,8 +8,9 @@ export class AuthService {
   constructor(private users: UsersService, private jwt: JwtService) {}
 
   async login(email: string, password: string) {
-    // 1. Essayer de trouver un Super Admin (table public.super_admin)
-    const superAdmin = await this.users.findSuperAdminByEmail(email);
+    try {
+      // 1. Essayer de trouver un Super Admin (table public.super_admin)
+      const superAdmin = await this.users.findSuperAdminByEmail(email);
     if (superAdmin) {
       const valid = await bcrypt.compare(password, superAdmin.password);
       if (!valid) throw new UnauthorizedException('Identifiants invalides');
@@ -41,7 +42,7 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Identifiants invalides');
     if (!user.actif) throw new UnauthorizedException('Compte desactive');
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
     const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
     const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
     await this.users.updateRefreshToken(user.id, refreshToken);
@@ -57,15 +58,20 @@ export class AuthService {
         lastName: user.nom,
         role: user.role,
         photoUrl: user.photoUrl,
+        tenantId: user.tenantId,
       },
     };
+    } catch (error) {
+      console.error('[AuthService.login] Error:', error);
+      throw error;
+    }
   }
 
   async refresh(userId: string, token: string) {
     const user = await this.users.findOne(userId);
     if (!user || user.tokenReset !== token) throw new UnauthorizedException('Token invalide');
     if (user.tokenResetExpiry && user.tokenResetExpiry < new Date()) throw new UnauthorizedException('Token expire');
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
     return { accessToken: this.jwt.sign(payload, { expiresIn: '8h' }) };
   }
 

@@ -11,18 +11,22 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const academic_controller_1 = require("./academic.controller");
 const academic_service_1 = require("./academic.service");
+const tenants_module_1 = require("../tenants/tenants.module");
 const academic_entities_1 = require("./academic.entities");
 let AcademicModule = class AcademicModule {
 };
 exports.AcademicModule = AcademicModule;
 exports.AcademicModule = AcademicModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
                 academic_entities_1.Parcours, academic_entities_1.UniteEnseignement, academic_entities_1.ElementConstitutif, academic_entities_1.Departement,
                 academic_entities_1.AnneeAcademique, academic_entities_1.CalendrierAcademique, academic_entities_1.Etudiant, academic_entities_1.Inscription,
                 academic_entities_1.Enseignant, academic_entities_1.AffectationCours, academic_entities_1.Salle, academic_entities_1.Batiment, academic_entities_1.EmploiDuTemps,
                 academic_entities_1.Presence, academic_entities_1.SessionExamen, academic_entities_1.Note
-            ])],
+            ], 'tenant'),
+            tenants_module_1.TenantsModule,
+        ],
         controllers: [academic_controller_1.AcademicController],
         providers: [academic_service_1.AcademicService],
         exports: [academic_service_1.AcademicService],

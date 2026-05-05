@@ -20,7 +20,7 @@ exports.FinanceModule = FinanceModule = __decorate([
         imports: [typeorm_1.TypeOrmModule.forFeature([
                 finance_entities_1.GrilleTarifaire, finance_entities_1.Echeancier, finance_entities_1.Paiement, finance_entities_1.Budget, finance_entities_1.Depense,
                 finance_entities_1.ContratPersonnel, finance_entities_1.CongePersonnel, finance_entities_1.FichePaie
-            ])],
+            ], 'tenant')],
         controllers: [finance_controller_1.FinanceController],
         providers: [finance_service_1.FinanceService],
         exports: [finance_service_1.FinanceService],
