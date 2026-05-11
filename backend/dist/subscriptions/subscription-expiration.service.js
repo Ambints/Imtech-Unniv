@@ -22,6 +22,7 @@ let SubscriptionExpirationService = SubscriptionExpirationService_1 = class Subs
     constructor(tenantRepo) {
         this.tenantRepo = tenantRepo;
         this.logger = new common_1.Logger(SubscriptionExpirationService_1.name);
+        this.disabled = false;
     }
     onModuleInit() {
         this.handleExpiredSubscriptions();
@@ -36,10 +37,20 @@ let SubscriptionExpirationService = SubscriptionExpirationService_1 = class Subs
         }
     }
     async handleExpiredSubscriptions() {
+        if (this.disabled) {
+            return;
+        }
         this.logger.log('Checking for expired subscriptions...');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         try {
+            const reg = await this.tenantRepo.query(`SELECT to_regclass('public.tenant') AS regclass`);
+            const regclass = reg?.[0]?.regclass ?? null;
+            if (!regclass) {
+                this.disabled = true;
+                this.logger.log('Subscription expiration checker disabled: public.tenant table is missing');
+                return;
+            }
             const expiredTenants = await this.tenantRepo.find({
                 where: {
                     statutAbonnement: 'active',

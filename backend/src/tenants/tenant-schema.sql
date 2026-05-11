@@ -78,12 +78,29 @@ CREATE TABLE IF NOT EXISTS parcours (
     niveau              VARCHAR(20) NOT NULL CHECK (niveau IN ('Licence', 'Master', 'Doctorat', 'BTS', 'DUT')),
     duree_annees        SMALLINT    NOT NULL DEFAULT 3,
     responsable_id      UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    secretaire_id       UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
     description         TEXT,
     actif               BOOLEAN     DEFAULT TRUE,
     annee_ouverture     INTEGER,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Table de liaison pour la gestion des secrétaires de parcours
+CREATE TABLE IF NOT EXISTS secretaire_parcours (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    secretaire_id       UUID        NOT NULL,
+    parcours_id         UUID        NOT NULL REFERENCES parcours(id) ON DELETE CASCADE,
+    assigned_at         TIMESTAMPTZ DEFAULT NOW(),
+    assigned_by         UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    actif               BOOLEAN     DEFAULT TRUE,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (secretaire_id, parcours_id, actif)
+);
+
+CREATE INDEX IF NOT EXISTS idx_secretaire_parcours_secretaire ON secretaire_parcours(secretaire_id) WHERE actif = TRUE;
+CREATE INDEX IF NOT EXISTS idx_secretaire_parcours_parcours ON secretaire_parcours(parcours_id) WHERE actif = TRUE;
 
 CREATE TABLE IF NOT EXISTS unite_enseignement (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -257,6 +274,7 @@ CREATE TABLE IF NOT EXISTS emploi_du_temps (
     statut              VARCHAR(20) DEFAULT 'planifie'
                         CHECK (statut IN ('planifie', 'realise', 'annule', 'reporte')),
     motif_annulation    TEXT,
+    created_by_id       UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW(),
     CHECK (heure_fin > heure_debut)
@@ -402,6 +420,134 @@ CREATE TABLE IF NOT EXISTS diplome (
     date_signature      TIMESTAMPTZ,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (etudiant_id, type_diplome, parcours_id)
+);
+
+-- =============================================================================
+-- MODULE : SECRÉTAIRE (GESTION PÉDAGOGIQUE)
+-- =============================================================================
+
+-- Absences des enseignants
+CREATE TABLE IF NOT EXISTS absence_enseignant (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    enseignant_id       UUID        NOT NULL REFERENCES enseignant(id) ON DELETE CASCADE,
+    seance_id           UUID        REFERENCES emploi_du_temps(id) ON DELETE SET NULL,
+    date_absence        DATE        NOT NULL,
+    heure_debut         TIME,
+    heure_fin           TIME,
+    motif               VARCHAR(100) NOT NULL CHECK (motif IN ('maladie', 'formation', 'congres', 'personnel', 'autre')),
+    justification       TEXT,
+    justificatif_url    VARCHAR(500),
+    est_justifiee       BOOLEAN     DEFAULT FALSE,
+    statut              VARCHAR(20) DEFAULT 'declaree' CHECK (statut IN ('declaree', 'validee', 'refusee')),
+    declaree_par        UUID        NOT NULL REFERENCES utilisateur(id),
+    validee_par         UUID        REFERENCES utilisateur(id),
+    date_validation     TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Rattrapages de cours
+CREATE TABLE IF NOT EXISTS rattrapage (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    absence_id          UUID        NOT NULL REFERENCES absence_enseignant(id) ON DELETE CASCADE,
+    salle_id            UUID        REFERENCES salle(id) ON DELETE SET NULL,
+    date_rattrapage     DATE        NOT NULL,
+    heure_debut         TIME        NOT NULL,
+    heure_fin           TIME        NOT NULL,
+    observations        TEXT,
+    statut              VARCHAR(20) DEFAULT 'planifie' CHECK (statut IN ('planifie', 'effectue', 'annule')),
+    remplaceur_id       UUID        REFERENCES enseignant(id) ON DELETE SET NULL,
+    planifie_par        UUID        NOT NULL REFERENCES utilisateur(id),
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Notes dérogatoires
+CREATE TABLE IF NOT EXISTS note_derogatoire (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id         UUID        NOT NULL REFERENCES etudiant(id) ON DELETE CASCADE,
+    ec_id               UUID        REFERENCES element_constitutif(id) ON DELETE SET NULL,
+    ue_id               UUID        REFERENCES unite_enseignement(id) ON DELETE SET NULL,
+    session_examen_id   UUID        REFERENCES session_examen(id) ON DELETE SET NULL,
+    valeur              DECIMAL(5,2) NOT NULL CHECK (valeur >= 0 AND valeur <= 20),
+    motif_derogation    TEXT        NOT NULL,
+    type_derogation     VARCHAR(50) DEFAULT 'cas_particulier' CHECK (type_derogation IN ('cas_particulier', 'erreur_saisie', 'rattrapage_administratif', 'autre')),
+    est_derogatoire     BOOLEAN     DEFAULT TRUE,
+    soumis_a_scolarite  BOOLEAN     DEFAULT FALSE,
+    valide_par_scolarite UUID       REFERENCES utilisateur(id),
+    date_validation_scolarite TIMESTAMPTZ,
+    statut              VARCHAR(20) DEFAULT 'proposee' CHECK (statut IN ('proposee', 'soumise', 'validee', 'refusee')),
+    saisie_par          UUID        NOT NULL REFERENCES utilisateur(id),
+    valide_par          UUID        REFERENCES utilisateur(id),
+    date_saisie         TIMESTAMPTZ DEFAULT NOW(),
+    observations        TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Demandes étudiantes
+CREATE TABLE IF NOT EXISTS demande_etudiant (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id         UUID        NOT NULL REFERENCES etudiant(id) ON DELETE CASCADE,
+    type_demande        VARCHAR(50) NOT NULL CHECK (type_demande IN (
+        'certificat_scolarite', 'attestation', 'report_examen', 'dispense', 'changement_parcours', 'autre'
+    )),
+    description         TEXT        NOT NULL,
+    justification       TEXT,
+    piece_jointe_url    VARCHAR(500),
+    date_soumission     DATE        NOT NULL DEFAULT CURRENT_DATE,
+    statut              VARCHAR(20) DEFAULT 'soumise' CHECK (statut IN ('soumise', 'en_traitement', 'acceptee', 'refusee', 'completee')),
+    reponse             TEXT,
+    traite_par          UUID        REFERENCES utilisateur(id),
+    date_traitement     TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Convocations aux examens
+CREATE TABLE IF NOT EXISTS convocation (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id         UUID        REFERENCES etudiant(id) ON DELETE CASCADE,
+    session_examen_id   UUID        REFERENCES session_examen(id) ON DELETE CASCADE,
+    soutenance_id       UUID,
+    type                VARCHAR(50) NOT NULL CHECK (type IN ('examen', 'rattrapage', 'soutenance', 'reunion', 'conseil_discipline', 'autre')),
+    libelle             VARCHAR(200) NOT NULL,
+    message             TEXT,
+    date_convocation    DATE        NOT NULL,
+    heure_convocation   TIME,
+    lieu                VARCHAR(200),
+    salle_id            UUID        REFERENCES salle(id) ON DELETE SET NULL,
+    statut              VARCHAR(20) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'envoyee', 'lue', 'confirme', 'annule')),
+    date_envoi          TIMESTAMPTZ,
+    date_lecture        TIMESTAMPTZ,
+    date_confirmation   TIMESTAMPTZ,
+    genere_par          UUID        NOT NULL REFERENCES utilisateur(id),
+    fichier_url         VARCHAR(500),
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS dossier_etudiant (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id         UUID        NOT NULL REFERENCES etudiant(id) ON DELETE CASCADE,
+    type_document       VARCHAR(50) NOT NULL CHECK (type_document IN (
+        'certificat_scolarite', 'attestation_inscription', 'releve_notes',
+        'copie_diplome', 'carte_etudiant', 'certificat_medical',
+        'piece_identite', 'photo', 'autre'
+    )),
+    libelle             VARCHAR(200) NOT NULL,
+    fichier_url         VARCHAR(500) NOT NULL,
+    reference           VARCHAR(100),
+    date_demande        DATE,
+    date_delivrance     DATE,
+    statut              VARCHAR(20) DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'en_preparation', 'delivre', 'refuse', 'archive')),
+    motif_refus         TEXT,
+    demande_par         UUID        REFERENCES utilisateur(id),
+    traite_par          UUID        REFERENCES utilisateur(id),
+    est_archive         BOOLEAN     DEFAULT FALSE,
+    date_archivage      DATE,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- =============================================================================
@@ -740,6 +886,91 @@ INSERT INTO permissions_portail (type_portail, permission_key, permission_label,
 ON CONFLICT (type_portail, permission_key) DO NOTHING;
 
 -- =============================================================================
+-- MODULE : PEDAGOGIQUE - RÉFÉRENTIELS & EXAMENS
+-- =============================================================================
+
+-- Référentiel de compétences par parcours
+CREATE TABLE IF NOT EXISTS referentiel_competences (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    parcours_id         UUID        NOT NULL REFERENCES parcours(id) ON DELETE CASCADE,
+    code                VARCHAR(30) NOT NULL,
+    intitule            VARCHAR(200) NOT NULL,
+    description         TEXT,
+    niveau              VARCHAR(20) CHECK (niveau IN ('Licence', 'Master', 'Doctorat', 'BTS', 'DUT')),
+    competences         JSONB       DEFAULT '[]',
+    valide_par          UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_validation     TIMESTAMPTZ,
+    statut              VARCHAR(20) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'valide', 'archive')),
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Sujets d'examens avec workflow de validation
+CREATE TABLE IF NOT EXISTS sujet_examen (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_examen_id   UUID        NOT NULL,
+    ue_id               UUID        REFERENCES unite_enseignement(id) ON DELETE SET NULL,
+    ec_id               UUID        REFERENCES element_constitutif(id) ON DELETE SET NULL,
+    enseignant_id       UUID        NOT NULL REFERENCES utilisateur(id),
+    titre               VARCHAR(300) NOT NULL,
+    description         TEXT,
+    fichier_url         VARCHAR(500),
+    duree_minutes       SMALLINT    DEFAULT 120,
+    bareme_total        DECIMAL(5,2) DEFAULT 20.0,
+    statut              VARCHAR(20) DEFAULT 'soumis' CHECK (statut IN ('soumis', 'en_relecture', 'valide', 'rejete')),
+    soumis_par          UUID        NOT NULL REFERENCES utilisateur(id),
+    date_soumission     TIMESTAMPTZ DEFAULT NOW(),
+    relu_par            UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_relecture      TIMESTAMPTZ,
+    valide_par          UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_validation     TIMESTAMPTZ,
+    commentaires        TEXT,
+    motif_rejet         TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Procès-verbaux de délibération
+CREATE TABLE IF NOT EXISTS proces_verbal (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_examen_id   UUID        NOT NULL,
+    parcours_id         UUID        NOT NULL REFERENCES parcours(id) ON DELETE CASCADE,
+    annee_academique_id UUID        NOT NULL REFERENCES annee_academique(id),
+    numero              VARCHAR(50) NOT NULL UNIQUE,
+    date_deliberation   DATE        NOT NULL,
+    membres_jury        JSONB       DEFAULT '[]',
+    resultats           JSONB       DEFAULT '[]',
+    nb_admis            INTEGER     DEFAULT 0,
+    nb_ajournes         INTEGER     DEFAULT 0,
+    nb_absents          INTEGER     DEFAULT 0,
+    taux_reussite       DECIMAL(5,2) DEFAULT 0,
+    observations        TEXT,
+    fichier_url         VARCHAR(500),
+    statut              VARCHAR(20) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'valide', 'archive')),
+    redige_par          UUID        NOT NULL REFERENCES utilisateur(id),
+    valide_par          UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_validation     TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour les tables pédagogiques
+CREATE INDEX IF NOT EXISTS idx_referentiel_parcours ON referentiel_competences(parcours_id);
+CREATE INDEX IF NOT EXISTS idx_referentiel_statut ON referentiel_competences(statut);
+CREATE INDEX IF NOT EXISTS idx_referentiel_created ON referentiel_competences(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_sujet_session ON sujet_examen(session_examen_id);
+CREATE INDEX IF NOT EXISTS idx_sujet_enseignant ON sujet_examen(enseignant_id);
+CREATE INDEX IF NOT EXISTS idx_sujet_statut ON sujet_examen(statut);
+CREATE INDEX IF NOT EXISTS idx_sujet_date ON sujet_examen(date_soumission);
+
+CREATE INDEX IF NOT EXISTS idx_pv_parcours ON proces_verbal(parcours_id);
+CREATE INDEX IF NOT EXISTS idx_pv_session ON proces_verbal(session_examen_id);
+CREATE INDEX IF NOT EXISTS idx_pv_annee ON proces_verbal(annee_academique_id);
+CREATE INDEX IF NOT EXISTS idx_pv_statut ON proces_verbal(statut);
+CREATE INDEX IF NOT EXISTS idx_pv_date ON proces_verbal(date_deliberation);
+
+-- =============================================================================
 -- INDEX DE PERFORMANCE
 -- =============================================================================
 
@@ -778,6 +1009,33 @@ CREATE INDEX IF NOT EXISTS idx_annonce_publie ON annonce(publie, date_publicatio
 CREATE INDEX IF NOT EXISTS idx_ticket_statut ON ticket_maintenance(statut, priorite);
 CREATE INDEX IF NOT EXISTS idx_stock_seuil ON stock(quantite_stock, seuil_alerte);
 
+-- Index pour les tables secrétaire
+CREATE INDEX IF NOT EXISTS idx_absence_enseignant ON absence_enseignant(enseignant_id);
+CREATE INDEX IF NOT EXISTS idx_absence_date ON absence_enseignant(date_absence);
+CREATE INDEX IF NOT EXISTS idx_absence_statut ON absence_enseignant(statut);
+
+CREATE INDEX IF NOT EXISTS idx_rattrapage_absence ON rattrapage(absence_id);
+CREATE INDEX IF NOT EXISTS idx_rattrapage_date ON rattrapage(date_rattrapage);
+
+CREATE INDEX IF NOT EXISTS idx_note_derog_etudiant ON note_derogatoire(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_note_derog_statut ON note_derogatoire(statut);
+
+CREATE INDEX IF NOT EXISTS idx_demande_etudiant ON demande_etudiant(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_demande_statut ON demande_etudiant(statut);
+
+CREATE INDEX IF NOT EXISTS idx_convocation_etudiant ON convocation(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_convocation_session ON convocation(session_examen_id);
+CREATE INDEX IF NOT EXISTS idx_convocation_statut ON convocation(statut);
+CREATE INDEX IF NOT EXISTS idx_convocation_date ON convocation(date_convocation);
+CREATE INDEX IF NOT EXISTS idx_convocation_genere ON convocation(genere_par);
+
+CREATE INDEX IF NOT EXISTS idx_dossier_etudiant_id ON dossier_etudiant(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_dossier_type ON dossier_etudiant(type_document);
+CREATE INDEX IF NOT EXISTS idx_dossier_statut ON dossier_etudiant(statut);
+CREATE INDEX IF NOT EXISTS idx_dossier_archive ON dossier_etudiant(est_archive);
+
+CREATE INDEX IF NOT EXISTS idx_parcours_secretaire ON parcours(secretaire_id);
+
 -- =============================================================================
 -- TRIGGERS & FONCTIONS
 -- =============================================================================
@@ -798,7 +1056,10 @@ BEGIN
     FOREACH t IN ARRAY ARRAY[
         'utilisateur', 'parcours', 'inscription', 'enseignant',
         'affectation_cours', 'emploi_du_temps', 'note', 'pv_deliberation',
-        'ticket_maintenance', 'contrat_personnel', 'annonce', 'presence', 'depense', 'budget'
+        'ticket_maintenance', 'contrat_personnel', 'annonce', 'presence', 'depense', 'budget',
+        'referentiel_competences', 'sujet_examen', 'proces_verbal',
+        'absence_enseignant', 'rattrapage', 'note_derogatoire', 'demande_etudiant',
+        'convocation', 'dossier_etudiant'
     ]
     LOOP
         EXECUTE format(
@@ -997,3 +1258,225 @@ SELECT
 FROM etudiant e
 JOIN presence pr ON e.id = pr.etudiant_id
 GROUP BY e.id, e.matricule, e.nom, e.prenom;
+
+
+-- =============================================================================
+-- MODULE : SURVEILLANCE & DISCIPLINE
+-- =============================================================================
+
+-- Table: pointage_qr
+CREATE TABLE IF NOT EXISTS pointage_qr (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seance_id UUID NOT NULL,
+    etudiant_id UUID NOT NULL,
+    code_qr VARCHAR(255) UNIQUE NOT NULL,
+    date_generation TIMESTAMP DEFAULT NOW(),
+    date_scan TIMESTAMP,
+    scanne_par UUID,
+    statut VARCHAR(50) DEFAULT 'scanne' CHECK (statut IN ('scanne', 'manuel', 'absent')),
+    localisation_scan VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_pointage_qr_seance ON pointage_qr(seance_id);
+CREATE INDEX idx_pointage_qr_etudiant ON pointage_qr(etudiant_id);
+CREATE INDEX idx_pointage_qr_code ON pointage_qr(code_qr);
+
+-- Table: presence_surveillance
+CREATE TABLE IF NOT EXISTS presence_surveillance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    seance_id UUID NOT NULL,
+    date_pointage DATE DEFAULT CURRENT_DATE,
+    heure_arrivee TIME,
+    heure_depart TIME,
+    statut VARCHAR(50) DEFAULT 'present' CHECK (statut IN ('present', 'absent', 'retard', 'sortie_anticipee')),
+    justificatif_url TEXT,
+    est_justifie BOOLEAN DEFAULT FALSE,
+    justifie_par UUID,
+    date_justification TIMESTAMP,
+    mode_pointage VARCHAR(50) DEFAULT 'manuel' CHECK (mode_pointage IN ('qr', 'manuel', 'badge')),
+    pointe_par UUID NOT NULL,
+    observations TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_presence_etudiant ON presence_surveillance(etudiant_id);
+CREATE INDEX idx_presence_seance ON presence_surveillance(seance_id);
+CREATE INDEX idx_presence_date ON presence_surveillance(date_pointage);
+CREATE INDEX idx_presence_statut ON presence_surveillance(statut);
+
+-- Table: alerte_discipline
+CREATE TABLE IF NOT EXISTS alerte_discipline (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    type VARCHAR(100) NOT NULL CHECK (type IN ('absence_repetee', 'retard_cumule', 'sanction_grave', 'incident_critique')),
+    message TEXT NOT NULL,
+    statut VARCHAR(50) DEFAULT 'non_lue' CHECK (statut IN ('non_lue', 'lue', 'traitee')),
+    generee_par UUID NOT NULL,
+    destinataire_role VARCHAR(100) DEFAULT 'secretariat',
+    date_lecture TIMESTAMP,
+    traitee_par UUID,
+    date_traitement TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_alerte_etudiant ON alerte_discipline(etudiant_id);
+CREATE INDEX idx_alerte_statut ON alerte_discipline(statut);
+CREATE INDEX idx_alerte_type ON alerte_discipline(type);
+CREATE INDEX idx_alerte_destinataire ON alerte_discipline(destinataire_role);
+
+-- Table: configuration_examen
+CREATE TABLE IF NOT EXISTS configuration_examen (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_examen_id UUID NOT NULL,
+    salle_id UUID NOT NULL,
+    places_total INTEGER DEFAULT 0,
+    places_attribuees INTEGER DEFAULT 0,
+    plan_places JSONB DEFAULT '[]'::jsonb,
+    surveillant_id UUID NOT NULL,
+    statut VARCHAR(50) DEFAULT 'preparation' CHECK (statut IN ('preparation', 'en_cours', 'termine', 'incident')),
+    rapport_incident TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_config_examen_session ON configuration_examen(session_examen_id);
+CREATE INDEX idx_config_examen_salle ON configuration_examen(salle_id);
+CREATE INDEX idx_config_examen_surveillant ON configuration_examen(surveillant_id);
+
+-- =============================================================================
+-- MODULE : ENCADREMENT
+-- =============================================================================
+
+-- Table: suivi_moral
+CREATE TABLE IF NOT EXISTS suivi_moral (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    date_entretien DATE NOT NULL,
+    sujet VARCHAR(255) NOT NULL,
+    observations TEXT NOT NULL,
+    recommandations TEXT,
+    suivi_par UUID NOT NULL,
+    parent_informe BOOLEAN DEFAULT FALSE,
+    date_information_parent TIMESTAMP,
+    statut VARCHAR(50) DEFAULT 'en_cours' CHECK (statut IN ('en_cours', 'cloture', 'suivi_requis')),
+    prochain_rdv DATE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_suivi_moral_etudiant ON suivi_moral(etudiant_id);
+CREATE INDEX idx_suivi_moral_date ON suivi_moral(date_entretien);
+CREATE INDEX idx_suivi_moral_statut ON suivi_moral(statut);
+
+-- Table: autorisation_sortie
+CREATE TABLE IF NOT EXISTS autorisation_sortie (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    type VARCHAR(100) NOT NULL CHECK (type IN ('sortie_anticipee', 'absence_prevue', 'sortie_exceptionnelle')),
+    date_debut TIMESTAMP NOT NULL,
+    date_fin TIMESTAMP NOT NULL,
+    motif TEXT NOT NULL,
+    demande_par UUID NOT NULL,
+    est_mineur BOOLEAN DEFAULT FALSE,
+    autorisation_parentale_url TEXT,
+    statut VARCHAR(50) DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'approuvee', 'refusee', 'annulee')),
+    validee_par UUID,
+    date_validation TIMESTAMP,
+    motif_refus TEXT,
+    observations TEXT,
+    sortie_effective BOOLEAN DEFAULT FALSE,
+    heure_sortie TIME,
+    heure_retour TIME,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_autorisation_etudiant ON autorisation_sortie(etudiant_id);
+CREATE INDEX idx_autorisation_statut ON autorisation_sortie(statut);
+CREATE INDEX idx_autorisation_dates ON autorisation_sortie(date_debut, date_fin);
+
+-- Table: rapport_conduite
+CREATE TABLE IF NOT EXISTS rapport_conduite (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    periode_debut DATE NOT NULL,
+    periode_fin DATE NOT NULL,
+    note_comportement DECIMAL(3,1) NOT NULL,
+    note_assiduite DECIMAL(3,1) NOT NULL,
+    note_discipline DECIMAL(3,1) NOT NULL,
+    nombre_absences INTEGER DEFAULT 0,
+    nombre_retards INTEGER DEFAULT 0,
+    nombre_sanctions INTEGER DEFAULT 0,
+    appreciation_generale TEXT NOT NULL,
+    points_forts TEXT,
+    points_amelioration TEXT,
+    recommandations TEXT,
+    redige_par UUID NOT NULL,
+    valide_par UUID,
+    statut VARCHAR(50) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'valide', 'transmis_parents')),
+    date_transmission TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_rapport_conduite_etudiant ON rapport_conduite(etudiant_id);
+CREATE INDEX idx_rapport_conduite_periode ON rapport_conduite(periode_debut, periode_fin);
+CREATE INDEX idx_rapport_conduite_statut ON rapport_conduite(statut);
+
+-- Table: conseil_discipline
+CREATE TABLE IF NOT EXISTS conseil_discipline (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id UUID NOT NULL,
+    date_conseil TIMESTAMP NOT NULL,
+    motif_convocation TEXT NOT NULL,
+    incidents_lies JSONB DEFAULT '[]'::jsonb,
+    membres_presents JSONB DEFAULT '[]'::jsonb,
+    deliberation TEXT,
+    decision VARCHAR(100) CHECK (decision IN ('aucune_sanction', 'avertissement', 'blame', 'exclusion_temporaire', 'exclusion_definitive', 'renvoi')),
+    justification_decision TEXT,
+    droit_appel BOOLEAN DEFAULT TRUE,
+    delai_appel_jours INTEGER DEFAULT 15,
+    statut VARCHAR(50) DEFAULT 'convoque' CHECK (statut IN ('convoque', 'tenu', 'reporte', 'annule')),
+    proces_verbal_url TEXT,
+    parent_present BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_conseil_discipline_etudiant ON conseil_discipline(etudiant_id);
+CREATE INDEX idx_conseil_discipline_date ON conseil_discipline(date_conseil);
+CREATE INDEX idx_conseil_discipline_statut ON conseil_discipline(statut);
+
+-- =============================================================================
+-- TRIGGERS FOR SURVEILLANCE & ENCADREMENT TABLES
+-- =============================================================================
+
+-- Triggers pour updated_at
+CREATE TRIGGER update_pointage_qr_updated_at BEFORE UPDATE ON pointage_qr FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_presence_surveillance_updated_at BEFORE UPDATE ON presence_surveillance FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_alerte_discipline_updated_at BEFORE UPDATE ON alerte_discipline FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_configuration_examen_updated_at BEFORE UPDATE ON configuration_examen FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_suivi_moral_updated_at BEFORE UPDATE ON suivi_moral FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_autorisation_sortie_updated_at BEFORE UPDATE ON autorisation_sortie FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_rapport_conduite_updated_at BEFORE UPDATE ON rapport_conduite FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_conseil_discipline_updated_at BEFORE UPDATE ON conseil_discipline FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- COMMENTS FOR SURVEILLANCE & ENCADREMENT TABLES
+-- =============================================================================
+
+COMMENT ON TABLE pointage_qr IS 'QR codes générés pour l''appel numérique';
+COMMENT ON TABLE presence_surveillance IS 'Enregistrement des présences avec validation surveillant';
+COMMENT ON TABLE alerte_discipline IS 'Alertes automatiques remontées au secrétariat';
+COMMENT ON TABLE configuration_examen IS 'Configuration des salles d''examen et placement des étudiants';
+COMMENT ON TABLE suivi_moral IS 'Suivi moral et comportemental des étudiants';
+COMMENT ON TABLE autorisation_sortie IS 'Autorisations de sortie (mineurs et internes)';
+COMMENT ON TABLE rapport_conduite IS 'Rapports de conduite périodiques';
+COMMENT ON TABLE conseil_discipline IS 'Conseils de discipline et décisions';
+
+-- Made with Bob - Surveillance & Encadrement Module Added

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, Between, DataSource } from 'typeorm';
 import { GrilleTarifaire, Echeancier, Paiement, Budget, Depense, ContratPersonnel, CongePersonnel, FichePaie } from './finance.entities';
 
 @Injectable()
@@ -13,20 +13,65 @@ export class FinanceService {
     @InjectRepository(Depense, 'tenant') private depenseRepo: Repository<Depense>,
     @InjectRepository(ContratPersonnel, 'tenant') private contratRepo: Repository<ContratPersonnel>,
     @InjectRepository(FichePaie, 'tenant') private fichePaieRepo: Repository<FichePaie>,
+    @InjectDataSource('tenant') private dataSource: DataSource,
   ) {}
 
   async enregistrerPaiement(tid: string, dto: any, caissierId: string) {
+    // Si matricule est fourni au lieu de inscriptionId, rechercher l'inscription
+    let inscriptionId = dto.inscriptionId;
+    let etudiantNom = '';
+
+    if (!inscriptionId && dto.matricule) {
+      // Rechercher l'inscription par le matricule de l'étudiant
+      const result = await this.dataSource.query(`
+        SELECT i.id, e.nom, e.prenom
+        FROM inscription i
+        JOIN etudiant e ON e.id = i.etudiant_id
+        WHERE e.matricule = $1
+        ORDER BY i.date_inscription DESC
+        LIMIT 1
+      `, [dto.matricule]);
+
+      if (result.length === 0) {
+        throw new BadRequestException(`Aucune inscription trouvée pour le matricule: ${dto.matricule}`);
+      }
+
+      inscriptionId = result[0].id;
+      etudiantNom = `${result[0].nom} ${result[0].prenom}`;
+    }
+
+    if (!inscriptionId) {
+      throw new BadRequestException('Veuillez fournir soit inscriptionId soit matricule');
+    }
+
     const reference = 'REC-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    // Construire le paiement avec motif dans observations
+    const paiementData = {
+      inscriptionId,
+      montant: dto.montant,
+      modePaiement: dto.modePaiement,
+      echeancierId: dto.echeancierId || null,
+      reference,
+      statut: 'valide',
+      caissierId,
+      numeroRecu: reference,
+      observations: dto.motif || dto.observations || null, // motif va dans observations
+    };
+
     const paiement = await this.paiementRepo.save(
-      this.paiementRepo.create({ ...dto, reference, statut: 'valide', caissierId, numeroRecu: reference })
+      this.paiementRepo.create(paiementData)
     );
+
     return {
       paiement,
+      etudiantNom,
       recu: {
         numeroRecu: reference,
         date: new Date(),
         montant: dto.montant,
         mode: dto.modePaiement,
+        matricule: dto.matricule,
         statut: 'Paye',
         message: 'Recu de paiement - IMTECH UNIVERSITY',
       },

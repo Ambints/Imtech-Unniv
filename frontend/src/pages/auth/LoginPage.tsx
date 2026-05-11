@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { authApi, tenantsApi } from '../../api/client';
+import { authApi } from '../../api/client';
 import toast from 'react-hot-toast';
 import { GraduationCap, Clock, Lock, Eye, EyeOff } from 'lucide-react';
 
 const ROLE_ROUTES: Record<string, string> = {
   super_admin: '/super-admin', president: '/president',
-  responsable_pedagogique: '/academic/parcours', secretaire_parcours: '/secretariat/inscriptions',
+  resp_pedagogique: '/pedagogique', secretaire_parcours: '/secretariat/inscriptions',
   surveillant_general: '/surveillance/presences', scolarite: '/scolarite/notes',
   economat: '/economat/budget', caissier: '/caisse',
   rh: '/rh/personnel', communication: '/communication',
-  responsable_logistique: '/logistique/tickets', service_entretien: '/entretien/planning',
+  logistique: '/logistique/tickets', entretien: '/entretien/planning',
   etudiant: '/portail/etudiant', parent: '/portail/parent', professeur: '/portail/professeur',
   admin: '/admin',
 };
@@ -29,35 +29,39 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await authApi.login(email, password);
-      console.log('Login réussi, données:', data);
-      console.log('User role:', data.user?.role);
-      console.log('TenantId:', data.user?.tenantId);
+      console.log('✅ Login réussi, données:', data);
+      console.log('👤 User role:', data.user?.role);
+      console.log('🏢 TenantId:', data.user?.tenantId);
 
-      // Stocker dans le store
-      login(data.user, data.accessToken, data.refreshToken);
-
-      // Charger les informations du tenant si on a un tenantId
-      if (data.user?.tenantId) {
-        try {
-          const tenantData = await tenantsApi.getOne(data.user.tenantId);
-          // Stocker le tenant dans le store
-          useAuthStore.getState().setTenant(tenantData);
-          console.log('Tenant chargé:', tenantData);
-        } catch (tenantErr) {
-          console.warn('Impossible de charger les infos du tenant:', tenantErr);
-        }
+      // Utiliser le tenant retourné par l'API directement
+      const tenantData = data.tenant || null;
+      if (tenantData) {
+        console.log('✅ Tenant retourné par API:', tenantData);
+      } else if (data.user?.tenantId) {
+        console.warn('⚠️ Tenant ID présent mais pas d\'objet tenant:', data.user.tenantId);
       }
 
-      // Vérifier que le token est bien stocké
+      // Stocker dans le store avec le tenant
+      login(data.user, data.accessToken, data.refreshToken, tenantData);
+
+      // Vérifier que tout est bien stocké
       const stored = localStorage.getItem('imtech-auth-v1');
-      console.log('Token stocké:', stored ? 'Oui' : 'Non');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        console.log('✅ Données stockées:', {
+          hasToken: !!parsed.state?.accessToken,
+          hasUser: !!parsed.state?.user,
+          hasTenant: !!parsed.state?.tenant,
+          tenantId: parsed.state?.tenant?.id || parsed.state?.user?.tenantId
+        });
+      }
 
       toast.success('Connexion réussie !');
 
       // Petite attente pour s'assurer que le store est mis à jour
       setTimeout(() => {
         const route = ROLE_ROUTES[data.user.role] || '/president';
-        console.log('Navigation vers:', route);
+        console.log('🚀 Navigation vers:', route);
         navigate(route);
       }, 100);
     } catch (err: any) {

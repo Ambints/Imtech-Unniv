@@ -2,19 +2,49 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 
 @Entity('utilisateur')
 export class User {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ unique: true }) email: string;
-  @Column({ name: 'password_hash' }) password: string;
-  @Column() nom: string;
-  @Column() prenom: string;
-  @Column({ nullable: true }) telephone: string;
-  @Column({ name: 'photo_url', nullable: true }) photoUrl: string;
-  @Column() role: string;
-  @Column({ default: true, name: 'actif' }) actif: boolean;
-  @Column({ name: 'email_verifie', default: false }) emailVerifie: boolean;
-  @Column({ name: 'derniere_connexion', nullable: true }) derniereConnexion: Date;
-  @Column({ name: 'token_reset', type: 'text', nullable: true }) tokenReset: string;
-  @Column({ name: 'token_reset_expiry', nullable: true }) tokenResetExpiry: Date;
-  @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
-  @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  
+  @Column({ unique: true, length: 254 })
+  email: string;
+  
+  // ✅ CORRECTION: Utiliser password_hash comme dans la DB
+  @Column({ name: 'password_hash', length: 255 })
+  password: string;
+  
+  @Column({ length: 100 })
+  nom: string;
+  
+  @Column({ length: 100 })
+  prenom: string;
+  
+  @Column({ nullable: true, length: 30 })
+  telephone: string;
+  
+  @Column({ name: 'photo_url', nullable: true, length: 500 })
+  photoUrl: string;
+  
+  @Column({ length: 50 })
+  role: string;
+  
+  @Column({ default: true, nullable: true })
+  actif: boolean;
+  
+  @Column({ name: 'email_verifie', default: false, nullable: true })
+  emailVerifie: boolean;
+  
+  @Column({ name: 'derniere_connexion', nullable: true, type: 'timestamptz' })
+  derniereConnexion: Date;
+  
+  @Column({ name: 'token_reset', nullable: true, type: 'text' })
+  tokenReset: string;
+  
+  @Column({ name: 'token_reset_expiry', nullable: true, type: 'timestamptz' })
+  tokenResetExpiry: Date;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date;
+  
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 }

@@ -21,6 +21,7 @@ let TenantConnectionService = class TenantConnectionService {
         this.tenantConnection = tenantConnection;
         this.defaultConnection = defaultConnection;
         this.schemaCache = new Map();
+        this.currentSchema = null;
     }
     async setTenantSchema(tenantId) {
         if (!tenantId || !this.tenantConnection.isConnected)
@@ -46,6 +47,10 @@ let TenantConnectionService = class TenantConnectionService {
         try {
             await this.tenantConnection.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
             await this.tenantConnection.query(`SET search_path TO "${schemaName}", public`);
+            if (this.tenantConnection.manager) {
+                await this.tenantConnection.manager.query(`SET search_path TO "${schemaName}", public`);
+            }
+            this.currentSchema = schemaName;
             console.log(`[TenantConnection] Schema switched to: ${schemaName}`);
         }
         catch (error) {
@@ -53,8 +58,15 @@ let TenantConnectionService = class TenantConnectionService {
             const fallbackSchema = `tenant_${tenantId.replace(/-/g, '_')}`;
             await this.tenantConnection.query(`CREATE SCHEMA IF NOT EXISTS "${fallbackSchema}"`);
             await this.tenantConnection.query(`SET search_path TO "${fallbackSchema}", public`);
+            if (this.tenantConnection.manager) {
+                await this.tenantConnection.manager.query(`SET search_path TO "${fallbackSchema}", public`);
+            }
+            this.currentSchema = fallbackSchema;
             console.log(`[TenantConnection] Fallback schema: ${fallbackSchema}`);
         }
+    }
+    getCurrentSchema() {
+        return this.currentSchema;
     }
     clearCache() {
         this.schemaCache.clear();
@@ -62,10 +74,16 @@ let TenantConnectionService = class TenantConnectionService {
     getConnection() {
         return this.tenantConnection;
     }
+    async getManager() {
+        if (this.currentSchema) {
+            await this.tenantConnection.query(`SET search_path TO "${this.currentSchema}", public`);
+        }
+        return this.tenantConnection.manager;
+    }
 };
 exports.TenantConnectionService = TenantConnectionService;
 exports.TenantConnectionService = TenantConnectionService = __decorate([
-    (0, common_1.Injectable)(),
+    (0, common_1.Injectable)({ scope: common_1.Scope.REQUEST }),
     __param(0, (0, typeorm_1.InjectConnection)('tenant')),
     __param(1, (0, typeorm_1.InjectConnection)('default')),
     __metadata("design:paramtypes", [typeorm_2.Connection,

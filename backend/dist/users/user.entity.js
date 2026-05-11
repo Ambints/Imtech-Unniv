@@ -19,59 +19,59 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Column)({ unique: true, length: 254 }),
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'password_hash' }),
+    (0, typeorm_1.Column)({ name: 'password_hash', length: 255 }),
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ length: 100 }),
     __metadata("design:type", String)
 ], User.prototype, "nom", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ length: 100 }),
     __metadata("design:type", String)
 ], User.prototype, "prenom", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({ nullable: true, length: 30 }),
     __metadata("design:type", String)
 ], User.prototype, "telephone", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'photo_url', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'photo_url', nullable: true, length: 500 }),
     __metadata("design:type", String)
 ], User.prototype, "photoUrl", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ length: 50 }),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: true, name: 'actif' }),
+    (0, typeorm_1.Column)({ default: true, nullable: true }),
     __metadata("design:type", Boolean)
 ], User.prototype, "actif", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'email_verifie', default: false }),
+    (0, typeorm_1.Column)({ name: 'email_verifie', default: false, nullable: true }),
     __metadata("design:type", Boolean)
 ], User.prototype, "emailVerifie", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'derniere_connexion', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'derniere_connexion', nullable: true, type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], User.prototype, "derniereConnexion", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'token_reset', type: 'text', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'token_reset', nullable: true, type: 'text' }),
     __metadata("design:type", String)
 ], User.prototype, "tokenReset", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'token_reset_expiry', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'token_reset_expiry', nullable: true, type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], User.prototype, "tokenResetExpiry", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], User.prototype, "createdAt", void 0);
 __decorate([
-    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at', type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], User.prototype, "updatedAt", void 0);
 exports.User = User = __decorate([

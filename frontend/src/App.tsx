@@ -17,6 +17,12 @@ import { CaissePage } from './pages/finance/CaissePage';
 import { FinanceManagementPage } from './pages/finance/FinanceManagementPage';
 import { LogistiquePage } from './pages/logistics/LogistiquePage';
 import { EtudiantPortal } from './pages/portals/EtudiantPortal';
+import { NotesEtudiantPage } from './pages/portals/etudiant/NotesEtudiantPage';
+import { CoursEtudiantPage } from './pages/portals/etudiant/CoursEtudiantPage';
+import { PaiementsEtudiantPage } from './pages/portals/etudiant/PaiementsEtudiantPage';
+import { AbsencesEtudiantPage } from './pages/portals/etudiant/AbsencesEtudiantPage';
+import { AttestationsEtudiantPage } from './pages/portals/etudiant/AttestationsEtudiantPage';
+import EDTEtudiantPage from './pages/portals/etudiant/EDTEtudiantPage';
 import { ParentPortal } from './pages/portals/ParentPortal';
 import { ProfesseurPortal } from './pages/portals/ProfesseurPortal';
 import { CommunicationPage } from './pages/communication/CommunicationPage';
@@ -24,21 +30,57 @@ import { RHPage } from './pages/rh/RHPage';
 import { EconomatPage } from './pages/economat/EconomatPage';
 import { NotesPage } from './pages/academic/NotesPage';
 import { AcademicManagementPage } from './pages/academic/AcademicManagementPage';
+import ResponsablePedagogiquePage from './pages/pedagogique/ResponsablePedagogiquePage';
+import RPManagementPage from './pages/pedagogique/RPManagementPage';
+import RPDashboardSimple from './pages/pedagogique/RPDashboardSimple';
+import ReferentielsPage from './pages/pedagogique/ReferentielsPage';
+import MaquettesPage from './pages/pedagogique/MaquettesPage';
+import AffectationsPage from './pages/pedagogique/AffectationsPage';
+import SujetsExamensPage from './pages/pedagogique/SujetsExamensPage';
+import PVPage from './pages/pedagogique/PVPage';
+import SecretaireDashboard from './pages/pedagogique/SecretaireDashboard';
+import EmploiDuTempsPage from './pages/pedagogique/EmploiDuTempsPage';
+import ConvocationsPage from './pages/pedagogique/ConvocationsPage';
+import TransmissionPVPage from './pages/pedagogique/TransmissionPVPage';
+import AbsencesPage from './pages/pedagogique/AbsencesPage';
+import DossiersPage from './pages/pedagogique/DossiersPage';
+import SurveillanceDashboard from './pages/surveillance/SurveillanceDashboard';
+import PresencesPage from './pages/surveillance/PresencesPage';
+import IncidentsPage from './pages/surveillance/IncidentsPage';
+import SanctionsPage from './pages/surveillance/SanctionsPage';
+import AbsencesRetardsPage from './pages/surveillance/AbsencesRetardsPage';
+import SurveillanceExamensPage from './pages/surveillance/SurveillanceExamensPage';
+import EmploiDuTempsSurveillance from './pages/surveillance/EmploiDuTempsSurveillance';
+import EmploiDuTempsReadOnly from './pages/surveillance/EmploiDuTempsReadOnly';
+import ScolariteDashboard from './pages/scolarite/ScolariteDashboard';
+import DeliberationsPage from './pages/scolarite/DeliberationsPage';
+import DiplomesPage from './pages/scolarite/DiplomesPage';
+import AttestationsPage from './pages/scolarite/AttestationsPage';
+import TransfertsPage from './pages/scolarite/TransfertsPage';
 import {
   BookOpen, BookText, CheckCircle,
   CalendarDays, ClipboardList, AlertTriangle, Briefcase, BarChart3, Users, FileText,
-  School, User, GraduationCap as ProfIcon, Construction
+  School, User, GraduationCap, GraduationCap as ProfIcon, Construction,
+  QrCode, Calculator, Lock
 } from 'lucide-react';
 
 const Guard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isHydrated } = useAuthStore();
+  const { isAuthenticated, isHydrated, user } = useAuthStore();
+  
+  console.log('[Guard] isHydrated:', isHydrated, '| isAuthenticated:', isAuthenticated, '| role:', user?.role);
+  
   // Attendre que le store soit réhydraté depuis localStorage
   if (!isHydrated) {
+    console.log('[Guard] Waiting for hydration...');
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
       <div style={{ width: 40, height: 40, border: '3px solid #f3f3f3', borderTop: '3px solid #1a5276', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
     </div>;
   }
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    console.log('[Guard] Not authenticated, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+  console.log('[Guard] Authenticated, rendering children');
   return <>{children}</>;
 };
 
@@ -60,7 +102,15 @@ const Placeholder: React.FC<{ title: string; icon: React.ReactNode; desc: string
 const App: React.FC = () => {
   const { isAuthenticated, tenant, user } = useAuthStore();
 
+  console.log('[App] Rendering App component', {
+    isAuthenticated,
+    hasUser: !!user,
+    userRole: user?.role,
+    hasTenant: !!tenant,
+  });
+
   useEffect(() => {
+    console.log('[App] useEffect - tenant:', tenant);
     if (tenant) {
       document.documentElement.style.setProperty('--primary', tenant.primaryColor);
       document.documentElement.style.setProperty('--secondary', tenant.secondaryColor);
@@ -78,10 +128,14 @@ const App: React.FC = () => {
       parent: '/portail/parent',
       professeur: '/portail/professeur',
       caissier: '/caisse',
-      responsable_logistique: '/logistique/tickets',
+      logistique: '/logistique/tickets',
       communication: '/communication',
       rh: '/rh/personnel',
       economat: '/economat/budget',
+      resp_pedagogique: '/pedagogique',
+      secretaire_parcours: '/secretaire',
+      surveillant_general: '/surveillance',
+      scolarite: '/scolarite',
     };
     return map[user?.role || ''] || '/';
   };
@@ -131,10 +185,13 @@ const App: React.FC = () => {
         <Route path="/academic/deliberations" element={<Wrapped><NotesPage /></Wrapped>} />
         <Route path="/scolarite/notes" element={<Wrapped><NotesPage /></Wrapped>} />
         <Route path="/secretariat/inscriptions" element={<Wrapped><AcademicManagementPage /></Wrapped>} />
-        <Route path="/secretariat/edt" element={<Wrapped><Placeholder title="Emploi du Temps" icon={<CalendarDays size={64} color="#94a3b8" />} desc="Planification hebdomadaire des cours, TD, TP par parcours et salle." /></Wrapped>} />
-        <Route path="/secretariat/absences" element={<Wrapped><Placeholder title="Suivi des Absences" icon={<ClipboardList size={64} color="#94a3b8" />} desc="Saisie, justification et suivi des absences et retards des étudiants." /></Wrapped>} />
-        <Route path="/surveillance/presences" element={<Wrapped><Placeholder title="Présences Journalières" icon={<CheckCircle size={64} color="#94a3b8" />} desc="Contrôle numérique des présences via QR Code ou appel en ligne." /></Wrapped>} />
-        <Route path="/surveillance/incidents" element={<Wrapped><Placeholder title="Incidents Disciplinaires" icon={<AlertTriangle size={64} color="#94a3b8" />} desc="Saisie des rapports de conduite et incidents à remonter à la Présidence." /></Wrapped>} />
+        <Route path="/secretariat/edt" element={<Wrapped><EmploiDuTempsPage /></Wrapped>} />
+        <Route path="/secretariat/absences" element={<Wrapped><AbsencesPage /></Wrapped>} />
+        <Route path="/secretariat/pv-jury" element={<Wrapped><TransmissionPVPage /></Wrapped>} />
+        <Route path="/secretariat/dossiers" element={<Wrapped><DossiersPage /></Wrapped>} />
+        <Route path="/secretariat/convocations" element={<Wrapped><ConvocationsPage /></Wrapped>} />
+        <Route path="/surveillance/presences" element={<Wrapped><PresencesPage /></Wrapped>} />
+        <Route path="/surveillance/incidents" element={<Wrapped><IncidentsPage /></Wrapped>} />
 
         {/* Finance */}
         <Route path="/caisse" element={<Wrapped><CaissePage /></Wrapped>} />
@@ -156,6 +213,49 @@ const App: React.FC = () => {
         {/* Communication */}
         <Route path="/communication" element={<Wrapped><CommunicationPage /></Wrapped>} />
 
+        {/* Test route - no guard */}
+        <Route path="/test-rp" element={<div style={{padding: 40}}><h1>Test RP Page</h1><RPManagementPage /></div>} />
+        
+        {/* Pédagogique - Responsable Pédagogique */}
+        <Route path="/pedagogique" element={<Wrapped><RPDashboardSimple /></Wrapped>} />
+        <Route path="/pedagogique/full" element={<Wrapped><RPManagementPage /></Wrapped>} />
+        <Route path="/pedagogique/referentiels" element={<Wrapped><ReferentielsPage /></Wrapped>} />
+        <Route path="/pedagogique/maquettes" element={<Wrapped><MaquettesPage /></Wrapped>} />
+        <Route path="/pedagogique/affectations" element={<Wrapped><AffectationsPage /></Wrapped>} />
+        <Route path="/pedagogique/sujets" element={<Wrapped><SujetsExamensPage /></Wrapped>} />
+        <Route path="/pedagogique/pv" element={<Wrapped><PVPage /></Wrapped>} />
+
+        {/* Secrétaire de Parcours */}
+        <Route path="/secretaire" element={<Wrapped><SecretaireDashboard /></Wrapped>} />
+        <Route path="/secretaire/emploi-du-temps" element={<Wrapped><EmploiDuTempsPage /></Wrapped>} />
+        <Route path="/secretaire/convocations" element={<Wrapped><ConvocationsPage /></Wrapped>} />
+        <Route path="/secretaire/inscriptions" element={<Wrapped><AcademicManagementPage /></Wrapped>} />
+        <Route path="/secretaire/absences" element={<Wrapped><AbsencesPage /></Wrapped>} />
+        <Route path="/secretaire/transmission-pv" element={<Wrapped><TransmissionPVPage /></Wrapped>} />
+
+        {/* Surveillant Général - Discipline */}
+        <Route path="/surveillance" element={<Wrapped><SurveillanceDashboard /></Wrapped>} />
+        <Route path="/surveillance/edt" element={<Wrapped><EmploiDuTempsReadOnly /></Wrapped>} />
+        <Route path="/surveillance/presences" element={<Wrapped><PresencesPage /></Wrapped>} />
+        <Route path="/surveillance/absences" element={<Wrapped><AbsencesRetardsPage /></Wrapped>} />
+        <Route path="/surveillance/incidents" element={<Wrapped><IncidentsPage /></Wrapped>} />
+        <Route path="/surveillance/sanctions" element={<Wrapped><SanctionsPage /></Wrapped>} />
+        <Route path="/surveillance/examens" element={<Wrapped><SurveillanceExamensPage /></Wrapped>} />
+        <Route path="/surveillance/pointage-qr" element={<Wrapped><Placeholder title="Pointage QR Code" icon={<QrCode size={64} color="#94a3b8" />} desc="Scanner les QR codes des étudiants pour l'appel numérique." /></Wrapped>} />
+        <Route path="/surveillance/justifications" element={<Wrapped><Placeholder title="Justifications d'Absence" icon={<CheckCircle size={64} color="#94a3b8" />} desc="Valider ou refuser les justificatifs d'absence des étudiants." /></Wrapped>} />
+        <Route path="/surveillance/alertes" element={<Wrapped><Placeholder title="Alertes Discipline" icon={<AlertTriangle size={64} color="#94a3b8" />} desc="Gérer les alertes automatiques vers le secrétariat." /></Wrapped>} />
+
+        {/* Service Scolarité */}
+        <Route path="/scolarite" element={<Wrapped><ScolariteDashboard /></Wrapped>} />
+        <Route path="/scolarite/notes" element={<Wrapped><NotesPage /></Wrapped>} />
+        <Route path="/scolarite/deliberations" element={<Wrapped><DeliberationsPage /></Wrapped>} />
+        <Route path="/scolarite/diplomes" element={<Wrapped><DiplomesPage /></Wrapped>} />
+        <Route path="/scolarite/attestations" element={<Wrapped><AttestationsPage /></Wrapped>} />
+        <Route path="/scolarite/transferts" element={<Wrapped><TransfertsPage /></Wrapped>} />
+        <Route path="/scolarite/calcul-moyennes" element={<Wrapped><Placeholder title="Calcul des Moyennes" icon={<Calculator size={64} color="#94a3b8" />} desc="Calcul automatique des moyennes pondérées par coefficients ECTS." /></Wrapped>} />
+        <Route path="/scolarite/verrouillage" element={<Wrapped><Placeholder title="Verrouillage des Notes" icon={<Lock size={64} color="#94a3b8" />} desc="Verrouiller les notes après délibération de jury." /></Wrapped>} />
+        <Route path="/scolarite/releves" element={<Wrapped><Placeholder title="Relevés de Notes" icon={<FileText size={64} color="#94a3b8" />} desc="Générer et valider les relevés officiels en PDF." /></Wrapped>} />
+
         {/* Logistique */}
         <Route path="/logistique/tickets" element={<Wrapped><LogistiquePage /></Wrapped>} />
         <Route path="/logistique/stocks" element={<Wrapped><LogistiquePage /></Wrapped>} />
@@ -164,7 +264,12 @@ const App: React.FC = () => {
 
         {/* Portails Utilisateurs */}
         <Route path="/portail/etudiant" element={<Wrapped><EtudiantPortal /></Wrapped>} />
-        <Route path="/portail/etudiant/notes" element={<Wrapped><EtudiantPortal /></Wrapped>} />
+        <Route path="/portail/etudiant/notes" element={<Wrapped><NotesEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/edt" element={<Wrapped><EDTEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/cours" element={<Wrapped><CoursEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/paiements" element={<Wrapped><PaiementsEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/absences" element={<Wrapped><AbsencesEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/attestations" element={<Wrapped><AttestationsEtudiantPage /></Wrapped>} />
         <Route path="/portail/parent" element={<Wrapped><ParentPortal /></Wrapped>} />
         <Route path="/portail/professeur" element={<Wrapped><ProfesseurPortal /></Wrapped>} />
 

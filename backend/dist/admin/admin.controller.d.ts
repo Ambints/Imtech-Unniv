@@ -11,4 +11,8 @@ export declare class AdminController {
     exportUsers(req: any, role?: string): Promise<any[]>;
     getSystemHealth(req: any): Promise<any>;
     createBackup(req: any): Promise<any>;
+    defineSecretaireParcours(req: any, parcoursId: string, secretaireId: string): Promise<any>;
+    getSecretairesParcours(req: any): Promise<any[]>;
+    getSecretairesDisponibles(req: any): Promise<any[]>;
+    removeSecretaireParcours(req: any, parcoursId: string): Promise<any>;
 }

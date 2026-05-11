@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const tenant_entity_1 = require("../tenants/tenant.entity");
+const academic_entities_1 = require("../academic/academic.entities");
+const tenant_connection_service_1 = require("../tenants/tenant-connection.service");
 let AdminService = class AdminService {
-    constructor(tenantRepo, dataSource) {
+    constructor(tenantRepo, dataSource, tenantConnection) {
         this.tenantRepo = tenantRepo;
         this.dataSource = dataSource;
+        this.tenantConnection = tenantConnection;
     }
     async getActivityLogs(tenantId, limit = 50) {
         const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
@@ -235,12 +238,114 @@ let AdminService = class AdminService {
             size: '15.2 MB'
         };
     }
+    async defineSecretaireParcours(tenantId, parcoursId, secretaireId) {
+        const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Université non trouvée');
+        await this.tenantConnection.setTenantSchema(tenantId);
+        const parcoursRepo = this.dataSource.getRepository(academic_entities_1.Parcours);
+        const parcours = await parcoursRepo.findOne({ where: { id: parcoursId } });
+        if (!parcours) {
+            throw new common_1.NotFoundException('Parcours non trouvé');
+        }
+        const etudiantRepo = this.dataSource.getRepository(academic_entities_1.Etudiant);
+        const secretaire = await etudiantRepo.findOne({ where: { id: secretaireId } });
+        if (!secretaire) {
+            throw new common_1.NotFoundException('Secrétaire non trouvé');
+        }
+        const userResult = await this.dataSource.query(`SELECT role FROM "${tenant.schemaName}".utilisateur WHERE id = $1`, [secretaireId]);
+        if (userResult.length === 0) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const userRole = userResult[0].role;
+        if (!userRole.includes('secretaire')) {
+            throw new common_1.BadRequestException('L\'utilisateur spécifié n\'a pas le rôle de secrétaire');
+        }
+        await parcoursRepo.update(parcoursId, { secretaireId });
+        return {
+            message: 'Secrétaire défini avec succès pour le parcours',
+            parcoursId,
+            secretaireId,
+            secretaireNom: `${secretaire.prenom} ${secretaire.nom}`,
+            parcoursNom: parcours.nom
+        };
+    }
+    async getSecretairesParcours(tenantId) {
+        const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Université non trouvée');
+        await this.tenantConnection.setTenantSchema(tenantId);
+        const parcoursRepo = this.dataSource.getRepository(academic_entities_1.Parcours);
+        const etudiantRepo = this.dataSource.getRepository(academic_entities_1.Etudiant);
+        const parcours = await parcoursRepo.find({
+            where: { actif: true },
+            order: { nom: 'ASC' }
+        });
+        const result = await Promise.all(parcours.map(async (p) => {
+            let secretaire = null;
+            if (p.secretaireId) {
+                secretaire = await etudiantRepo.findOne({ where: { id: p.secretaireId } });
+            }
+            return {
+                id: p.id,
+                nom: p.nom,
+                code: p.code,
+                niveau: p.niveau,
+                secretaireId: p.secretaireId,
+                secretaire: secretaire ? {
+                    id: secretaire.id,
+                    nom: secretaire.nom,
+                    prenom: secretaire.prenom,
+                    email: secretaire.email
+                } : null
+            };
+        }));
+        return result;
+    }
+    async getSecretairesDisponibles(tenantId) {
+        const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Université non trouvée');
+        const query = `
+      SELECT 
+        u.id,
+        u.prenom,
+        u.nom,
+        u.email,
+        u.role,
+        e.matricule
+      FROM "${tenant.schemaName}".utilisateur u
+      LEFT JOIN "${tenant.schemaName}".etudiant e ON u.id = e.utilisateur_id
+      WHERE u.role LIKE '%secretaire%' AND u.actif = true
+      ORDER BY u.prenom, u.nom
+    `;
+        const result = await this.dataSource.query(query);
+        return result;
+    }
+    async removeSecretaireParcours(tenantId, parcoursId) {
+        const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+        if (!tenant)
+            throw new common_1.NotFoundException('Université non trouvée');
+        await this.tenantConnection.setTenantSchema(tenantId);
+        const parcoursRepo = this.dataSource.getRepository(academic_entities_1.Parcours);
+        const parcours = await parcoursRepo.findOne({ where: { id: parcoursId } });
+        if (!parcours) {
+            throw new common_1.NotFoundException('Parcours non trouvé');
+        }
+        await parcoursRepo.update(parcoursId, { secretaireId: null });
+        return {
+            message: 'Secrétaire supprimé avec succès du parcours',
+            parcoursId,
+            parcoursNom: parcours.nom
+        };
+    }
 };
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(tenant_entity_1.Tenant, 'default')),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.DataSource])
+        typeorm_2.DataSource,
+        tenant_connection_service_1.TenantConnectionService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

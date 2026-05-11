@@ -3,6 +3,7 @@ export declare class PortailEtudiantService {
     private dataSource;
     private readonly logger;
     constructor(dataSource: DataSource);
+    searchEtudiants(query: string): Promise<any[]>;
     getProfil(utilisateurId: string): Promise<any>;
     getEmploiDuTemps(utilisateurId: string, dateDebut?: string, dateFin?: string): Promise<any>;
     getNotes(utilisateurId: string, sessionId?: string): Promise<any>;

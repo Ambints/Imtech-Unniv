@@ -8,18 +8,6 @@ export declare class AuthService {
         accessToken: string;
         refreshToken: string;
         user: {
-            id: string;
-            email: string;
-            firstName: string;
-            lastName: string;
-            role: string;
-            photoUrl: any;
-            tenantId?: undefined;
-        };
-    } | {
-        accessToken: string;
-        refreshToken: string;
-        user: {
             id: any;
             email: any;
             firstName: any;
@@ -28,6 +16,7 @@ export declare class AuthService {
             photoUrl: any;
             tenantId: any;
         };
+        tenant: any;
     }>;
     refresh(userId: string, token: string): Promise<{
         accessToken: string;

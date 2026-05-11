@@ -18,7 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const finance_entities_1 = require("./finance.entities");
 let FinanceService = class FinanceService {
-    constructor(grilleRepo, echeancierRepo, paiementRepo, budgetRepo, depenseRepo, contratRepo, fichePaieRepo) {
+    constructor(grilleRepo, echeancierRepo, paiementRepo, budgetRepo, depenseRepo, contratRepo, fichePaieRepo, dataSource) {
         this.grilleRepo = grilleRepo;
         this.echeancierRepo = echeancierRepo;
         this.paiementRepo = paiementRepo;
@@ -26,17 +26,51 @@ let FinanceService = class FinanceService {
         this.depenseRepo = depenseRepo;
         this.contratRepo = contratRepo;
         this.fichePaieRepo = fichePaieRepo;
+        this.dataSource = dataSource;
     }
     async enregistrerPaiement(tid, dto, caissierId) {
+        let inscriptionId = dto.inscriptionId;
+        let etudiantNom = '';
+        if (!inscriptionId && dto.matricule) {
+            const result = await this.dataSource.query(`
+        SELECT i.id, e.nom, e.prenom
+        FROM inscription i
+        JOIN etudiant e ON e.id = i.etudiant_id
+        WHERE e.matricule = $1
+        ORDER BY i.date_inscription DESC
+        LIMIT 1
+      `, [dto.matricule]);
+            if (result.length === 0) {
+                throw new common_1.BadRequestException(`Aucune inscription trouvée pour le matricule: ${dto.matricule}`);
+            }
+            inscriptionId = result[0].id;
+            etudiantNom = `${result[0].nom} ${result[0].prenom}`;
+        }
+        if (!inscriptionId) {
+            throw new common_1.BadRequestException('Veuillez fournir soit inscriptionId soit matricule');
+        }
         const reference = 'REC-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-        const paiement = await this.paiementRepo.save(this.paiementRepo.create({ ...dto, reference, statut: 'valide', caissierId, numeroRecu: reference }));
+        const paiementData = {
+            inscriptionId,
+            montant: dto.montant,
+            modePaiement: dto.modePaiement,
+            echeancierId: dto.echeancierId || null,
+            reference,
+            statut: 'valide',
+            caissierId,
+            numeroRecu: reference,
+            observations: dto.motif || dto.observations || null,
+        };
+        const paiement = await this.paiementRepo.save(this.paiementRepo.create(paiementData));
         return {
             paiement,
+            etudiantNom,
             recu: {
                 numeroRecu: reference,
                 date: new Date(),
                 montant: dto.montant,
                 mode: dto.modePaiement,
+                matricule: dto.matricule,
                 statut: 'Paye',
                 message: 'Recu de paiement - IMTECH UNIVERSITY',
             },
@@ -184,12 +218,14 @@ exports.FinanceService = FinanceService = __decorate([
     __param(4, (0, typeorm_1.InjectRepository)(finance_entities_1.Depense, 'tenant')),
     __param(5, (0, typeorm_1.InjectRepository)(finance_entities_1.ContratPersonnel, 'tenant')),
     __param(6, (0, typeorm_1.InjectRepository)(finance_entities_1.FichePaie, 'tenant')),
+    __param(7, (0, typeorm_1.InjectDataSource)('tenant')),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        typeorm_2.DataSource])
 ], FinanceService);
 //# sourceMappingURL=finance.service.js.map

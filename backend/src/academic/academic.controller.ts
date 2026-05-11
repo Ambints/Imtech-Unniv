@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AcademicService } from './academic.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Academic')
 @ApiBearerAuth('JWT-auth')
@@ -9,6 +10,13 @@ export class AcademicController {
   constructor(private readonly svc: AcademicService) {}
 
   // Departements
+  @Get('departements')
+  @ApiOperation({ summary: 'Liste des departements (tenant from context)' })
+  getDepartementsFromContext() {
+    // This will use the tenant from the request context set by middleware
+    return this.svc.getDepartementsFromContext();
+  }
+
   @Get(':tid/departements')
   @ApiOperation({ summary: 'Liste des departements' })
   getDepartements(@Param('tid') tid: string) { return this.svc.getDepartements(tid); }
@@ -35,8 +43,11 @@ export class AcademicController {
   createParcours(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createParcours(tid, dto); }
 
   @Get(':tid/parcours')
-  @ApiOperation({ summary: 'Lister les parcours' })
-  getParcours(@Param('tid') tid: string) { return this.svc.getParcours(tid); }
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Lister les parcours (filtrés par rôle)' })
+  getParcours(@Param('tid') tid: string, @Request() req) {
+    return this.svc.getParcours(tid, req.user?.userId, req.user?.role);
+  }
 
   @Patch(':tid/parcours/:id')
   @ApiOperation({ summary: 'Modifier un parcours' })
@@ -65,6 +76,20 @@ export class AcademicController {
     return this.svc.updateUE(tid, id, dto);
   }
 
+  // Sessions d'examens
+  @Get(':tid/sessions')
+  @ApiOperation({ summary: 'Lister les sessions d\'examens' })
+  getSessionsExamen(@Param('tid') tid: string) {
+    return this.svc.getSessionsExamen(tid);
+  }
+
+  // Presences
+  @Get(':tid/presences')
+  @ApiOperation({ summary: 'Liste des presences' })
+  getPresences(@Param('tid') tid: string, @Query('statut') statut?: string) {
+    return this.svc.getPresences(tid, statut);
+  }
+
   @Delete(':tid/ue/:id')
   @ApiOperation({ summary: 'Supprimer une UE' })
   deleteUE(@Param('tid') tid: string, @Param('id') id: string) {
@@ -75,6 +100,13 @@ export class AcademicController {
   @Get(':tid/etudiants')
   @ApiOperation({ summary: 'Liste des etudiants' })
   getEtudiants(@Param('tid') tid: string, @Query('parcoursId') pid?: string) {
+    return this.svc.getEtudiants(tid, pid);
+  }
+
+  // Alias endpoint for English naming convention
+  @Get(':tid/students')
+  @ApiOperation({ summary: 'Liste des etudiants (alias)' })
+  getStudents(@Param('tid') tid: string, @Query('parcoursId') pid?: string) {
     return this.svc.getEtudiants(tid, pid);
   }
 
@@ -100,8 +132,16 @@ export class AcademicController {
 
   @Delete(':tid/etudiants/:id')
   @ApiOperation({ summary: 'Supprimer un etudiant' })
-  deleteEtudiant(@Param('tid') tid: string, @Param('id') id: string) {
-    return this.svc.deleteEtudiant(tid, id);
+  async deleteEtudiant(@Param('tid') tid: string, @Param('id') id: string) {
+    console.log(`[Controller] deleteEtudiant called with tid: ${tid}, id: ${id}`);
+    try {
+      const result = await this.svc.deleteEtudiant(tid, id);
+      console.log(`[Controller] deleteEtudiant success:`, result);
+      return result;
+    } catch (error) {
+      console.error(`[Controller] deleteEtudiant error:`, error);
+      throw error;
+    }
   }
 
   @Post(':tid/notes')
@@ -155,4 +195,30 @@ export class AcademicController {
   @Get(':tid/edt')
   @ApiOperation({ summary: 'Emploi du temps par parcours' })
   getEDT(@Param('tid') tid: string, @Query('parcoursId') pid: string) { return this.svc.getEDT(tid, pid); }
+
+  // Annees Academiques
+  @Get(':tid/annees')
+  @ApiOperation({ summary: 'Liste des années académiques' })
+  getAnneesAcademiques(@Param('tid') tid: string) { return this.svc.getAnneesAcademiques(tid); }
+
+  // Enseignants
+  @Get(':tid/enseignants')
+  @ApiOperation({ summary: 'Liste des enseignants (professeurs)' })
+  getEnseignants(@Param('tid') tid: string) { return this.svc.getEnseignants(tid); }
+
+  @Post(':tid/annees')
+  @ApiOperation({ summary: 'Créer une année académique' })
+  createAnneeAcademique(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createAnneeAcademique(tid, dto); }
+
+  @Patch(':tid/annees/:id')
+  @ApiOperation({ summary: 'Modifier une année académique' })
+  updateAnneeAcademique(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateAnneeAcademique(tid, id, dto);
+  }
+
+  @Post(':tid/annees/:id/activer')
+  @ApiOperation({ summary: 'Activer une année académique (désactive les autres)' })
+  activerAnneeAcademique(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.activerAnneeAcademique(tid, id);
+  }
 }

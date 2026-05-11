@@ -49,16 +49,16 @@ export class TenantCreationService {
       await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto" SCHEMA public`);
       this.logger.log(`✅ Extensions créées dans le schéma public`);
 
-      // 4. Lire et exécuter le script SQL de création des tables
+      // 4. Lire et exécuter le script SQL de création des tables de base
       const sqlPath = process.env.NODE_ENV === 'production'
         ? join(__dirname, 'tenant-schema.sql')
         : join(__dirname, '../../src/tenants/tenant-schema.sql');
       
-      this.logger.log(`📄 Lecture du script SQL: ${sqlPath}`);
+      this.logger.log(`📄 Lecture du script SQL de base: ${sqlPath}`);
       let sqlScript = readFileSync(sqlPath, 'utf-8');
 
       // 5. Exécuter le script dans le contexte du nouveau schéma
-      this.logger.log(`🔧 Initialisation des tables dans ${schemaName}`);
+      this.logger.log(`🔧 Initialisation des tables de base dans ${schemaName}`);
 
       // Définir le search_path pour ce schéma
       await queryRunner.query(`SET search_path TO "${schemaName}"`);
@@ -95,10 +95,46 @@ export class TenantCreationService {
       
       this.logger.log(`✅ Exécution terminée: ${successCount} réussies, ${skipCount} ignorées`);
       
+      // 6. Appliquer le script SQL du module scolarité
+      this.logger.log(`🔧 Application du module scolarité...`);
+      const scolariteSqlPath = process.env.NODE_ENV === 'production'
+        ? join(__dirname, '../scolarite/migrations/001_add_scolarite_tables.sql')
+        : join(__dirname, '../../src/scolarite/migrations/001_add_scolarite_tables.sql');
+      
+      try {
+        this.logger.log(`📄 Lecture du script scolarité: ${scolariteSqlPath}`);
+        const scolariteSqlScript = readFileSync(scolariteSqlPath, 'utf-8');
+        const scolariteStatements = this.parseSqlStatements(scolariteSqlScript);
+        
+        this.logger.log(`📊 ${scolariteStatements.length} instructions SQL scolarité à exécuter`);
+        
+        let scolariteSuccessCount = 0;
+        let scolariteSkipCount = 0;
+        
+        for (let i = 0; i < scolariteStatements.length; i++) {
+          const stmt = scolariteStatements[i];
+          try {
+            await queryRunner.query(stmt);
+            scolariteSuccessCount++;
+          } catch (error) {
+            const msg = getErrorMessage(error);
+            if (!msg.includes('already exists') && !msg.includes('n\'existe pas')) {
+              this.logger.warn(`⚠️ Instruction scolarité ${i + 1} ignorée: ${msg.substring(0, 100)}`);
+            }
+            scolariteSkipCount++;
+          }
+        }
+        
+        this.logger.log(`✅ Module scolarité appliqué: ${scolariteSuccessCount} réussies, ${scolariteSkipCount} ignorées`);
+      } catch (error) {
+        this.logger.warn(`⚠️ Impossible d'appliquer le module scolarité: ${getErrorMessage(error)}`);
+        this.logger.warn(`   Le module scolarité devra être appliqué manuellement`);
+      }
+      
       // Réinitialiser le search_path
       await queryRunner.query(`SET search_path TO public`);
 
-      // 6. Vérifier que les tables ont été créées
+      // 7. Vérifier que les tables ont été créées
       const tableCheck = await queryRunner.query(`
         SELECT table_name
         FROM information_schema.tables

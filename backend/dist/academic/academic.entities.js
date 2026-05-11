@@ -43,6 +43,10 @@ __decorate([
     __metadata("design:type", String)
 ], Parcours.prototype, "responsableId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'secretaire_id', nullable: true }),
+    __metadata("design:type", String)
+], Parcours.prototype, "secretaireId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], Parcours.prototype, "description", void 0);
@@ -658,6 +662,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'motif_annulation', nullable: true }),
     __metadata("design:type", String)
 ], EmploiDuTemps.prototype, "motifAnnulation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by_id', nullable: true }),
+    __metadata("design:type", String)
+], EmploiDuTemps.prototype, "createdById", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

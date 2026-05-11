@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/typeorm';
-import { Connection, Repository } from 'typeorm';
+import { Connection, EntityManager } from 'typeorm';
 import { Tenant } from './tenant.entity';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class TenantConnectionService {
   private schemaCache: Map<string, string> = new Map();
+  private currentSchema: string | null = null;
 
   constructor(
     @InjectConnection('tenant') private readonly tenantConnection: Connection,
@@ -42,10 +43,20 @@ export class TenantConnectionService {
       }
     }
 
+    // Set schema for ALL connections in the pool
     try {
       // Ensure schema exists
       await this.tenantConnection.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+      
+      // Set search_path for the current connection
       await this.tenantConnection.query(`SET search_path TO "${schemaName}", public`);
+      
+      // Also set it on the manager level
+      if (this.tenantConnection.manager) {
+        await this.tenantConnection.manager.query(`SET search_path TO "${schemaName}", public`);
+      }
+      
+      this.currentSchema = schemaName;
       console.log(`[TenantConnection] Schema switched to: ${schemaName}`);
     } catch (error) {
       console.error(`[TenantConnection] Failed to switch to schema ${schemaName}:`, error);
@@ -53,8 +64,18 @@ export class TenantConnectionService {
       const fallbackSchema = `tenant_${tenantId.replace(/-/g, '_')}`;
       await this.tenantConnection.query(`CREATE SCHEMA IF NOT EXISTS "${fallbackSchema}"`);
       await this.tenantConnection.query(`SET search_path TO "${fallbackSchema}", public`);
+      
+      if (this.tenantConnection.manager) {
+        await this.tenantConnection.manager.query(`SET search_path TO "${fallbackSchema}", public`);
+      }
+      
+      this.currentSchema = fallbackSchema;
       console.log(`[TenantConnection] Fallback schema: ${fallbackSchema}`);
     }
+  }
+
+  getCurrentSchema(): string | null {
+    return this.currentSchema;
   }
 
   clearCache(): void {
@@ -63,5 +84,13 @@ export class TenantConnectionService {
 
   getConnection(): Connection {
     return this.tenantConnection;
+  }
+
+  async getManager(): Promise<EntityManager> {
+    // Ensure schema is set before returning manager
+    if (this.currentSchema) {
+      await this.tenantConnection.query(`SET search_path TO "${this.currentSchema}", public`);
+    }
+    return this.tenantConnection.manager;
   }
 }

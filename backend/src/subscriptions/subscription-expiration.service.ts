@@ -7,6 +7,7 @@ import { Tenant } from '../tenants/tenant.entity';
 export class SubscriptionExpirationService implements OnModuleInit {
   private readonly logger = new Logger(SubscriptionExpirationService.name);
   private intervalId: NodeJS.Timeout;
+  private disabled = false;
 
   constructor(
     @InjectRepository(Tenant, 'default')
@@ -33,12 +34,26 @@ export class SubscriptionExpirationService implements OnModuleInit {
    * Checks and suspends expired subscriptions
    */
   async handleExpiredSubscriptions(): Promise<void> {
+    if (this.disabled) {
+      return;
+    }
     this.logger.log('Checking for expired subscriptions...');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     try {
+      // Preflight: verify the table exists (avoid crashing on fresh DB)
+      const reg = await this.tenantRepo.query(`SELECT to_regclass('public.tenant') AS regclass`);
+      const regclass = reg?.[0]?.regclass ?? null;
+
+      if (!regclass) {
+        // Mode "sans tenants": base importée sans le schéma public. On désactive proprement.
+        this.disabled = true;
+        this.logger.log('Subscription expiration checker disabled: public.tenant table is missing');
+        return;
+      }
+
       // Find tenants with expired subscriptions that are still active
       const expiredTenants = await this.tenantRepo.find({
         where: {

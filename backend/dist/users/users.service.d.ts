@@ -12,6 +12,7 @@ export declare class UsersService {
     findAll(tid?: string, role?: string, university?: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
     findByEmail(email: string): Promise<any>;
+    getTenantInfo(tenantId: string): Promise<Tenant | null>;
     findSuperAdminByEmail(email: string): Promise<SuperAdmin | null>;
     updateSuperAdminLastLogin(id: string): Promise<void>;
     update(id: string, dto: any): Promise<any>;

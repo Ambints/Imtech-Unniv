@@ -3,12 +3,14 @@ export declare class FinanceController {
     private readonly svc;
     constructor(svc: FinanceService);
     payer(tid: string, dto: any): Promise<{
-        paiement: import("./finance.entities").Paiement[];
+        paiement: import("./finance.entities").Paiement;
+        etudiantNom: string;
         recu: {
             numeroRecu: string;
             date: Date;
             montant: any;
             mode: any;
+            matricule: any;
             statut: string;
             message: string;
         };

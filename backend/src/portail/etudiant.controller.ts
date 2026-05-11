@@ -9,20 +9,34 @@ import { CurrentUser } from '../auth/current-user.decorator';
 @ApiTags('Portail Étudiant - Espace personnel')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('etudiant')
-@Controller('portail/etudiant')
+@Controller('portail/:tid')
 export class PortailEtudiantController {
   constructor(private readonly svc: PortailEtudiantService) {}
 
-  @Get('profil')
+  // Endpoint de recherche d'étudiants (accessible par surveillants, admin, etc.)
+  @Get('etudiants/search')
+  @Roles('surveillant', 'surveillant_general', 'admin', 'secretaire', 'responsable_pedagogique')
+  @ApiOperation({ summary: 'Rechercher des étudiants par nom, prénom ou matricule' })
+  async searchEtudiants(
+    @Param('tid') tid: string,
+    @Query('q') query: string
+  ) {
+    return this.svc.searchEtudiants(query);
+  }
+
+  // Routes pour les étudiants
+  @Roles('etudiant')
+
+  @Get('etudiant/profil')
   @ApiOperation({ summary: 'Profil de l\'étudiant connecté' })
-  getProfil(@CurrentUser() user: any) {
+  getProfil(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getProfil(user.id);
   }
 
-  @Get('emploi-du-temps')
+  @Get('etudiant/emploi-du-temps')
   @ApiOperation({ summary: 'Emploi du temps de l\'étudiant' })
   getEmploiDuTemps(
+    @Param('tid') tid: string,
     @CurrentUser() user: any,
     @Query('dateDebut') dateDebut?: string,
     @Query('dateFin') dateFin?: string,
@@ -30,63 +44,63 @@ export class PortailEtudiantController {
     return this.svc.getEmploiDuTemps(user.id, dateDebut, dateFin);
   }
 
-  @Get('notes')
+  @Get('etudiant/notes')
   @ApiOperation({ summary: 'Notes de l\'étudiant' })
-  getNotes(@CurrentUser() user: any, @Query('sessionId') sessionId?: string) {
+  getNotes(@Param('tid') tid: string, @CurrentUser() user: any, @Query('sessionId') sessionId?: string) {
     return this.svc.getNotes(user.id, sessionId);
   }
 
-  @Get('moyennes')
+  @Get('etudiant/moyennes')
   @ApiOperation({ summary: 'Moyennes par semestre/UE' })
-  getMoyennes(@CurrentUser() user: any) {
+  getMoyennes(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getMoyennes(user.id);
   }
 
-  @Get('paiements')
+  @Get('etudiant/paiements')
   @ApiOperation({ summary: 'Historique des paiements' })
-  getPaiements(@CurrentUser() user: any) {
+  getPaiements(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getPaiements(user.id);
   }
 
-  @Get('solde')
+  @Get('etudiant/solde')
   @ApiOperation({ summary: 'Solde des frais de scolarité' })
-  getSolde(@CurrentUser() user: any) {
+  getSolde(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getSolde(user.id);
   }
 
-  @Get('absences')
+  @Get('etudiant/absences')
   @ApiOperation({ summary: 'Historique des absences' })
-  getAbsences(@CurrentUser() user: any) {
+  getAbsences(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getAbsences(user.id);
   }
 
-  @Post('justifier-absence')
+  @Post('etudiant/justifier-absence')
   @ApiOperation({ summary: 'Déposer un justificatif d\'absence' })
-  justifierAbsence(@CurrentUser() user: any, @Body() dto: any) {
+  justifierAbsence(@Param('tid') tid: string, @CurrentUser() user: any, @Body() dto: any) {
     return this.svc.justifierAbsence(user.id, dto);
   }
 
-  @Get('documents')
+  @Get('etudiant/documents')
   @ApiOperation({ summary: 'Documents disponibles' })
-  getDocuments(@CurrentUser() user: any) {
+  getDocuments(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getDocuments(user.id);
   }
 
-  @Get('cours-en-ligne')
+  @Get('etudiant/cours-en-ligne')
   @ApiOperation({ summary: 'Supports de cours' })
-  getCoursEnLigne(@CurrentUser() user: any) {
+  getCoursEnLigne(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getCoursEnLigne(user.id);
   }
 
-  @Get('inscription-examens')
+  @Get('etudiant/inscription-examens')
   @ApiOperation({ summary: 'Inscriptions aux examens' })
-  getInscriptionExamens(@CurrentUser() user: any) {
+  getInscriptionExamens(@Param('tid') tid: string, @CurrentUser() user: any) {
     return this.svc.getInscriptionsExamens(user.id);
   }
 
-  @Post('inscription-examens')
+  @Post('etudiant/inscription-examens')
   @ApiOperation({ summary: 'S\'inscrire à une session d\'examen' })
-  inscrireExamen(@CurrentUser() user: any, @Body() dto: { sessionId: string }) {
+  inscrireExamen(@Param('tid') tid: string, @CurrentUser() user: any, @Body() dto: { sessionId: string }) {
     return this.svc.inscrireExamen(user.id, dto.sessionId);
   }
 }

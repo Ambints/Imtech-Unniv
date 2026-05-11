@@ -85,6 +85,12 @@ export class UsersService {
       if (tid && tenant.id !== tid) continue;
       if (university && tenant.id !== university && tenant.slug !== university) continue;
       
+      // Skip tenants without valid schema names (like univ_demo)
+      if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
+        console.warn(`Skipping tenant ${tenant.id} with invalid schema: ${tenant.schemaName}`);
+        continue;
+      }
+      
       // Query users from this tenant's schema using positional parameters
       const query = role
         ? `SELECT id, prenom, nom, email, role, actif, created_at, telephone, photo_url, $1::uuid as tenant_id, $2 as university
@@ -120,41 +126,35 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<any> {
-    const u = await this.repo.findOne({ where: { id } });
-    if (!u) throw new NotFoundException('Utilisateur introuvable');
-    return u;
-  }
-
-  async findByEmail(email: string): Promise<any> {
     // Search across all tenant schemas
+    // Note: For auth routes, tenant middleware is skipped, so we can't rely on repo
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
     for (const tenant of tenants) {
+      if (!tenant.schemaName) continue;
+      
       try {
         const query = `
-          SELECT id, email, password_hash as password, nom, prenom, telephone,
-                 photo_url, role, actif, email_verifie, derniere_connexion,
+          SELECT id, email, password_hash, nom, prenom, telephone, photo_url, role, actif, 
                  token_reset, token_reset_expiry, created_at, updated_at
           FROM "${tenant.schemaName}".utilisateur
-          WHERE email = $1
+          WHERE id = $1
+          LIMIT 1
         `;
+        const result = await this.dataSource.query(query, [id]);
         
-        const result = await this.dataSource.query(query, [email]);
-        
-        if (result.length > 0) {
+        if (result && result.length > 0) {
           const user = result[0];
           return {
             id: user.id,
             email: user.email,
-            password: user.password,
+            password: user.password_hash,
             nom: user.nom,
             prenom: user.prenom,
             telephone: user.telephone,
             photoUrl: user.photo_url,
             role: user.role,
             actif: user.actif,
-            emailVerifie: user.email_verifie,
-            derniereConnexion: user.derniere_connexion,
             tokenReset: user.token_reset,
             tokenResetExpiry: user.token_reset_expiry,
             createdAt: user.created_at,
@@ -163,13 +163,59 @@ export class UsersService {
           };
         }
       } catch (err: any) {
-        // Skip tenants with missing schemas
-        console.warn(`Failed to query schema ${tenant.schemaName}:`, err?.message || String(err));
+        console.warn(`[UsersService] Failed to findOne in schema ${tenant.schemaName}:`, err?.message);
       }
     }
     
-    // If not found in any tenant schema, return null
+    throw new NotFoundException('Utilisateur introuvable');
+  }
+
+  async findByEmail(email: string): Promise<any> {
+    // Search across all active tenant schemas
+    // Note: For auth routes, tenant middleware is skipped, so we can't rely on repo
+    const tenants = await this.tenantRepo.find({ where: { actif: true } });
+    
+    for (const tenant of tenants) {
+      if (!tenant.schemaName) continue;
+      
+      try {
+        const query = `
+          SELECT id, email, password_hash, nom, prenom, telephone, photo_url, role, actif, created_at, updated_at
+          FROM "${tenant.schemaName}".utilisateur
+          WHERE email = $1
+          LIMIT 1
+        `;
+        const result = await this.dataSource.query(query, [email]);
+        
+        if (result && result.length > 0) {
+          const user = result[0];
+          console.log(`[UsersService] Found user in tenant ${tenant.nom} (${tenant.schemaName})`);
+          return {
+            id: user.id,
+            email: user.email,
+            password: user.password_hash,
+            nom: user.nom,
+            prenom: user.prenom,
+            telephone: user.telephone,
+            photoUrl: user.photo_url,
+            role: user.role,
+            actif: user.actif,
+            createdAt: user.created_at,
+            updatedAt: user.updated_at,
+            tenantId: tenant.id,
+            tenantSchema: tenant.schemaName,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[UsersService] Failed to search in schema ${tenant.schemaName}:`, err?.message);
+      }
+    }
+    
     return null;
+  }
+
+  async getTenantInfo(tenantId: string): Promise<Tenant | null> {
+    return this.tenantRepo.findOne({ where: { id: tenantId } });
   }
 
   async findSuperAdminByEmail(email: string): Promise<SuperAdmin | null> {
@@ -185,6 +231,11 @@ export class UsersService {
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
     for (const tenant of tenants) {
+      // Skip tenants without valid schema names (like univ_demo)
+      if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
+        continue;
+      }
+      
       try {
         const checkQuery = `SELECT id FROM "${tenant.schemaName}".utilisateur WHERE id = $1`;
         const exists = await this.dataSource.query(checkQuery, [id]);
@@ -265,6 +316,11 @@ export class UsersService {
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
     for (const tenant of tenants) {
+      // Skip tenants without valid schema names (like univ_demo)
+      if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
+        continue;
+      }
+      
       try {
         const checkQuery = `SELECT id FROM "${tenant.schemaName}".utilisateur WHERE id = $1`;
         const exists = await this.dataSource.query(checkQuery, [id]);
@@ -288,6 +344,11 @@ export class UsersService {
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
     for (const tenant of tenants) {
+      // Skip tenants without valid schema names (like univ_demo)
+      if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
+        continue;
+      }
+      
       try {
         const checkQuery = `SELECT id FROM "${tenant.schemaName}".utilisateur WHERE id = $1`;
         const exists = await this.dataSource.query(checkQuery, [id]);
@@ -307,10 +368,8 @@ export class UsersService {
       }
     }
     
-    // Fallback to default repository
-    await this.repo.update(id, {
-      tokenReset: token,
-      tokenResetExpiry: token ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null
-    });
+    // Note: tokenReset and tokenResetExpiry columns don't exist in the current schema
+    // This functionality would need to be added if password reset is required
+    console.warn('[UsersService] updateRefreshToken: tokenReset columns not available in schema');
   }
 }

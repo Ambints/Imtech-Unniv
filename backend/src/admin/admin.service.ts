@@ -1,13 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Tenant } from '../tenants/tenant.entity';
+import { Parcours, Etudiant } from '../academic/academic.entities';
+import { TenantConnectionService } from '../tenants/tenant-connection.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectRepository(Tenant, 'default') private tenantRepo: Repository<Tenant>,
     private dataSource: DataSource,
+    private readonly tenantConnection: TenantConnectionService,
   ) {}
 
   /**
@@ -268,6 +271,150 @@ export class AdminService {
       backupId: `backup_${tenant.slug}_${Date.now()}`,
       timestamp: new Date().toISOString(),
       size: '15.2 MB'
+    };
+  }
+
+  // ==================== GESTION DES SÉCRÉTAIRES PAR PARCOURS ====================
+
+  /**
+   * Définit un secrétaire pour un parcours
+   */
+  async defineSecretaireParcours(tenantId: string, parcoursId: string, secretaireId: string): Promise<any> {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Université non trouvée');
+
+    await this.tenantConnection.setTenantSchema(tenantId);
+
+    // Vérifier que le parcours existe
+    const parcoursRepo = this.dataSource.getRepository(Parcours);
+    const parcours = await parcoursRepo.findOne({ where: { id: parcoursId } });
+    if (!parcours) {
+      throw new NotFoundException('Parcours non trouvé');
+    }
+
+    // Vérifier que le secrétaire existe et a le bon rôle
+    const etudiantRepo = this.dataSource.getRepository(Etudiant);
+    const secretaire = await etudiantRepo.findOne({ where: { id: secretaireId } });
+    if (!secretaire) {
+      throw new NotFoundException('Secrétaire non trouvé');
+    }
+
+    // Vérifier le rôle de l'utilisateur via la table utilisateur
+    const userResult = await this.dataSource.query(
+      `SELECT role FROM "${tenant.schemaName}".utilisateur WHERE id = $1`,
+      [secretaireId]
+    );
+    
+    if (userResult.length === 0) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const userRole = userResult[0].role;
+    if (!userRole.includes('secretaire')) {
+      throw new BadRequestException('L\'utilisateur spécifié n\'a pas le rôle de secrétaire');
+    }
+
+    // Mettre à jour le parcours avec le secrétaire
+    await parcoursRepo.update(parcoursId, { secretaireId });
+
+    return {
+      message: 'Secrétaire défini avec succès pour le parcours',
+      parcoursId,
+      secretaireId,
+      secretaireNom: `${secretaire.prenom} ${secretaire.nom}`,
+      parcoursNom: parcours.nom
+    };
+  }
+
+  /**
+   * Récupère les secrétaires par parcours
+   */
+  async getSecretairesParcours(tenantId: string): Promise<any[]> {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Université non trouvée');
+
+    await this.tenantConnection.setTenantSchema(tenantId);
+
+    const parcoursRepo = this.dataSource.getRepository(Parcours);
+    const etudiantRepo = this.dataSource.getRepository(Etudiant);
+
+    const parcours = await parcoursRepo.find({
+      where: { actif: true },
+      order: { nom: 'ASC' }
+    });
+
+    const result = await Promise.all(
+      parcours.map(async (p) => {
+        let secretaire = null;
+        if (p.secretaireId) {
+          secretaire = await etudiantRepo.findOne({ where: { id: p.secretaireId } });
+        }
+
+        return {
+          id: p.id,
+          nom: p.nom,
+          code: p.code,
+          niveau: p.niveau,
+          secretaireId: p.secretaireId,
+          secretaire: secretaire ? {
+            id: secretaire.id,
+            nom: secretaire.nom,
+            prenom: secretaire.prenom,
+            email: secretaire.email
+          } : null
+        };
+      })
+    );
+
+    return result;
+  }
+
+  /**
+   * Récupère les utilisateurs disponibles pour être secrétaires
+   */
+  async getSecretairesDisponibles(tenantId: string): Promise<any[]> {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Université non trouvée');
+
+    const query = `
+      SELECT 
+        u.id,
+        u.prenom,
+        u.nom,
+        u.email,
+        u.role,
+        e.matricule
+      FROM "${tenant.schemaName}".utilisateur u
+      LEFT JOIN "${tenant.schemaName}".etudiant e ON u.id = e.utilisateur_id
+      WHERE u.role LIKE '%secretaire%' AND u.actif = true
+      ORDER BY u.prenom, u.nom
+    `;
+
+    const result = await this.dataSource.query(query);
+    return result;
+  }
+
+  /**
+   * Supprime un secrétaire d'un parcours
+   */
+  async removeSecretaireParcours(tenantId: string, parcoursId: string): Promise<any> {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Université non trouvée');
+
+    await this.tenantConnection.setTenantSchema(tenantId);
+
+    const parcoursRepo = this.dataSource.getRepository(Parcours);
+    const parcours = await parcoursRepo.findOne({ where: { id: parcoursId } });
+    if (!parcours) {
+      throw new NotFoundException('Parcours non trouvé');
+    }
+
+    await parcoursRepo.update(parcoursId, { secretaireId: null });
+
+    return {
+      message: 'Secrétaire supprimé avec succès du parcours',
+      parcoursId,
+      parcoursNom: parcours.nom
     };
   }
 }

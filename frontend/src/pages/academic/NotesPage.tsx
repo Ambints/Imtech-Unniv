@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { academicApi } from '../../api/client';
+import { apiClient } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { FileText, Trophy, Clock, Save, ClipboardList, Lock, LockOpen } from 'lucide-react';
@@ -10,17 +10,39 @@ export const NotesPage: React.FC = () => {
   const [parcours, setParcours] = useState<any[]>([]);
   const [selectedParcours, setSelectedParcours] = useState('');
   const [ues, setUes] = useState<any[]>([]);
+  const [etudiants, setEtudiants] = useState<any[]>([]);
   const [form, setForm] = useState({ etudiantId: '', ueId: '', noteCC: '', noteExam: '', anneeAcademique: '2024-2025', semester: '1' });
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState<any[]>([]);
 
   useEffect(() => {
-    if (tid) academicApi.getParcours(tid).then(r => setParcours(r.data)).catch(() => {});
+    if (tid) {
+      // Use academic module for parcours instead of scolarite
+      apiClient.get(`/academic/${tid}/parcours`)
+        .then(data => setParcours(data))
+        .catch(err => {
+          console.error('Erreur chargement parcours:', err);
+          setParcours([]); // Set empty array on error
+        });
+    }
   }, [tid]);
 
   useEffect(() => {
-    if (selectedParcours) academicApi.getUE(tid, selectedParcours).then(r => setUes(r.data)).catch(() => {});
-  }, [selectedParcours]);
+    if (selectedParcours && tid) {
+      // Charger les UE
+      apiClient.get(`/academic/${tid}/ue?parcoursId=${selectedParcours}`)
+        .then(data => setUes(data))
+        .catch(err => console.error('Erreur chargement UE:', err));
+      
+      // Charger les étudiants du parcours - use academic module
+      apiClient.get(`/academic/${tid}/students?parcoursId=${selectedParcours}`)
+        .then(data => setEtudiants(data))
+        .catch(err => {
+          console.error('Erreur chargement étudiants:', err);
+          setEtudiants([]); // Set empty array on error
+        });
+    }
+  }, [selectedParcours, tid]);
 
   const handleSaisir = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +54,14 @@ export const NotesPage: React.FC = () => {
         noteExam: form.noteExam ? Number(form.noteExam) : undefined,
         semester: Number(form.semester),
       };
-      await academicApi.saisirNote(tid, payload);
+      await apiClient.post(`/academic/${tid}/notes`, payload);
       toast.success('Note saisie avec succès !');
       if (form.etudiantId) {
-        academicApi.getNotes(tid, form.etudiantId, form.anneeAcademique).then(r => setNotes(r.data));
+        apiClient.get(`/academic/${tid}/notes?etudiantId=${form.etudiantId}&annee=${form.anneeAcademique}`)
+          .then(data => setNotes(data));
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur saisie note');
+      toast.error(err?.message || 'Erreur saisie note');
     } finally {
       setLoading(false);
     }
@@ -48,10 +71,14 @@ export const NotesPage: React.FC = () => {
     if (!selectedParcours) return toast.error('Sélectionner un parcours');
     if (!confirm('Lancer la délibération ? Les notes seront verrouillées.')) return;
     try {
-      await academicApi.deliberer(tid, { parcoursId: selectedParcours, semestre: 1, annee: '2024-2025' });
+      await apiClient.post(`/scolarite/${tid}/deliberations`, {
+        parcoursId: selectedParcours,
+        semestre: 1,
+        annee: '2024-2025'
+      });
       toast.success('Délibération effectuée — notes verrouillées');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur délibération');
+      toast.error(err?.message || 'Erreur délibération');
     }
   };
 
@@ -77,7 +104,7 @@ export const NotesPage: React.FC = () => {
               <select value={selectedParcours} onChange={e => setSelectedParcours(e.target.value)}
                 style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14, background: '#fff' }}>
                 <option value="">— Sélectionner un parcours —</option>
-                {parcours.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {parcours.map(p => <option key={p.id} value={p.id}>{p.code} - {p.nom}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 14 }}>
@@ -85,11 +112,22 @@ export const NotesPage: React.FC = () => {
               <select value={form.ueId} onChange={e => setForm(f => ({ ...f, ueId: e.target.value }))} required
                 style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14, background: '#fff' }}>
                 <option value="">— Sélectionner une UE —</option>
-                {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
+                {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule || u.nom}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Étudiant</label>
+              <select value={form.etudiantId} onChange={e => setForm(f => ({ ...f, etudiantId: e.target.value }))} required
+                style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14, background: '#fff' }}>
+                <option value="">— Sélectionner un étudiant —</option>
+                {etudiants.map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.matricule} - {e.nom} {e.prenoms}
+                  </option>
+                ))}
               </select>
             </div>
             {[
-              { label: 'Matricule Étudiant', key: 'etudiantId', placeholder: 'ETU-2024-001' },
               { label: 'Note CC / 20', key: 'noteCC', placeholder: '14.5', type: 'number' },
               { label: 'Note Examen / 20', key: 'noteExam', placeholder: '12.0', type: 'number' },
             ].map(f => (

@@ -1,8 +1,8 @@
 export type UserRole =
-  | 'super_admin' | 'president' | 'responsable_pedagogique'
+  | 'super_admin' | 'president' | 'resp_pedagogique'
   | 'secretaire_parcours' | 'surveillant_general' | 'scolarite'
   | 'rh' | 'economat' | 'caissier' | 'communication'
-  | 'admin' | 'responsable_logistique' | 'service_entretien'
+  | 'admin' | 'logistique' | 'entretien'
   | 'etudiant' | 'parent' | 'professeur';
 
 export interface User {

@@ -1,23 +1,22 @@
-import { Repository, DataSource } from 'typeorm';
-import { ContratPersonnel, CongePersonnel, FichePaie } from '../finance/finance.entities';
+import { DataSource } from 'typeorm';
 export declare class RHService {
-    private contratRepo;
-    private congeRepo;
-    private fichePaieRepo;
     private dataSource;
+    private request;
     private readonly logger;
-    constructor(contratRepo: Repository<ContratPersonnel>, congeRepo: Repository<CongePersonnel>, fichePaieRepo: Repository<FichePaie>, dataSource: DataSource);
-    createContrat(data: Partial<ContratPersonnel>): Promise<ContratPersonnel>;
+    private tenantSchema;
+    constructor(dataSource: DataSource, request: any);
+    private query;
+    createContrat(data: any): Promise<any>;
     findContrats(filters?: {
         typeContrat?: string;
         actif?: boolean;
         departementId?: string;
-    }): Promise<ContratPersonnel[]>;
+    }): Promise<any[]>;
     renouvelerContrat(id: string, data: {
         nouvelleDateFin: Date;
         nouveauSalaire?: number;
-    }): Promise<ContratPersonnel>;
-    resilierContrat(id: string, motif: string): Promise<ContratPersonnel>;
+    }): Promise<any>;
+    resilierContrat(id: string, motif: string): Promise<any>;
     createHeuresComplementaires(data: any): Promise<any>;
     findHeuresComplementaires(filters?: {
         enseignantId?: string;
@@ -27,28 +26,28 @@ export declare class RHService {
     }): Promise<any[]>;
     validerHeuresComplementaires(id: string, validePar: string): Promise<any>;
     getVolumeHoraireEnseignant(enseignantId: string, annee?: number): Promise<any>;
-    demanderConge(data: Partial<CongePersonnel>): Promise<CongePersonnel>;
+    demanderConge(data: any): Promise<any>;
     findConges(filters?: {
         utilisateurId?: string;
         statut?: string;
         typeConge?: string;
-    }): Promise<CongePersonnel[]>;
+    }): Promise<any[]>;
     approuverConge(id: string, data: {
         approuvePar: string;
         commentaire?: string;
-    }): Promise<CongePersonnel>;
+    }): Promise<any>;
     refuserConge(id: string, data: {
         approuvePar: string;
         motif: string;
-    }): Promise<CongePersonnel>;
+    }): Promise<any>;
     getSoldeConges(utilisateurId: string): Promise<any>;
-    genererFichePaie(data: Partial<FichePaie>): Promise<FichePaie>;
+    genererFichePaie(data: any): Promise<any>;
     findFichesPaie(filters?: {
         contratId?: string;
         annee?: number;
         mois?: number;
-    }): Promise<FichePaie[]>;
-    validerFichePaie(id: string): Promise<FichePaie>;
+    }): Promise<any[]>;
+    validerFichePaie(id: string): Promise<any>;
     genererFichesPaieMasse(annee: number, mois: number): Promise<any>;
     createEvaluation(data: any): Promise<any>;
     findEvaluations(filters?: {

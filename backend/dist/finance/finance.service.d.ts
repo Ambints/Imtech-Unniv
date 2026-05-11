@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { GrilleTarifaire, Echeancier, Paiement, Budget, Depense, ContratPersonnel, FichePaie } from './finance.entities';
 export declare class FinanceService {
     private grilleRepo;
@@ -8,14 +8,17 @@ export declare class FinanceService {
     private depenseRepo;
     private contratRepo;
     private fichePaieRepo;
-    constructor(grilleRepo: Repository<GrilleTarifaire>, echeancierRepo: Repository<Echeancier>, paiementRepo: Repository<Paiement>, budgetRepo: Repository<Budget>, depenseRepo: Repository<Depense>, contratRepo: Repository<ContratPersonnel>, fichePaieRepo: Repository<FichePaie>);
+    private dataSource;
+    constructor(grilleRepo: Repository<GrilleTarifaire>, echeancierRepo: Repository<Echeancier>, paiementRepo: Repository<Paiement>, budgetRepo: Repository<Budget>, depenseRepo: Repository<Depense>, contratRepo: Repository<ContratPersonnel>, fichePaieRepo: Repository<FichePaie>, dataSource: DataSource);
     enregistrerPaiement(tid: string, dto: any, caissierId: string): Promise<{
-        paiement: Paiement[];
+        paiement: Paiement;
+        etudiantNom: string;
         recu: {
             numeroRecu: string;
             date: Date;
             montant: any;
             mode: any;
+            matricule: any;
             statut: string;
             message: string;
         };

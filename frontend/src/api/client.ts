@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1';
@@ -22,27 +23,124 @@ const getToken = (): string | null => {
   return null;
 };
 
+// Fonction pour récupérer le tenant ID depuis le store ou localStorage
+const getTenantId = (): string | null => {
+  // Essayer d'abord le store Zustand
+  const state = useAuthStore.getState();
+  const tenant = state.tenant;
+
+  if (tenant?.id) {
+    console.log('✅ Tenant ID trouvé dans le store:', tenant.id);
+    return tenant.id;
+  }
+
+  // Fallback: lire directement depuis localStorage
+  try {
+    const stored = localStorage.getItem('imtech-auth-v1');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const tenantId = parsed?.state?.tenant?.id;
+      if (tenantId && typeof tenantId === 'string' && tenantId.length > 0) {
+        console.log('✅ Tenant ID trouvé dans localStorage:', tenantId);
+        return tenantId;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la lecture du tenant depuis localStorage:', error);
+  }
+
+  // Dernier recours: essayer de récupérer depuis l'user.tenantId
+  try {
+    const user = state.user;
+    if (user && 'tenantId' in user && user.tenantId) {
+      const tenantId = user.tenantId as string;
+      if (tenantId.length > 0) {
+        console.log('✅ Tenant ID trouvé dans user.tenantId:', tenantId);
+        return tenantId;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la lecture du tenantId depuis user:', error);
+  }
+
+  console.warn('⚠️ Aucun Tenant ID trouvé nulle part');
+  return null;
+};
+
 export const api = axios.create({ baseURL: BASE, timeout: 30000 });
 
 api.interceptors.request.use((config) => {
   const token = getToken();
-  console.log('Interceptor - URL:', config.url, 'Token présent:', !!token);
+  const tenantId = getTenantId();
+  
+  // Récupérer le rôle de l'utilisateur
+  const state = useAuthStore.getState();
+  const userRole = state.user?.role;
+
+  console.log('🔍 Interceptor - URL:', config.url, 'Token présent:', !!token, 'Tenant ID:', tenantId, 'Role:', userRole);
+
+  // Requêtes d'authentification qui ne nécessitent pas de token ni de tenant
+  const publicRoutes = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+  const isPublicRoute = publicRoutes.some(route => config.url?.includes(route));
+
+  if (isPublicRoute) {
+    console.log('✅ Route publique, pas besoin de token/tenant');
+    return config;
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Authorization header ajouté');
+    console.log('✅ Authorization header ajouté');
   } else {
-    console.warn('Pas de token trouvé!');
+    console.warn('⚠️ Pas de token trouvé!');
   }
+
+  // Super Admin n'a pas besoin de tenant ID - il gère tous les tenants
+  if (userRole === 'super_admin') {
+    console.log('✅ Super Admin - pas besoin de X-Tenant-Id');
+    return config;
+  }
+
+  // Mode mono-schéma: le backend peut ignorer les tenants (DEFAULT_TENANT_SCHEMA).
+  // On envoie X-Tenant-Id seulement si on l'a, sans bloquer la requête.
+  if (tenantId) {
+    config.headers['X-Tenant-Id'] = tenantId;
+    console.log('✅ X-Tenant-Id header ajouté:', tenantId);
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
+    const state = useAuthStore.getState();
+    const userRole = state.user?.role;
+
+    // Erreur 401: Session expirée
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
       window.location.href = '/login';
     }
+
+    // Erreur 404 avec // dans l'URL = tenant ID manquant (sauf pour super_admin)
+    if (error.response?.status === 404 && error.config?.url?.includes('//')) {
+      if (userRole !== 'super_admin') {
+        console.error('❌ Erreur 404: URL malformée (tenant ID manquant). Redirection vers login...');
+        toast.error('Session invalide. Veuillez vous reconnecter.');
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+      }
+    }
+
+    // Erreur 400 avec tenant schema - sauf pour super_admin
+    if (error.response?.status === 400 && error.response?.data?.message?.includes('Tenant schema not set')) {
+      if (userRole !== 'super_admin') {
+        console.error('❌ Erreur: Tenant ID manquant. Veuillez vous reconnecter.');
+        toast.error('Session invalide. Veuillez vous reconnecter.');
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -134,6 +232,21 @@ export const academicApi = {
   getEDT: (tid: string, parcoursId: string) => api.get(`/academic/${tid}/edt?parcoursId=${parcoursId}`),
 };
 
+export const secretaireApi = {
+  // Assignation secrétaire à un parcours
+  assignSecretaire: (tid: string, parcoursId: string, secretaireId: string) =>
+    api.post(`/secretaire/${tid}/parcours/${parcoursId}/assigner-secretaire`, { secretaireId }),
+  // Retirer un secrétaire d'un parcours
+  removeSecretaire: (tid: string, parcoursId: string, secretaireId: string) =>
+    api.delete(`/secretaire/${tid}/parcours/${parcoursId}/retirer-secretaire`, { data: { secretaireId } }),
+  // Récupérer les parcours d'un secrétaire
+  getParcoursBySecretaire: (tid: string, secretaireId: string) =>
+    api.get(`/secretaire/${tid}/secretaires/${secretaireId}/parcours`),
+  // Récupérer tous les parcours avec leurs secrétaires (admin)
+  getAllParcoursWithSecretaires: (tid: string) =>
+    api.get(`/secretaire/${tid}/parcours-secretaires`),
+};
+
 export const financeApi = {
   // Paiements
   payer: (tid: string, dto: any) => api.post(`/finance/${tid}/paiements`, dto),
@@ -182,4 +295,74 @@ export const logisticsApi = {
   getReservations: (tid: string) => api.get(`/logistics/${tid}/reservations`),
   reserver: (tid: string, dto: any) => api.post(`/logistics/${tid}/reservations`, dto),
   getPlanning: (tid: string) => api.get(`/logistics/${tid}/planning-nettoyage`),
+};
+
+export const rpApi = {
+  // Mes parcours
+  getMesParcours: (tid: string) => api.get(`/rp-enhanced/${tid}/mes-parcours`),
+
+  // Maquettes
+  getAllMaquettes: (tid: string) => api.get(`/rp-enhanced/${tid}/maquettes`),
+  getMaquetteById: (tid: string, parcoursId: string) => api.get(`/rp-enhanced/${tid}/maquettes/${parcoursId}`),
+  createMaquette: (tid: string, dto: any) => api.post(`/rp-enhanced/${tid}/maquettes`, dto),
+  updateMaquette: (tid: string, parcoursId: string, dto: any) => api.patch(`/rp-enhanced/${tid}/maquettes/${parcoursId}`, dto),
+  deleteMaquette: (tid: string, parcoursId: string) => api.delete(`/rp-enhanced/${tid}/maquettes/${parcoursId}`),
+  validerMaquette: (tid: string, parcoursId: string) => api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/valider`),
+
+  // UE
+  createUE: (tid: string, parcoursId: string, dto: any) => api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues`, dto),
+  updateUE: (tid: string, parcoursId: string, ueId: string, dto: any) => api.patch(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}`, dto),
+  deleteUE: (tid: string, parcoursId: string, ueId: string) => api.delete(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}`),
+
+  // EC
+  createEC: (tid: string, parcoursId: string, ueId: string, dto: any) => api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}/ecs`, dto),
+  updateEC: (tid: string, parcoursId: string, ueId: string, ecId: string, dto: any) => api.patch(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}/ecs/${ecId}`, dto),
+  deleteEC: (tid: string, parcoursId: string, ueId: string, ecId: string) => api.delete(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}/ecs/${ecId}`),
+
+  // Affectations
+  getAffectations: (tid: string, filters?: { anneeAcademiqueId?: string; ueId?: string; ecId?: string; enseignantId?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.anneeAcademiqueId) params.append('anneeAcademiqueId', filters.anneeAcademiqueId);
+    if (filters?.ueId) params.append('ueId', filters.ueId);
+    if (filters?.ecId) params.append('ecId', filters.ecId);
+    if (filters?.enseignantId) params.append('enseignantId', filters.enseignantId);
+    return api.get(`/rp-enhanced/${tid}/affectations?${params}`);
+  },
+  getAffectationsByParcours: (tid: string, parcoursId: string, anneeAcademiqueId?: string) =>
+    api.get(`/rp-enhanced/${tid}/parcours/${parcoursId}/affectations${anneeAcademiqueId ? `?anneeAcademiqueId=${anneeAcademiqueId}` : ''}`),
+  createAffectation: (tid: string, dto: any) => api.post(`/rp-enhanced/${tid}/affectations`, dto),
+  updateAffectation: (tid: string, affectationId: string, dto: any) => api.patch(`/rp-enhanced/${tid}/affectations/${affectationId}`, dto),
+  deleteAffectation: (tid: string, affectationId: string) => api.delete(`/rp-enhanced/${tid}/affectations/${affectationId}`),
+
+  // Performance
+  getPerformanceStats: (tid: string, parcoursId: string, anneeAcademiqueId: string) =>
+    api.get(`/rp-enhanced/${tid}/parcours/${parcoursId}/performance?anneeAcademiqueId=${anneeAcademiqueId}`),
+};
+
+// Helper simplifié pour les appels API directs
+export const apiClient = {
+  get: async (url: string) => {
+    const response = await api.get(url);
+    return response.data;
+  },
+  post: async (url: string, data?: any) => {
+    const response = await api.post(url, data);
+    return response.data;
+  },
+  patch: async (url: string, data?: any) => {
+    const response = await api.patch(url, data);
+    return response.data;
+  },
+  put: async (url: string, data?: any) => {
+    const response = await api.put(url, data);
+    return response.data;
+  },
+  delete: async (url: string) => {
+    const response = await api.delete(url);
+    return response.data;
+  },
+  getPerformanceDashboard: (tid: string, parcoursId: string, anneeAcademiqueId: string) =>
+    api.get(`/rp-enhanced/${tid}/parcours/${parcoursId}/dashboard-performance?anneeAcademiqueId=${anneeAcademiqueId}`),
+  getSuiviAssiduite: (tid: string, parcoursId: string, anneeAcademiqueId: string) =>
+    api.get(`/rp-enhanced/${tid}/parcours/${parcoursId}/assiduite?anneeAcademiqueId=${anneeAcademiqueId}`),
 };

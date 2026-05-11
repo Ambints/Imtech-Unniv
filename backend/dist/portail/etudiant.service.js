@@ -22,6 +22,40 @@ let PortailEtudiantService = PortailEtudiantService_1 = class PortailEtudiantSer
         this.dataSource = dataSource;
         this.logger = new common_1.Logger(PortailEtudiantService_1.name);
     }
+    async searchEtudiants(query) {
+        if (!query || query.length < 2) {
+            return [];
+        }
+        try {
+            const searchTerm = `%${query.toLowerCase()}%`;
+            const etudiants = await this.dataSource.query(`
+        SELECT
+          e.id,
+          e.nom,
+          e.prenom,
+          e.matricule,
+          e.photo_url,
+          p.nom as classe,
+          p.code as parcours_code
+        FROM etudiant e
+        LEFT JOIN inscription i ON i.etudiant_id = e.id AND i.statut = 'validee'
+        LEFT JOIN parcours p ON p.id = i.parcours_id
+        WHERE
+          LOWER(e.nom) LIKE $1
+          OR LOWER(e.prenom) LIKE $1
+          OR LOWER(e.matricule) LIKE $1
+          OR LOWER(CONCAT(e.prenom, ' ', e.nom)) LIKE $1
+        ORDER BY e.nom, e.prenom
+        LIMIT 20
+      `, [searchTerm]);
+            this.logger.log(`Recherche étudiants: ${etudiants.length} résultats pour "${query}"`);
+            return etudiants;
+        }
+        catch (error) {
+            this.logger.error('Erreur lors de la recherche d\'étudiants:', error);
+            return [];
+        }
+    }
     async getProfil(utilisateurId) {
         const etudiant = await this.dataSource.query(`
       SELECT e.*, i.*, p.nom as parcours_nom, p.code as parcours_code,

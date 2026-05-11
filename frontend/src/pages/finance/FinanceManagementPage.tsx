@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { financeApi } from '../../api/client';
+import { financeApi, academicApi } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import {
@@ -20,10 +20,16 @@ export const FinanceManagementPage: React.FC = () => {
   const [caisse, setCaisse] = useState<any>(null);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [paiementForm, setPaiementForm] = useState({
-    inscriptionId: '', montant: '', modePaiement: 'especes', reference: '',
-    echeancierId: ''
+    matricule: '', montant: '', modePaiement: 'especes', reference: '',
+    echeancierId: '', motif: ''
   });
   const [recu, setRecu] = useState<any>(null);
+
+  // États pour recherche étudiants
+  const [etudiants, setEtudiants] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEtudiant, setSelectedEtudiant] = useState<any>(null);
 
   // États pour Budgets
   const [budgets, setBudgets] = useState<any[]>([]);
@@ -45,6 +51,7 @@ export const FinanceManagementPage: React.FC = () => {
     if (activeTab === 'caisse') {
       loadCaisse();
       loadPaiements();
+      loadEtudiants();
     } else if (activeTab === 'budgets') {
       loadBudgets();
     } else if (activeTab === 'depenses') {
@@ -88,6 +95,22 @@ export const FinanceManagementPage: React.FC = () => {
     }
   };
 
+  const loadEtudiants = async () => {
+    try {
+      const { data } = await academicApi.getEtudiants(tid);
+      setEtudiants(data || []);
+    } catch (err) {
+      console.error('Erreur chargement étudiants', err);
+    }
+  };
+
+  const selectEtudiant = (etudiant: any) => {
+    setPaiementForm(f => ({ ...f, matricule: etudiant.matricule }));
+    setSelectedEtudiant(etudiant);
+    setShowDropdown(false);
+    setSearchTerm('');
+  };
+
   const handlePaiement = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -100,7 +123,8 @@ export const FinanceManagementPage: React.FC = () => {
       toast.success('Paiement enregistré !');
       loadCaisse();
       loadPaiements();
-      setPaiementForm(f => ({ ...f, inscriptionId: '', montant: '', reference: '' }));
+      setPaiementForm({ matricule: '', montant: '', modePaiement: 'especes', reference: '', echeancierId: '', motif: '' });
+      setSelectedEtudiant(null);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Erreur paiement');
     } finally {
@@ -221,16 +245,124 @@ export const FinanceManagementPage: React.FC = () => {
                 <CreditCard size={18} /> Enregistrer un Paiement
               </h3>
               <form onSubmit={handlePaiement}>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>ID Inscription *</label>
-                  <input
-                    type="text"
-                    required
-                    value={paiementForm.inscriptionId}
-                    onChange={e => setPaiementForm(f => ({ ...f, inscriptionId: e.target.value }))}
-                    placeholder="UUID de l'inscription"
-                    style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
-                  />
+                <div style={{ marginBottom: 16, position: 'relative' }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Matricule Étudiant *</label>
+                  {/* Dropdown avec recherche intégrée */}
+                  <div style={{ position: 'relative' }}>
+                    {/* Bouton pour ouvrir/fermer le dropdown */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDropdown(!showDropdown);
+                        if (!showDropdown) loadEtudiants();
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: 9,
+                        fontSize: 14,
+                        background: '#fff',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span style={{ color: paiementForm.matricule ? '#0f172a' : '#94a3b8' }}>
+                        {paiementForm.matricule || 'Cliquez pour choisir un étudiant...'}
+                      </span>
+                      <span style={{ transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                    </button>
+
+                    {/* Dropdown avec recherche et liste */}
+                    {showDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#fff',
+                        border: '2px solid #e5e7eb',
+                        borderTop: 'none',
+                        borderRadius: '0 0 9px 9px',
+                        zIndex: 1000,
+                        maxHeight: 300,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }}>
+                        {/* Champ de recherche dans le dropdown */}
+                        <div style={{ padding: 10, borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }}>
+                          <input
+                            type="text"
+                            autoFocus
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="Rechercher par matricule, nom ou prénom..."
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: 6,
+                              fontSize: 13
+                            }}
+                          />
+                        </div>
+                        {/* Liste des étudiants filtrés */}
+                        <div style={{ maxHeight: 220, overflow: 'auto' }}>
+                          {etudiants
+                            .filter(e =>
+                              !searchTerm ||
+                              e.matricule?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              e.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              e.prenom?.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                            .map((e, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => selectEtudiant(e)}
+                                style={{
+                                  padding: '10px 14px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  background: selectedEtudiant?.matricule === e.matricule ? '#f0fdf4' : '#fff'
+                                }}
+                                onMouseEnter={ev => ev.currentTarget.style.background = selectedEtudiant?.matricule === e.matricule ? '#f0fdf4' : '#f8fafc'}
+                                onMouseLeave={ev => ev.currentTarget.style.background = selectedEtudiant?.matricule === e.matricule ? '#f0fdf4' : '#fff'}
+                              >
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{e.matricule}</div>
+                                  <div style={{ fontSize: 11, color: '#64748b' }}>{e.nom} {e.prenom}</div>
+                                </div>
+                                {selectedEtudiant?.matricule === e.matricule && (
+                                  <CheckCircle size={16} color="#148f77" />
+                                )}
+                              </div>
+                            ))}
+                          {etudiants.filter(e =>
+                            !searchTerm ||
+                            e.matricule?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            e.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            e.prenom?.toLowerCase().includes(searchTerm.toLowerCase())
+                          ).length === 0 && (
+                            <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                              Aucun étudiant trouvé
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedEtudiant && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0fdf4', borderRadius: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle size={14} />
+                      <span><strong>{selectedEtudiant.nom} {selectedEtudiant.prenom}</strong> — {selectedEtudiant.parcoursNom || selectedEtudiant.niveau || 'Étudiant'}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Montant (Ar) *</label>
@@ -264,6 +396,16 @@ export const FinanceManagementPage: React.FC = () => {
                     onChange={e => setPaiementForm(f => ({ ...f, reference: e.target.value }))}
                     placeholder="N° chèque, virement..."
                     style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+                  />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Motif / Observation</label>
+                  <textarea
+                    value={paiementForm.motif}
+                    onChange={e => setPaiementForm(f => ({ ...f, motif: e.target.value }))}
+                    placeholder="Ex: Inscription année 2024-2025, Tranche 1..."
+                    rows={2}
+                    style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14, resize: 'none' }}
                   />
                 </div>
                 <button
@@ -300,6 +442,7 @@ export const FinanceManagementPage: React.FC = () => {
                     {[
                       ['N° Reçu', recu.numeroRecu],
                       ['Date', new Date(recu.date).toLocaleDateString('fr-FR')],
+                      ['Matricule', recu.matricule || 'N/A'],
                       ['Montant', fmt(recu.montant)],
                       ['Mode', (recu.modePaiement || recu.mode)?.toUpperCase()],
                       ['Statut', recu.statut],
@@ -321,8 +464,9 @@ export const FinanceManagementPage: React.FC = () => {
                   paiements.slice(0, 10).map((p, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{p.inscriptionId?.slice(0, 8) || 'N/A'}...</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{p.matricule || p.etudiantNom || 'N/A'}</div>
                         <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.modePaiement} · {p.statut}</div>
+                        {p.observations && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{p.observations}</div>}
                       </div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#148f77' }}>
                         {fmt(p.montant)}

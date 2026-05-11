@@ -7,6 +7,45 @@ export class PortailEtudiantService {
   private readonly logger = new Logger(PortailEtudiantService.name);
 
   constructor(@InjectDataSource() private dataSource: DataSource) {}
+  async searchEtudiants(query: string): Promise<any[]> {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    try {
+      const searchTerm = `%${query.toLowerCase()}%`;
+      
+      // Note: Le schéma est déjà défini par le TenantMiddleware via search_path
+      // Donc pas besoin de préfixer les tables avec le nom du schéma
+      const etudiants = await this.dataSource.query(`
+        SELECT
+          e.id,
+          e.nom,
+          e.prenom,
+          e.matricule,
+          e.photo_url,
+          p.nom as classe,
+          p.code as parcours_code
+        FROM etudiant e
+        LEFT JOIN inscription i ON i.etudiant_id = e.id AND i.statut = 'validee'
+        LEFT JOIN parcours p ON p.id = i.parcours_id
+        WHERE
+          LOWER(e.nom) LIKE $1
+          OR LOWER(e.prenom) LIKE $1
+          OR LOWER(e.matricule) LIKE $1
+          OR LOWER(CONCAT(e.prenom, ' ', e.nom)) LIKE $1
+        ORDER BY e.nom, e.prenom
+        LIMIT 20
+      `, [searchTerm]);
+
+      this.logger.log(`Recherche étudiants: ${etudiants.length} résultats pour "${query}"`);
+      return etudiants;
+    } catch (error) {
+      this.logger.error('Erreur lors de la recherche d\'étudiants:', error);
+      return [];
+    }
+  }
+
 
   async getProfil(utilisateurId: string): Promise<any> {
     const etudiant = await this.dataSource.query(`
