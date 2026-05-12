@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { AppLayout } from './components/layout/AppLayout';
+import './styles/transitions.css';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SuperAdminDashboard } from './pages/super-admin/SuperAdminDashboard';
 import { NewUniversity } from './pages/super-admin/NewUniversity';
@@ -15,6 +16,15 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { PresidentDashboard } from './pages/president/PresidentDashboard';
 import { CaissePage } from './pages/finance/CaissePage';
 import { FinanceManagementPage } from './pages/finance/FinanceManagementPage';
+import { lazy, Suspense } from 'react';
+
+// Lazy load caisse components for better performance
+const CaissierDashboard = lazy(() => import('./pages/caisse/CaissierDashboard').then(module => ({ default: module.CaissierDashboard })));
+const EncaissementPage = lazy(() => import('./pages/caisse/EncaissementPage').then(module => ({ default: module.EncaissementPage })));
+const FraisInscriptionPage = lazy(() => import('./pages/caisse/FraisInscriptionPage').then(module => ({ default: module.FraisInscriptionPage })));
+const ClotureCaissePage = lazy(() => import('./pages/caisse/ClotureCaissePage').then(module => ({ default: module.ClotureCaissePage })));
+const EcheanciersPage = lazy(() => import('./pages/caisse/EcheanciersPage').then(module => ({ default: module.EcheanciersPage })));
+const ReportingPage = lazy(() => import('./pages/caisse/ReportingPage').then(module => ({ default: module.ReportingPage })));
 import { LogistiquePage } from './pages/logistics/LogistiquePage';
 import { EtudiantPortal } from './pages/portals/EtudiantPortal';
 import { NotesEtudiantPage } from './pages/portals/etudiant/NotesEtudiantPage';
@@ -22,6 +32,8 @@ import { CoursEtudiantPage } from './pages/portals/etudiant/CoursEtudiantPage';
 import { PaiementsEtudiantPage } from './pages/portals/etudiant/PaiementsEtudiantPage';
 import { AbsencesEtudiantPage } from './pages/portals/etudiant/AbsencesEtudiantPage';
 import { AttestationsEtudiantPage } from './pages/portals/etudiant/AttestationsEtudiantPage';
+import { InscriptionEtudiantPage } from './pages/portals/etudiant/InscriptionEtudiantPage';
+import { InscriptionGuard } from './components/guards/InscriptionGuard';
 import EDTEtudiantPage from './pages/portals/etudiant/EDTEtudiantPage';
 import { ParentPortal } from './pages/portals/ParentPortal';
 import { ProfesseurPortal } from './pages/portals/ProfesseurPortal';
@@ -96,6 +108,41 @@ const Placeholder: React.FC<{ title: string; icon: React.ReactNode; desc: string
     <a href="/" style={{ padding: '10px 20px', background: '#1a5276', color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 600 }}>
       ← Accueil
     </a>
+  </div>
+);
+
+// Loading component for lazy loaded pages
+const PageLoader: React.FC = () => (
+  <div style={{ 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    height: '80vh', 
+    gap: 20 
+  }}>
+    <div style={{ 
+      width: 48, 
+      height: 48, 
+      border: '4px solid #f3f4f6', 
+      borderTop: '4px solid #1a5276', 
+      borderRadius: '50%', 
+      animation: 'spin 1s linear infinite' 
+    }} />
+    <div style={{ 
+      fontSize: 16, 
+      fontWeight: 600, 
+      color: '#64748b',
+      textAlign: 'center'
+    }}>
+      Chargement en cours...
+    </div>
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
   </div>
 );
 
@@ -194,12 +241,21 @@ const App: React.FC = () => {
         <Route path="/surveillance/incidents" element={<Wrapped><IncidentsPage /></Wrapped>} />
 
         {/* Finance */}
-        <Route path="/caisse" element={<Wrapped><CaissePage /></Wrapped>} />
-        <Route path="/caisse/encaissement" element={<Wrapped><CaissePage /></Wrapped>} />
-        <Route path="/finance/gestion" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
+        <Route path="/finance/caisse" element={<Wrapped><CaissePage /></Wrapped>} />
+        <Route path="/finance/management" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/finance/paiements" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/finance/budgets" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/finance/depenses" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
+
+        {/* Caissier */}
+        <Route path="/caisse" element={<Wrapped><Suspense fallback={<PageLoader />}><CaissierDashboard /></Suspense></Wrapped>} />
+        <Route path="/caisse/encaissement" element={<Wrapped><Suspense fallback={<PageLoader />}><EncaissementPage /></Suspense></Wrapped>} />
+        <Route path="/caisse/frais-inscription" element={<Wrapped><Suspense fallback={<PageLoader />}><FraisInscriptionPage /></Suspense></Wrapped>} />
+        <Route path="/caisse/cloture" element={<Wrapped><Suspense fallback={<PageLoader />}><ClotureCaissePage /></Suspense></Wrapped>} />
+        <Route path="/caisse/echeanciers" element={<Wrapped><Suspense fallback={<PageLoader />}><EcheanciersPage /></Suspense></Wrapped>} />
+        <Route path="/caisse/rapports" element={<Wrapped><Suspense fallback={<PageLoader />}><ReportingPage /></Suspense></Wrapped>} />
+
+        {/* Economat */}
         <Route path="/economat/budget" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/economat/depenses" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/economat/fournisseurs" element={<Wrapped><EconomatPage /></Wrapped>} />
@@ -263,13 +319,14 @@ const App: React.FC = () => {
         <Route path="/logistique/salles" element={<Wrapped><Placeholder title="Salles & Réservations" icon={<School size={64} color="#94a3b8" />} desc="Allocation dynamique des salles, amphithéâtres et laboratoires." /></Wrapped>} />
 
         {/* Portails Utilisateurs */}
-        <Route path="/portail/etudiant" element={<Wrapped><EtudiantPortal /></Wrapped>} />
-        <Route path="/portail/etudiant/notes" element={<Wrapped><NotesEtudiantPage /></Wrapped>} />
-        <Route path="/portail/etudiant/edt" element={<Wrapped><EDTEtudiantPage /></Wrapped>} />
-        <Route path="/portail/etudiant/cours" element={<Wrapped><CoursEtudiantPage /></Wrapped>} />
-        <Route path="/portail/etudiant/paiements" element={<Wrapped><PaiementsEtudiantPage /></Wrapped>} />
-        <Route path="/portail/etudiant/absences" element={<Wrapped><AbsencesEtudiantPage /></Wrapped>} />
-        <Route path="/portail/etudiant/attestations" element={<Wrapped><AttestationsEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant" element={<Wrapped><InscriptionGuard><EtudiantPortal /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/inscription" element={<Wrapped><InscriptionEtudiantPage /></Wrapped>} />
+        <Route path="/portail/etudiant/notes" element={<Wrapped><InscriptionGuard><NotesEtudiantPage /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/edt" element={<Wrapped><InscriptionGuard><EDTEtudiantPage /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/cours" element={<Wrapped><InscriptionGuard><CoursEtudiantPage /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/paiements" element={<Wrapped><InscriptionGuard><PaiementsEtudiantPage /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/absences" element={<Wrapped><InscriptionGuard><AbsencesEtudiantPage /></InscriptionGuard></Wrapped>} />
+        <Route path="/portail/etudiant/attestations" element={<Wrapped><InscriptionGuard><AttestationsEtudiantPage /></InscriptionGuard></Wrapped>} />
         <Route path="/portail/parent" element={<Wrapped><ParentPortal /></Wrapped>} />
         <Route path="/portail/professeur" element={<Wrapped><ProfesseurPortal /></Wrapped>} />
 

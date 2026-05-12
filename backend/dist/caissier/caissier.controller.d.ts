@@ -24,4 +24,15 @@ export declare class CaissierController {
     getRapprochementBancaire(date: string): Promise<any>;
     getStatsJournalieres(date: string): Promise<any>;
     getStatsMensuelles(mois: number, annee: number): Promise<any>;
+    getFraisInscription(anneeAcademiqueId?: string): Promise<any>;
+    createFraisInscription(dto: any, user: any): Promise<any>;
+    updateFraisInscription(id: string, dto: any, user: any): Promise<any>;
+    getFraisByParcours(parcoursId: string, anneeAcademiqueId?: string): Promise<any>;
+    encaissementDirect(dto: any, user: any): Promise<any>;
+    encaissementMultiple(dto: {
+        paiements: any[];
+    }, user: any): Promise<any>;
+    getRapportAnnuel(annee: number): Promise<any>;
+    getRapportsParcours(dateDebut: string, dateFin: string): Promise<any>;
+    getRapportModesPaiement(dateDebut?: string, dateFin?: string): Promise<any>;
 }

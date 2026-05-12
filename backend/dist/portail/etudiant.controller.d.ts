@@ -17,4 +17,15 @@ export declare class PortailEtudiantController {
     inscrireExamen(tid: string, user: any, dto: {
         sessionId: string;
     }): Promise<any>;
+    getInscriptions(tid: string, user: any): Promise<any>;
+    getParcoursDisponibles(tid: string, user: any): Promise<any>;
+    getAnneesAcademiques(tid: string): Promise<any>;
+    createInscription(tid: string, user: any, dto: {
+        parcoursId: string;
+        anneeAcademiqueId: string;
+        anneeNiveau: number;
+        typeInscription?: string;
+    }): Promise<any>;
+    updateInscription(tid: string, id: string, user: any, dto: any): Promise<any>;
+    cancelInscription(tid: string, id: string, user: any): Promise<any>;
 }

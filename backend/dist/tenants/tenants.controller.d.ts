@@ -29,4 +29,17 @@ export declare class TenantsController {
     removeSubscription(id: string): Promise<{
         message: string;
     }>;
+    checkTenantTable(): Promise<{
+        tenantCount: number;
+        tenants: import("./tenant.entity").Tenant[];
+        schemas: any[];
+        message: string;
+        error?: undefined;
+    } | {
+        error: string;
+        tenantCount: number;
+        tenants: any[];
+        schemas: any[];
+        message?: undefined;
+    }>;
 }

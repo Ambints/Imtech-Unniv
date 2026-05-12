@@ -52,6 +52,8 @@ let TenantsService = class TenantsService {
             console.log('');
             console.log('📦 ÉTAPE 1/3: Création du schéma PostgreSQL et des tables');
             console.log('─────────────────────────────────────────');
+            console.log(`🔍 Appel du service de création de schéma pour: ${schemaName}`);
+            console.log(`🔍 Service disponible: ${!!this.tenantCreationService}`);
             await this.tenantCreationService.createTenantSchema(schemaName);
             console.log('✅ Schéma PostgreSQL créé avec succès');
             console.log('');
@@ -88,6 +90,7 @@ let TenantsService = class TenantsService {
             console.log('❌ ERREUR LORS DE LA CRÉATION');
             console.log('❌ ========================================');
             console.log(`❌ Message: ${getErrorMessage(error)}`);
+            console.log(`❌ DTO reçu: ${JSON.stringify(dto)}`);
             console.log('🧹 Tentative de nettoyage du schéma...');
             try {
                 await this.tenantCreationService.dropTenantSchema(schemaName);
@@ -109,9 +112,14 @@ let TenantsService = class TenantsService {
         });
     }
     async findOne(id) {
+        console.log(`🔍 Recherche du tenant avec ID: ${id}`);
         const t = await this.repo.findOne({ where: { id } });
-        if (!t)
+        console.log(`📊 Résultat de la recherche: ${!!t}`);
+        if (!t) {
+            console.log(`❌ Tenant non trouvé avec ID: ${id}`);
             throw new common_1.NotFoundException('Université introuvable');
+        }
+        console.log(`✅ Tenant trouvé: ${t.nom} (${t.slug})`);
         return t;
     }
     async findBySlug(slug) {

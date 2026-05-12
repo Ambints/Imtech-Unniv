@@ -63,6 +63,24 @@ let PortailEtudiantController = class PortailEtudiantController {
     inscrireExamen(tid, user, dto) {
         return this.svc.inscrireExamen(user.id, dto.sessionId);
     }
+    getInscriptions(tid, user) {
+        return this.svc.getInscriptions(user.id);
+    }
+    getParcoursDisponibles(tid, user) {
+        return this.svc.getParcoursDisponibles(user.id);
+    }
+    getAnneesAcademiques(tid) {
+        return this.svc.getAnneesAcademiques();
+    }
+    createInscription(tid, user, dto) {
+        return this.svc.createInscription(user.id, dto);
+    }
+    updateInscription(tid, id, user, dto) {
+        return this.svc.updateInscription(user.id, id, dto);
+    }
+    cancelInscription(tid, id, user) {
+        return this.svc.cancelInscription(user.id, id);
+    }
 };
 exports.PortailEtudiantController = PortailEtudiantController;
 __decorate([
@@ -189,6 +207,63 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "inscrireExamen", null);
+__decorate([
+    (0, common_1.Get)('etudiant/inscriptions'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des inscriptions de l\'étudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getInscriptions", null);
+__decorate([
+    (0, common_1.Get)('etudiant/parcours-disponibles'),
+    (0, swagger_1.ApiOperation)({ summary: 'Parcours disponibles pour inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getParcoursDisponibles", null);
+__decorate([
+    (0, common_1.Get)('etudiant/annees-academiques'),
+    (0, swagger_1.ApiOperation)({ summary: 'Années académiques disponibles' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getAnneesAcademiques", null);
+__decorate([
+    (0, common_1.Post)('etudiant/inscription'),
+    (0, swagger_1.ApiOperation)({ summary: 'S\'inscrire à un parcours pour une année académique' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "createInscription", null);
+__decorate([
+    (0, common_1.Patch)('etudiant/inscription/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "updateInscription", null);
+__decorate([
+    (0, common_1.Delete)('etudiant/inscription/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Annuler une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "cancelInscription", null);
 exports.PortailEtudiantController = PortailEtudiantController = __decorate([
     (0, swagger_1.ApiTags)('Portail Étudiant - Espace personnel'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

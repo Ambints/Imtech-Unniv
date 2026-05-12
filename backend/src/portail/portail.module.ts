@@ -9,8 +9,20 @@ import { PortailProfesseurService } from './professeur.service';
 import { PortailPermissionsController } from './portail-permissions.controller';
 import { Tenant } from '../tenants/tenant.entity';
 
+// Import entities for tenant connection
+import { 
+  Inscription, Etudiant, Parcours, AnneeAcademique, UniteEnseignement, 
+  ElementConstitutif, SessionExamen, Note 
+} from '../scolarite/entities';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Tenant])],
+  imports: [
+    TypeOrmModule.forFeature([Tenant]),
+    TypeOrmModule.forFeature([
+      Inscription, Etudiant, Parcours, AnneeAcademique, UniteEnseignement,
+      ElementConstitutif, SessionExamen, Note
+    ], 'tenant')
+  ],
   controllers: [
     PortailEtudiantController,
     PortailParentController,

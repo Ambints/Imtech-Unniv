@@ -46,9 +46,9 @@ export class TenantMiddleware implements NestMiddleware {
           schemaName = tenantResult[0].schema_name;
           console.log(`[TenantMiddleware] Found schema "${schemaName}" for tenant ${tenantId}`);
         } else {
-          // Fallback to default schema if tenant not found
-          schemaName = process.env.DEFAULT_TENANT_SCHEMA || 'univ_demo';
-          console.warn(`[TenantMiddleware] Tenant ${tenantId} not found, using default schema: ${schemaName}`);
+          // No fallback - tenant not found
+          console.error(`[TenantMiddleware] Tenant ${tenantId} not found`);
+          throw new Error(`Tenant ${tenantId} not found`);
         }
 
         // Set schema for this request's connection

@@ -339,6 +339,266 @@ let CaissierService = CaissierService_1 = class CaissierService {
             nouveauxPayeurs: nouveauxPayeurs[0]?.nb || 0,
         };
     }
+    async getFraisInscription(anneeAcademiqueId) {
+        let query = `
+      SELECT 
+        fi.*,
+        p.code as parcours_code,
+        p.nom as parcours_nom,
+        d.nom as departement_nom,
+        aa.libelle as annee_academique
+      FROM frais_inscription fi
+      JOIN parcours p ON p.id = fi.parcours_id
+      LEFT JOIN departement d ON d.id = p.departement_id
+      JOIN annee_academique aa ON aa.id = fi.annee_academique_id
+      WHERE fi.actif = true
+    `;
+        const params = [];
+        if (anneeAcademiqueId) {
+            query += ` AND fi.annee_academique_id = $1`;
+            params.push(anneeAcademiqueId);
+        }
+        query += ` ORDER BY p.code, aa.annee_debut DESC`;
+        return this.dataSource.query(query, params);
+    }
+    async createFraisInscription(data) {
+        const montantTotal = data.montantTotal || (data.montantInscription + (data.montantScolarite || 0));
+        const frais = this.dataSource.query(`
+      INSERT INTO frais_inscription (
+        parcours_id, annee_academique_id, montant_inscription, montant_scolarite,
+        montant_total, description, date_limite_paiement, modalites_paiement,
+        cree_par, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      RETURNING *
+    `, [
+            data.parcoursId,
+            data.anneeAcademiqueId,
+            data.montantInscription,
+            data.montantScolarite || 0,
+            montantTotal,
+            data.description,
+            data.dateLimitePaiement,
+            JSON.stringify(data.modalitesPaiement || {
+                especes: true,
+                cheque: true,
+                virement: true,
+                carte_bancaire: true,
+                echelonnement: false
+            }),
+            data.creePar
+        ]);
+        return frais;
+    }
+    async updateFraisInscription(id, data) {
+        const setClause = [];
+        const params = [];
+        let paramIndex = 1;
+        if (data.montantInscription !== undefined) {
+            setClause.push(`montant_inscription = $${paramIndex++}`);
+            params.push(data.montantInscription);
+        }
+        if (data.montantScolarite !== undefined) {
+            setClause.push(`montant_scolarite = $${paramIndex++}`);
+            params.push(data.montantScolarite);
+        }
+        if (data.montantTotal !== undefined) {
+            setClause.push(`montant_total = $${paramIndex++}`);
+            params.push(data.montantTotal);
+        }
+        if (data.description !== undefined) {
+            setClause.push(`description = $${paramIndex++}`);
+            params.push(data.description);
+        }
+        if (data.dateLimitePaiement !== undefined) {
+            setClause.push(`date_limite_paiement = $${paramIndex++}`);
+            params.push(data.dateLimitePaiement);
+        }
+        if (data.modalitesPaiement !== undefined) {
+            setClause.push(`modalites_paiement = $${paramIndex++}`);
+            params.push(JSON.stringify(data.modalitesPaiement));
+        }
+        if (data.actif !== undefined) {
+            setClause.push(`actif = $${paramIndex++}`);
+            params.push(data.actif);
+        }
+        setClause.push(`modifie_par = $${paramIndex++}`);
+        params.push(data.modifiePar);
+        setClause.push(`updated_at = NOW()`);
+        params.push(id);
+        const frais = await this.dataSource.query(`
+      UPDATE frais_inscription 
+      SET ${setClause.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `, params);
+        return frais[0];
+    }
+    async getFraisByParcours(parcoursId, anneeAcademiqueId) {
+        let query = `
+      SELECT 
+        fi.*,
+        aa.libelle as annee_academique,
+        aa.annee_debut,
+        aa.annee_fin
+      FROM frais_inscription fi
+      JOIN annee_academique aa ON aa.id = fi.annee_academique_id
+      WHERE fi.parcours_id = $1 AND fi.actif = true
+    `;
+        const params = [parcoursId];
+        if (anneeAcademiqueId) {
+            query += ` AND fi.annee_academique_id = $2`;
+            params.push(anneeAcademiqueId);
+        }
+        query += ` ORDER BY aa.annee_debut DESC`;
+        return this.dataSource.query(query, params);
+    }
+    async encaissementDirect(data) {
+        const { inscriptionId, modePaiement, montant, detailsPaiement } = data;
+        const inscription = await this.dataSource.query(`
+      SELECT i.*, e.nom, e.prenom, e.matricule, p.code as parcours_code
+      FROM inscription i
+      JOIN etudiant e ON e.id = i.etudiant_id
+      JOIN parcours p ON p.id = i.parcours_id
+      WHERE i.id = $1
+    `, [inscriptionId]);
+        if (!inscription.length) {
+            throw new common_1.NotFoundException('Inscription non trouvée');
+        }
+        return this.createPaiement({
+            inscriptionId,
+            modePaiement,
+            montant,
+            typePaiement: 'inscription',
+            detailsPaiement,
+            caissierId: data.caissierId
+        });
+    }
+    async encaissementMultiple(data) {
+        const { paiements, caissierId } = data;
+        const resultats = [];
+        for (const paiement of paiements) {
+            try {
+                const resultat = await this.encaissementDirect({
+                    ...paiement,
+                    caissierId
+                });
+                resultats.push({ succes: true, ...resultat });
+            }
+            catch (error) {
+                resultats.push({
+                    succes: false,
+                    inscriptionId: paiement.inscriptionId,
+                    erreur: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+        return {
+            total: paiements.length,
+            succes: resultats.filter(r => r.succes).length,
+            erreurs: resultats.filter(r => !r.succes),
+            resultats
+        };
+    }
+    async getRapportAnnuel(annee) {
+        const [totaux, mensuels, parcours, modes] = await Promise.all([
+            this.dataSource.query(`
+        SELECT 
+          COALESCE(SUM(montant), 0) as total_annuel,
+          COUNT(*) as nb_transactions,
+          COUNT(DISTINCT inscription_id) as nb_etudiants,
+          AVG(montant) as montant_moyen
+        FROM paiement
+        WHERE EXTRACT(YEAR FROM date_paiement) = $1
+          AND statut = 'valide'
+      `, [annee]),
+            this.dataSource.query(`
+        SELECT 
+          EXTRACT(MONTH FROM date_paiement) as mois,
+          SUM(montant) as total_mois,
+          COUNT(*) as nb_transactions
+        FROM paiement
+        WHERE EXTRACT(YEAR FROM date_paiement) = $1
+          AND statut = 'valide'
+        GROUP BY EXTRACT(MONTH FROM date_paiement)
+        ORDER BY mois
+      `, [annee]),
+            this.dataSource.query(`
+        SELECT 
+          p.code as parcours_code,
+          p.nom as parcours_nom,
+          SUM(pa.montant) as total_parcours,
+          COUNT(*) as nb_transactions
+        FROM paiement pa
+        JOIN inscription i ON i.id = pa.inscription_id
+        JOIN parcours p ON p.id = i.parcours_id
+        WHERE EXTRACT(YEAR FROM pa.date_paiement) = $1
+          AND pa.statut = 'valide'
+        GROUP BY p.id, p.code, p.nom
+        ORDER BY total_parcours DESC
+      `, [annee]),
+            this.dataSource.query(`
+        SELECT 
+          mode_paiement,
+          SUM(montant) as total,
+          COUNT(*) as nb_transactions,
+          ROUND((SUM(montant) * 100.0 / (SELECT SUM(montant) FROM paiement WHERE EXTRACT(YEAR FROM date_paiement) = $1 AND statut = 'valide')), 2) as pourcentage
+        FROM paiement
+        WHERE EXTRACT(YEAR FROM date_paiement) = $1
+          AND statut = 'valide'
+        GROUP BY mode_paiement
+        ORDER BY total DESC
+      `, [annee])
+        ]);
+        return {
+            annee,
+            totaux: totaux[0],
+            evolutionMensuelle: mensuels,
+            topParcours: parcours.slice(0, 10),
+            repartitionModesPaiement: modes
+        };
+    }
+    async getRapportsParcours(dateDebut, dateFin) {
+        return this.dataSource.query(`
+      SELECT 
+        p.code as parcours_code,
+        p.nom as parcours_nom,
+        d.nom as departement_nom,
+        SUM(pa.montant) as total_encaisse,
+        COUNT(*) as nb_transactions,
+        COUNT(DISTINCT pa.inscription_id) as nb_etudiants,
+        AVG(pa.montant) as montant_moyen,
+        SUM(CASE WHEN pa.type_paiement = 'inscription' THEN pa.montant ELSE 0 END) as total_inscriptions,
+        SUM(CASE WHEN pa.type_paiement = 'scolarite' THEN pa.montant ELSE 0 END) as total_scolarite
+      FROM paiement pa
+      JOIN inscription i ON i.id = pa.inscription_id
+      JOIN parcours p ON p.id = i.parcours_id
+      LEFT JOIN departement d ON d.id = p.departement_id
+      WHERE pa.date_paiement BETWEEN $1 AND $2
+        AND pa.statut = 'valide'
+      GROUP BY p.id, p.code, p.nom, d.nom
+      ORDER BY total_encaisse DESC
+    `, [dateDebut, dateFin]);
+    }
+    async getRapportModesPaiement(dateDebut, dateFin) {
+        let query = `
+      SELECT 
+        mode_paiement,
+        COUNT(*) as nb_transactions,
+        SUM(montant) as total,
+        AVG(montant) as montant_moyen,
+        MIN(montant) as montant_min,
+        MAX(montant) as montant_max
+      FROM paiement
+      WHERE statut = 'valide'
+    `;
+        const params = [];
+        if (dateDebut && dateFin) {
+            query += ` AND date_paiement BETWEEN $1 AND $2`;
+            params.push(dateDebut, dateFin);
+        }
+        query += ` GROUP BY mode_paiement ORDER BY total DESC`;
+        return this.dataSource.query(query, params);
+    }
     async genererNumeroRecu() {
         const date = new Date();
         const annee = date.getFullYear();
@@ -351,9 +611,9 @@ let CaissierService = CaissierService_1 = class CaissierService {
 exports.CaissierService = CaissierService;
 exports.CaissierService = CaissierService = CaissierService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(finance_entities_1.Paiement)),
-    __param(1, (0, typeorm_1.InjectRepository)(finance_entities_1.Echeancier)),
-    __param(2, (0, typeorm_1.InjectDataSource)()),
+    __param(0, (0, typeorm_1.InjectRepository)(finance_entities_1.Paiement, 'tenant')),
+    __param(1, (0, typeorm_1.InjectRepository)(finance_entities_1.Echeancier, 'tenant')),
+    __param(2, (0, typeorm_1.InjectDataSource)('tenant')),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource])

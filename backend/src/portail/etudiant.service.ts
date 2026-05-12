@@ -274,4 +274,142 @@ export class PortailEtudiantService {
 
     return { message: 'Inscription à l\'examen réussie' };
   }
+
+  async getInscriptions(utilisateurId: string): Promise<any> {
+    return this.dataSource.query(`
+      SELECT 
+        i.*,
+        p.nom as parcours_nom,
+        p.code as parcours_code,
+        aa.libelle as annee_academique,
+        aa.annee_debut,
+        aa.annee_fin
+      FROM inscription i
+      LEFT JOIN parcours p ON p.id = i.parcours_id
+      LEFT JOIN annee_academique aa ON aa.id = i.annee_academique_id
+      WHERE i.etudiant_id = (SELECT id FROM etudiant WHERE utilisateur_id = $1)
+      ORDER BY i.date_inscription DESC
+    `, [utilisateurId]);
+  }
+
+  async getParcoursDisponibles(utilisateurId: string): Promise<any> {
+    return this.dataSource.query(`
+      SELECT 
+        p.*,
+        d.nom as departement_nom,
+        COUNT(DISTINCT ue.id) as nombre_ues
+      FROM parcours p
+      LEFT JOIN departement d ON d.id = p.departement_id
+      LEFT JOIN unite_enseignement ue ON ue.parcours_id = p.id
+      WHERE p.actif = true
+      GROUP BY p.id, d.nom
+      ORDER BY p.code, p.nom
+    `);
+  }
+
+  async getAnneesAcademiques(): Promise<any> {
+    return this.dataSource.query(`
+      SELECT 
+        id,
+        libelle,
+        annee_debut,
+        annee_fin,
+        statut,
+        date_debut,
+        date_fin
+      FROM annee_academique
+      ORDER BY annee_debut DESC, annee_fin DESC
+    `);
+  }
+
+  async createInscription(utilisateurId: string, dto: any): Promise<any> {
+    const etudiant = await this.getProfil(utilisateurId);
+    
+    // Vérifier si l'étudiant n'est pas déjà inscrit pour cette année académique
+    const existingInscription = await this.dataSource.query(`
+      SELECT id FROM inscription 
+      WHERE etudiant_id = $1 AND annee_academique_id = $2
+    `, [etudiant.id, dto.anneeAcademiqueId]);
+
+    if (existingInscription.length > 0) {
+      throw new Error('Vous êtes déjà inscrit pour cette année académique');
+    }
+
+    // Créer l'inscription
+    const result = await this.dataSource.query(`
+      INSERT INTO inscription (
+        etudiant_id, 
+        parcours_id, 
+        annee_academique_id, 
+        annee_niveau, 
+        type_inscription, 
+        statut, 
+        date_inscription
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      RETURNING *
+    `, [
+      etudiant.id,
+      dto.parcoursId,
+      dto.anneeAcademiqueId,
+      dto.anneeNiveau,
+      dto.typeInscription || 'premiere',
+      'en_attente'
+    ]);
+
+    return {
+      message: 'Inscription créée avec succès',
+      inscription: result[0]
+    };
+  }
+
+  async updateInscription(utilisateurId: string, inscriptionId: string, dto: any): Promise<any> {
+    // Vérifier que l'inscription appartient à l'étudiant
+    const checkResult = await this.dataSource.query(`
+      SELECT id FROM inscription 
+      WHERE id = $1 AND etudiant_id = (SELECT id FROM etudiant WHERE utilisateur_id = $2)
+    `, [inscriptionId, utilisateurId]);
+
+    if (checkResult.length === 0) {
+      throw new Error('Inscription non trouvée ou accès non autorisé');
+    }
+
+    // Mettre à jour l'inscription (seulement certains champs modifiables par l'étudiant)
+    const result = await this.dataSource.query(`
+      UPDATE inscription 
+      SET observations = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `, [dto.observations, inscriptionId]);
+
+    return {
+      message: 'Inscription mise à jour avec succès',
+      inscription: result[0]
+    };
+  }
+
+  async cancelInscription(utilisateurId: string, inscriptionId: string): Promise<any> {
+    // Vérifier que l'inscription appartient à l'étudiant et qu'elle peut être annulée
+    const checkResult = await this.dataSource.query(`
+      SELECT id, statut FROM inscription 
+      WHERE id = $1 AND etudiant_id = (SELECT id FROM etudiant WHERE utilisateur_id = $2)
+    `, [inscriptionId, utilisateurId]);
+
+    if (checkResult.length === 0) {
+      throw new Error('Inscription non trouvée ou accès non autorisé');
+    }
+
+    const inscription = checkResult[0];
+    if (inscription.statut === 'validee') {
+      throw new Error('Impossible d\'annuler une inscription déjà validée');
+    }
+
+    // Annuler l'inscription
+    await this.dataSource.query(`
+      UPDATE inscription 
+      SET statut = 'annulee', updated_at = NOW()
+      WHERE id = $1
+    `, [inscriptionId]);
+
+    return { message: 'Inscription annulée avec succès' };
+  }
 }

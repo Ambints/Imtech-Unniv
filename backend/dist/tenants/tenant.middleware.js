@@ -48,8 +48,8 @@ let TenantMiddleware = class TenantMiddleware {
                     console.log(`[TenantMiddleware] Found schema "${schemaName}" for tenant ${tenantId}`);
                 }
                 else {
-                    schemaName = process.env.DEFAULT_TENANT_SCHEMA || 'univ_demo';
-                    console.warn(`[TenantMiddleware] Tenant ${tenantId} not found, using default schema: ${schemaName}`);
+                    console.error(`[TenantMiddleware] Tenant ${tenantId} not found`);
+                    throw new Error(`Tenant ${tenantId} not found`);
                 }
                 await this.tenantConnection.query(`SET search_path TO "${schemaName}", public`);
                 req.tenantSchema = schemaName;

@@ -17,12 +17,19 @@ const professeur_controller_1 = require("./professeur.controller");
 const professeur_service_1 = require("./professeur.service");
 const portail_permissions_controller_1 = require("./portail-permissions.controller");
 const tenant_entity_1 = require("../tenants/tenant.entity");
+const entities_1 = require("../scolarite/entities");
 let PortailModule = class PortailModule {
 };
 exports.PortailModule = PortailModule;
 exports.PortailModule = PortailModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([tenant_entity_1.Tenant])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([tenant_entity_1.Tenant]),
+            typeorm_1.TypeOrmModule.forFeature([
+                entities_1.Inscription, entities_1.Etudiant, entities_1.Parcours, entities_1.AnneeAcademique, entities_1.UniteEnseignement,
+                entities_1.ElementConstitutif, entities_1.SessionExamen, entities_1.Note
+            ], 'tenant')
+        ],
         controllers: [
             etudiant_controller_1.PortailEtudiantController,
             parent_controller_1.PortailParentController,

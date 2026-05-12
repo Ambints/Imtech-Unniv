@@ -29,5 +29,14 @@ export declare class CaissierService {
     getRapprochementBancaire(date?: string): Promise<any>;
     getStatsJournalieres(date?: string): Promise<any>;
     getStatsMensuelles(mois: number, annee: number): Promise<any>;
+    getFraisInscription(anneeAcademiqueId?: string): Promise<any>;
+    createFraisInscription(data: any): Promise<any>;
+    updateFraisInscription(id: string, data: any): Promise<any>;
+    getFraisByParcours(parcoursId: string, anneeAcademiqueId?: string): Promise<any>;
+    encaissementDirect(data: any): Promise<any>;
+    encaissementMultiple(data: any): Promise<any>;
+    getRapportAnnuel(annee: number): Promise<any>;
+    getRapportsParcours(dateDebut: string, dateFin: string): Promise<any>;
+    getRapportModesPaiement(dateDebut?: string, dateFin?: string): Promise<any>;
     private genererNumeroRecu;
 }

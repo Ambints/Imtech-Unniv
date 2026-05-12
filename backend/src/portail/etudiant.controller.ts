@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PortailEtudiantService } from './etudiant.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -102,5 +102,59 @@ export class PortailEtudiantController {
   @ApiOperation({ summary: 'S\'inscrire à une session d\'examen' })
   inscrireExamen(@Param('tid') tid: string, @CurrentUser() user: any, @Body() dto: { sessionId: string }) {
     return this.svc.inscrireExamen(user.id, dto.sessionId);
+  }
+
+  @Get('etudiant/inscriptions')
+  @ApiOperation({ summary: 'Liste des inscriptions de l\'étudiant' })
+  getInscriptions(@Param('tid') tid: string, @CurrentUser() user: any) {
+    return this.svc.getInscriptions(user.id);
+  }
+
+  @Get('etudiant/parcours-disponibles')
+  @ApiOperation({ summary: 'Parcours disponibles pour inscription' })
+  getParcoursDisponibles(@Param('tid') tid: string, @CurrentUser() user: any) {
+    return this.svc.getParcoursDisponibles(user.id);
+  }
+
+  @Get('etudiant/annees-academiques')
+  @ApiOperation({ summary: 'Années académiques disponibles' })
+  getAnneesAcademiques(@Param('tid') tid: string) {
+    return this.svc.getAnneesAcademiques();
+  }
+
+  @Post('etudiant/inscription')
+  @ApiOperation({ summary: 'S\'inscrire à un parcours pour une année académique' })
+  createInscription(
+    @Param('tid') tid: string, 
+    @CurrentUser() user: any, 
+    @Body() dto: { 
+      parcoursId: string; 
+      anneeAcademiqueId: string; 
+      anneeNiveau: number; 
+      typeInscription?: string;
+    }
+  ) {
+    return this.svc.createInscription(user.id, dto);
+  }
+
+  @Patch('etudiant/inscription/:id')
+  @ApiOperation({ summary: 'Mettre à jour une inscription' })
+  updateInscription(
+    @Param('tid') tid: string,
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Body() dto: any
+  ) {
+    return this.svc.updateInscription(user.id, id, dto);
+  }
+
+  @Delete('etudiant/inscription/:id')
+  @ApiOperation({ summary: 'Annuler une inscription' })
+  cancelInscription(
+    @Param('tid') tid: string,
+    @Param('id') id: string,
+    @CurrentUser() user: any
+  ) {
+    return this.svc.cancelInscription(user.id, id);
   }
 }

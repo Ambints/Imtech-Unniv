@@ -109,6 +109,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Stock Produits', icon: <Droplets size={18} />, path: '/entretien/produits' },
   ],
   etudiant: [
+    { label: 'Inscription', icon: <CheckCircle size={18} />, path: '/portail/etudiant/inscription' },
     { label: 'Mon Tableau de Bord', icon: <Home size={18} />, path: '/portail/etudiant' },
     { label: 'Mes Notes', icon: <BarChart3 size={18} />, path: '/portail/etudiant/notes' },
     { label: 'Emploi du Temps', icon: <CalendarDays size={18} />, path: '/portail/etudiant/edt' },
@@ -300,6 +301,9 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                   item.path === '/pedagogique' ||
                                   item.path === '/president' ||
                                   item.path === '/surveillance' ||
+                                  item.path === '/caisse' ||
+                                  item.path === '/scolarite' ||
+                                  item.path === '/communication' ||
                                   item.path === '/';
           
           const isActive = isDashboardPath

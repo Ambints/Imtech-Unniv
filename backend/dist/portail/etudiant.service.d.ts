@@ -16,4 +16,10 @@ export declare class PortailEtudiantService {
     getCoursEnLigne(utilisateurId: string): Promise<any>;
     getInscriptionsExamens(utilisateurId: string): Promise<any>;
     inscrireExamen(utilisateurId: string, sessionId: string): Promise<any>;
+    getInscriptions(utilisateurId: string): Promise<any>;
+    getParcoursDisponibles(utilisateurId: string): Promise<any>;
+    getAnneesAcademiques(): Promise<any>;
+    createInscription(utilisateurId: string, dto: any): Promise<any>;
+    updateInscription(utilisateurId: string, inscriptionId: string, dto: any): Promise<any>;
+    cancelInscription(utilisateurId: string, inscriptionId: string): Promise<any>;
 }
