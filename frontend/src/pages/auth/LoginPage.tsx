@@ -12,7 +12,7 @@ const ROLE_ROUTES: Record<string, string> = {
   economat: '/economat/budget', caissier: '/caisse',
   rh: '/rh/personnel', communication: '/communication',
   logistique: '/logistique/tickets', entretien: '/entretien/planning',
-  etudiant: '/portail/etudiant', parent: '/portail/parent', professeur: '/portail/professeur',
+  etudiant: '/portail/etudiant', parent: '/portail/parent', enseignant: '/portail/enseignant',
   admin: '/admin',
 };
 

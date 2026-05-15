@@ -2,12 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 import { CheckCircle, AlertCircle, BookOpen, Calendar, CreditCard, User, ArrowRight, X, Check } from 'lucide-react';
+import { PaiementInscriptionCard } from '../../../components/etudiant/PaiementInscriptionCard';
+
+interface Departement {
+  id: string;
+  code: string;
+  nom: string;
+  description: string;
+  nombre_parcours: number;
+}
+
+interface NiveauEtude {
+  id: string;
+  code: string;
+  libelle: string;
+  description: string;
+  ordre: number;
+  type_diplome: string;
+}
 
 interface Parcours {
   id: string;
   code: string;
   nom: string;
+  niveau: string;
+  departement_id: string;
   departement_nom: string;
+  departement_code: string;
   nombre_ues: number;
 }
 
@@ -32,11 +53,14 @@ export const InscriptionEtudiantPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, tenant } = useAuthStore();
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
+  const [departements, setDepartements] = useState<Departement[]>([]);
   const [parcoursDisponibles, setParcoursDisponibles] = useState<Parcours[]>([]);
   const [anneesAcademiques, setAnneesAcademiques] = useState<AnneeAcademique[]>([]);
+  const [niveauxEtude, setNiveauxEtude] = useState<NiveauEtude[]>([]);
+  const [selectedDepartement, setSelectedDepartement] = useState<string>('');
   const [selectedParcours, setSelectedParcours] = useState<string>('');
   const [selectedAnnee, setSelectedAnnee] = useState<string>('');
-  const [anneeNiveau, setAnneeNiveau] = useState<number>(1);
+  const [selectedNiveau, setSelectedNiveau] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
@@ -52,38 +76,85 @@ export const InscriptionEtudiantPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const { accessToken } = useAuthStore.getState();
       const tenantId = tenant?.id || 'default';
 
+      console.log('[InscriptionEtudiant] Chargement des données...', { tenantId, hasToken: !!accessToken });
+
       // Charger les inscriptions existantes
-      const inscriptionsResponse = await fetch(`/api/portail/${tenantId}/etudiant/inscriptions`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const inscriptionsResponse = await fetch(`/api/v1/portail/${tenantId}/etudiant/inscriptions`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       if (inscriptionsResponse.ok) {
         const data = await inscriptionsResponse.json();
+        console.log('[InscriptionEtudiant] Inscriptions chargées:', data.length);
         setInscriptions(data);
+      } else {
+        console.error('[InscriptionEtudiant] Erreur inscriptions:', inscriptionsResponse.status);
+      }
+
+      // Charger les départements
+      const departementsResponse = await fetch(`/api/v1/portail/${tenantId}/etudiant/departements`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (departementsResponse.ok) {
+        const data = await departementsResponse.json();
+        console.log('[InscriptionEtudiant] Départements chargés:', data.length, data);
+        setDepartements(data);
+      } else {
+        console.error('[InscriptionEtudiant] Erreur départements:', departementsResponse.status);
       }
 
       // Charger les parcours disponibles
-      const parcoursResponse = await fetch(`/api/portail/${tenantId}/etudiant/parcours-disponibles`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const parcoursResponse = await fetch(`/api/v1/portail/${tenantId}/etudiant/parcours-disponibles`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       if (parcoursResponse.ok) {
         const data = await parcoursResponse.json();
+        console.log('[InscriptionEtudiant] Parcours chargés:', data.length, data);
         setParcoursDisponibles(data);
+      } else {
+        console.error('[InscriptionEtudiant] Erreur parcours:', parcoursResponse.status);
       }
 
       // Charger les années académiques
-      const anneesResponse = await fetch(`/api/portail/${tenantId}/etudiant/annees-academiques`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const anneesResponse = await fetch(`/api/v1/portail/${tenantId}/etudiant/annees-academiques`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       if (anneesResponse.ok) {
         const data = await anneesResponse.json();
+        console.log('[InscriptionEtudiant] Années académiques chargées:', data.length, data);
         setAnneesAcademiques(data);
+      } else {
+        console.error('[InscriptionEtudiant] Erreur années:', anneesResponse.status);
+      }
+
+      // Charger les niveaux d'études
+      const niveauxResponse = await fetch(`/api/v1/portail/${tenantId}/etudiant/niveaux-etude`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (niveauxResponse.ok) {
+        const data = await niveauxResponse.json();
+        console.log('[InscriptionEtudiant] Niveaux chargés:', data.length, data);
+        setNiveauxEtude(data);
+      } else {
+        console.error('[InscriptionEtudiant] Erreur niveaux:', niveauxResponse.status);
       }
     } catch (err) {
+      console.error('[InscriptionEtudiant] Erreur globale:', err);
       setError('Erreur lors du chargement des données');
     }
+  };
+
+  // Filtrer les parcours par département sélectionné
+  const parcoursFiltres = selectedDepartement
+    ? parcoursDisponibles.filter(p => p.departement_id === selectedDepartement)
+    : parcoursDisponibles;
+
+  // Réinitialiser le parcours sélectionné quand on change de département
+  const handleDepartementChange = (departementId: string) => {
+    setSelectedDepartement(departementId);
+    setSelectedParcours(''); // Réinitialiser le parcours
   };
 
   const handleInscription = async (e: React.FormEvent) => {
@@ -93,19 +164,19 @@ export const InscriptionEtudiantPage: React.FC = () => {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
+      const { accessToken } = useAuthStore.getState();
       const tenantId = tenant?.id || 'default';
 
-      const response = await fetch(`/api/portail/${tenantId}/etudiant/inscription`, {
+      const response = await fetch(`/api/v1/portail/${tenantId}/etudiant/inscription`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           parcoursId: selectedParcours,
           anneeAcademiqueId: selectedAnnee,
-          anneeNiveau,
+          anneeNiveau: niveauxEtude.find(n => n.id === selectedNiveau)?.ordre || 1,
           typeInscription: 'premiere'
         })
       });
@@ -115,9 +186,10 @@ export const InscriptionEtudiantPage: React.FC = () => {
       if (response.ok) {
         setSuccess('Inscription créée avec succès !');
         setShowInscriptionForm(false);
+        setSelectedDepartement('');
         setSelectedParcours('');
         setSelectedAnnee('');
-        setAnneeNiveau(1);
+        setSelectedNiveau('');
         loadData(); // Recharger les données
       } else {
         setError(data.message || 'Erreur lors de l\'inscription');
@@ -133,12 +205,12 @@ export const InscriptionEtudiantPage: React.FC = () => {
     if (!confirm('Êtes-vous sûr de vouloir annuler cette inscription ?')) return;
 
     try {
-      const token = localStorage.getItem('token');
+      const { accessToken } = useAuthStore.getState();
       const tenantId = tenant?.id || 'default';
 
-      const response = await fetch(`/api/portail/${tenantId}/etudiant/inscription/${inscriptionId}`, {
+      const response = await fetch(`/api/v1/portail/${tenantId}/etudiant/inscription/${inscriptionId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
 
       const data = await response.json();
@@ -255,40 +327,46 @@ export const InscriptionEtudiantPage: React.FC = () => {
                     </thead>
                     <tbody>
                       {inscriptions.map((inscription) => (
-                        <tr key={inscription.id}>
-                          <td>
-                            <div>
-                              <strong>{inscription.parcours_nom}</strong>
-                              <div className="text-muted small">{inscription.parcours_code}</div>
-                            </div>
-                          </td>
-                          <td>{inscription.annee_academique}</td>
-                          <td>{new Date(inscription.date_inscription).toLocaleDateString()}</td>
-                          <td>
-                            <span className={`badge ${getStatusColor(inscription.statut)}`}>
-                              {getStatusLabel(inscription.statut)}
-                            </span>
-                          </td>
-                          <td>
-                            {inscription.statut === 'en_attente' && (
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleCancelInscription(inscription.id)}
-                              >
-                                <X size={16} />
-                              </button>
-                            )}
-                            {inscription.statut === 'validee' && (
-                              <button
-                                className="btn btn-sm btn-outline-success"
-                                onClick={() => navigate('/portail/etudiant/paiements')}
-                              >
-                                <CreditCard size={16} className="me-1" />
-                                Payer
-                              </button>
-                            )}
-                          </td>
-                        </tr>
+                        <React.Fragment key={inscription.id}>
+                          <tr>
+                            <td>
+                              <div>
+                                <strong>{inscription.parcours_nom}</strong>
+                                <div className="text-muted small">{inscription.parcours_code}</div>
+                              </div>
+                            </td>
+                            <td>{inscription.annee_academique}</td>
+                            <td>{new Date(inscription.date_inscription).toLocaleDateString()}</td>
+                            <td>
+                              <span className={`badge ${getStatusColor(inscription.statut)}`}>
+                                {getStatusLabel(inscription.statut)}
+                              </span>
+                            </td>
+                            <td>
+                              {inscription.statut === 'en_attente' && (
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleCancelInscription(inscription.id)}
+                                >
+                                  <X size={16} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {/* Afficher le composant de paiement pour les inscriptions en attente */}
+                          {inscription.statut === 'en_attente' && (
+                            <tr>
+                              <td colSpan={5} className="p-0">
+                                <div className="p-3 bg-light">
+                                  <PaiementInscriptionCard
+                                    inscription={inscription}
+                                    onPaiementSubmitted={() => loadData()}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -318,6 +396,29 @@ export const InscriptionEtudiantPage: React.FC = () => {
               <form onSubmit={handleInscription}>
                 <div className="modal-body">
                   <div className="row">
+                    <div className="col-md-12 mb-3">
+                      <label className="form-label">Filière / Département *</label>
+                      <select
+                        className="form-select"
+                        value={selectedDepartement}
+                        onChange={(e) => handleDepartementChange(e.target.value)}
+                        required
+                      >
+                        <option value="">Sélectionner une filière</option>
+                        {departements.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.nom} ({dept.nombre_parcours} parcours)
+                          </option>
+                        ))}
+                      </select>
+                      {selectedDepartement && (
+                        <small className="text-muted">
+                          {departements.find(d => d.id === selectedDepartement)?.description}
+                        </small>
+                      )}
+                    </div>
+                  </div>
+                  <div className="row">
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Parcours *</label>
                       <select
@@ -325,14 +426,22 @@ export const InscriptionEtudiantPage: React.FC = () => {
                         value={selectedParcours}
                         onChange={(e) => setSelectedParcours(e.target.value)}
                         required
+                        disabled={!selectedDepartement}
                       >
-                        <option value="">Sélectionner un parcours</option>
-                        {parcoursDisponibles.map((parcours) => (
+                        <option value="">
+                          {selectedDepartement ? 'Sélectionner un parcours' : 'Sélectionnez d\'abord une filière'}
+                        </option>
+                        {parcoursFiltres.map((parcours) => (
                           <option key={parcours.id} value={parcours.id}>
-                            {parcours.code} - {parcours.nom}
+                            {parcours.code} - {parcours.nom} ({parcours.niveau})
                           </option>
                         ))}
                       </select>
+                      {selectedParcours && (
+                        <small className="text-muted">
+                          {parcoursFiltres.find(p => p.id === selectedParcours)?.nombre_ues} UE disponibles
+                        </small>
+                      )}
                     </div>
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Année Académique *</label>
@@ -345,27 +454,31 @@ export const InscriptionEtudiantPage: React.FC = () => {
                         <option value="">Sélectionner une année</option>
                         {anneesAcademiques.map((annee) => (
                           <option key={annee.id} value={annee.id}>
-                            {annee.libelle}
+                            {annee.libelle} ({annee.annee_debut}-{annee.annee_fin})
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
                   <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Niveau *</label>
+                    <div className="col-md-12 mb-3">
+                      <label className="form-label">Niveau d'études *</label>
                       <select
                         className="form-select"
-                        value={anneeNiveau}
-                        onChange={(e) => setAnneeNiveau(Number(e.target.value))}
+                        value={selectedNiveau}
+                        onChange={(e) => setSelectedNiveau(e.target.value)}
                         required
                       >
-                        <option value={1}>L1 - 1ère année</option>
-                        <option value={2}>L2 - 2ème année</option>
-                        <option value={3}>L3 - 3ème année</option>
-                        <option value={4}>M1 - 1ère année Master</option>
-                        <option value={5}>M2 - 2ème année Master</option>
+                        <option value="">Sélectionner un niveau</option>
+                        {niveauxEtude.map((niveau) => (
+                          <option key={niveau.id} value={niveau.id}>
+                            {niveau.libelle}
+                          </option>
+                        ))}
                       </select>
+                      <small className="text-muted">
+                        {selectedNiveau && niveauxEtude.find(n => n.id === selectedNiveau)?.description}
+                      </small>
                     </div>
                   </div>
                 </div>

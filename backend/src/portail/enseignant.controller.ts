@@ -1,19 +1,19 @@
 import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PortailProfesseurService } from './professeur.service';
+import { PortailEnseignantService } from './enseignant.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 
-@ApiTags('Portail Professeur - Espace enseignant')
+@ApiTags('Portail Enseignant - Espace enseignant')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('professeur', 'responsable_pedagogique', 'admin')
-@Controller('portail/professeur')
-export class PortailProfesseurController {
-  constructor(private readonly svc: PortailProfesseurService) {}
+@Roles('enseignant', 'responsable_pedagogique', 'admin')
+@Controller('portail/enseignant')
+export class PortailEnseignantController {
+  constructor(private readonly svc: PortailEnseignantService) {}
 
   // ========== PROFIL & MES COURS ==========
   @Get('profil')
@@ -98,7 +98,7 @@ export class PortailProfesseurController {
   @Get('mon-qr')
   @ApiOperation({ summary: 'Générer mon QR Code pour pointage' })
   getMonQR(@CurrentUser() user: any) {
-    return this.svc.genererQRProfesseur(user.id);
+    return this.svc.genererQREnseignant(user.id);
   }
 
   // ========== NOTES ==========

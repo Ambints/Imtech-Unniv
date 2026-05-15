@@ -529,7 +529,7 @@ const GestionCommunicationPage: React.FC = () => {
                       <option value="tous">Tous</option>
                       <option value="etudiants">Étudiants</option>
                       <option value="parents">Parents</option>
-                      <option value="professeurs">Professeurs</option>
+                      <option value="enseignants">Enseignants</option>
                       <option value="personnel">Personnel</option>
                     </select>
                   </div>

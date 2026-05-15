@@ -82,7 +82,7 @@ export const StatistiquesPage: React.FC = () => {
       const [statsRes, anneesRes, parcoursRes] = await Promise.all([
         api.get(`/pedagogique/${tid}/statistiques-parcours`),
         api.get(`/academic/${tid}/annees`),
-        api.get(`/rp-enhanced/${tid}/mes-parcours`)
+        api.get(`/rp-enhanced/mes-parcours`)
       ]);
       
       setStatsParcours(statsRes.data || []);
@@ -137,7 +137,7 @@ export const StatistiquesPage: React.FC = () => {
     if (!selectedParcours || !selectedAnnee) return;
     try {
       const response = await api.get(
-        `/rp-enhanced/${tid}/parcours/${selectedParcours}/performance?anneeAcademiqueId=${selectedAnnee}`
+        `/rp-enhanced/parcours/${selectedParcours}/performance?anneeAcademiqueId=${selectedAnnee}`
       );
       // Add to performances
     } catch (err) {

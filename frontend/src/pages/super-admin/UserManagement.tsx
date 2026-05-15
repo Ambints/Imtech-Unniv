@@ -79,7 +79,7 @@ const getRoleLabel = (role: string) => {
     service_entretien: 'Service Entretien',
     etudiant: 'Étudiant',
     parent: 'Parent',
-    professeur: 'Professeur'
+    enseignant: 'Enseignant'
   };
   return labels[role] || role;
 };
@@ -320,7 +320,7 @@ export const UserManagement: React.FC = () => {
                 <option value="communication">Communication</option>
                 <option value="responsable_logistique">Resp. Logistique</option>
                 <option value="service_entretien">Service Entretien</option>
-                <option value="professeur">Professeur</option>
+                <option value="enseignant">Enseignant</option>
                 <option value="etudiant">Étudiant</option>
                 <option value="parent">Parent</option>
               </select>

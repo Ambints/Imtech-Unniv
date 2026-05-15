@@ -4,7 +4,10 @@ import { Repository, DataSource } from 'typeorm';
 import { User } from './user.entity';
 import { SuperAdmin } from './super-admin.entity';
 import { Tenant } from '../tenants/tenant.entity';
+import { EmailService } from '../email/email.service';
+import { CacheService } from '../cache/cache.service';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -13,10 +16,35 @@ export class UsersService {
     @InjectRepository(SuperAdmin, 'default') private superAdminRepo: Repository<SuperAdmin>,
     @InjectRepository(Tenant, 'default') private tenantRepo: Repository<Tenant>,
     private dataSource: DataSource,
+    private emailService: EmailService,
+    private cacheService: CacheService,
   ) {}
 
+  /**
+   * Génère un mot de passe aléatoire sécurisé
+   */
+  private generateSecurePassword(length: number = 12): string {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    
+    // S'assurer d'avoir au moins un caractère de chaque type
+    password += 'abcdefghijklmnopqrstuvwxyz'[crypto.randomInt(26)];
+    password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[crypto.randomInt(26)];
+    password += '0123456789'[crypto.randomInt(10)];
+    password += '!@#$%^&*'[crypto.randomInt(8)];
+    
+    // Remplir le reste avec des caractères aléatoires
+    for (let i = 4; i < length; i++) {
+      password += charset[crypto.randomInt(charset.length)];
+    }
+    
+    // Mélanger le mot de passe
+    return password.split('').sort(() => crypto.randomInt(3) - 1).join('');
+  }
+
   async create(dto: any): Promise<any> {
-    const password = await bcrypt.hash(dto.password || 'Imtech@2024!', 12);
+    const password = dto.password || this.generateSecurePassword();
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Si c'est un super_admin, créer dans la table super_admin
     if (dto.role === 'super_admin') {
@@ -25,13 +53,41 @@ export class UsersService {
       
       const superAdmin = this.superAdminRepo.create({
         email: dto.email,
-        password: password,
+        password: hashedPassword,
         nom: dto.nom,
         prenom: dto.prenom,
         actif: dto.actif !== undefined ? dto.actif : true,
+        passwordResetRequired: !dto.password, // Forcer reset si généré automatiquement
+        lastPasswordReset: !dto.password ? new Date() : null,
       });
       
-      return this.superAdminRepo.save(superAdmin);
+      const savedSuperAdmin = await this.superAdminRepo.save(superAdmin);
+      
+      // Envoyer l'email avec les identifiants si le mot de passe a été généré
+      if (!dto.password) {
+        try {
+          await this.emailService.sendCredentialsEmail(
+            dto.email,
+            dto.nom,
+            dto.prenom,
+            password,
+            'Super Administrateur',
+            'IMTECH University'
+          );
+          console.log(`Email d'identifiants envoyé au super admin ${dto.email}`);
+        } catch (error: any) {
+          console.error('Erreur lors de l\'envoi d\'email au super admin:', error);
+          // Ne pas bloquer la création de l'utilisateur
+        }
+      }
+      
+      // Retourner le mot de passe en clair seulement s'il a été généré
+      return {
+        ...savedSuperAdmin,
+        plainPassword: !dto.password ? password : undefined,
+        passwordResetRequired: !dto.password,
+        emailSent: !dto.password
+      };
     }
 
     // Pour tous les autres rôles, créer dans le schéma de l'université spécifiée
@@ -44,29 +100,64 @@ export class UsersService {
       const existing = await this.dataSource.query(checkQuery, [dto.email]);
       if (existing.length > 0) throw new ConflictException('Email deja utilise dans cette université');
 
+      // Vérifier si la table utilisateur existe dans le schéma
+      const tableCheckQuery = `
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = $1 AND table_name = 'utilisateur'
+      `;
+      const tableExists = await this.dataSource.query(tableCheckQuery, [tenant.schemaName]);
+      
+      if (tableExists.length === 0) {
+        throw new NotFoundException(`La table 'utilisateur' n'existe pas dans le schéma ${tenant.schemaName}`);
+      }
+
       // Créer l'utilisateur dans le schéma de l'université
       const insertQuery = `
         INSERT INTO "${tenant.schemaName}".utilisateur
-        (email, password_hash, nom, prenom, telephone, role, actif, email_verifie)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, email, nom, prenom, telephone, role, actif, created_at
+        (email, password_hash, nom, prenom, telephone, role, actif, email_verifie, password_reset_required, last_password_reset)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, email, nom, prenom, telephone, role, actif, created_at, password_reset_required
       `;
       
       const result = await this.dataSource.query(insertQuery, [
         dto.email,
-        password,
+        hashedPassword,
         dto.nom,
         dto.prenom,
         dto.telephone || null,
         dto.role,
         dto.actif !== undefined ? dto.actif : true,
-        true
+        true,
+        !dto.password, // password_reset_required
+        !dto.password ? new Date() : null // last_password_reset
       ]);
+
+      // Envoyer l'email avec les identifiants si le mot de passe a été généré
+      if (!dto.password) {
+        try {
+          await this.emailService.sendCredentialsEmail(
+            dto.email,
+            dto.nom,
+            dto.prenom,
+            password,
+            dto.role,
+            tenant.nom
+          );
+          console.log(`Email d'identifiants envoyé à l'utilisateur ${dto.email} (${tenant.nom})`);
+        } catch (error: any) {
+          console.error('Erreur lors de l\'envoi d\'email à l\'utilisateur:', error);
+          // Ne pas bloquer la création de l'utilisateur
+        }
+      }
 
       return {
         ...result[0],
         tenantId: tenant.id,
-        university: tenant.nom
+        university: tenant.nom,
+        plainPassword: !dto.password ? password : undefined,
+        passwordResetRequired: !dto.password,
+        emailSent: !dto.password
       };
     }
 
@@ -74,32 +165,94 @@ export class UsersService {
     throw new ConflictException('TenantId requis pour créer un utilisateur');
   }
 
-  async findAll(tid?: string, role?: string, university?: string): Promise<any[]> {
+  /**
+   * Trouve un super admin par ID
+   */
+  async findSuperAdminById(id: string): Promise<SuperAdmin | null> {
+    return this.superAdminRepo.findOne({ where: { id } });
+  }
+
+  /**
+   * Met à jour le mot de passe d'un super admin
+   */
+  async updateSuperAdminPassword(id: string, hashedPassword: string): Promise<void> {
+    await this.superAdminRepo.update(id, {
+      password: hashedPassword,
+      passwordResetRequired: false,
+      lastPasswordReset: new Date()
+    });
+  }
+
+  /**
+   * Trouve un utilisateur par ID
+   */
+  async findById(id: string): Promise<User | null> {
+    return this.repo.findOne({ where: { id } });
+  }
+
+  /**
+   * Met à jour le mot de passe d'un utilisateur
+   */
+  async updateUserPassword(id: string, hashedPassword: string): Promise<void> {
+    await this.repo.update(id, {
+      password: hashedPassword,
+      passwordResetRequired: false,
+      lastPasswordReset: new Date()
+    });
+  }
+
+  async findAll(
+    tid?: string, 
+    role?: string, 
+    university?: string,
+    page: number = 1,
+    limit: number = 50
+  ): Promise<any[]> {
+    // Générer la clé de cache
+    const cacheKey = CacheService.generateUserCacheKey('findAll', {
+      tid, role, university, page, limit
+    });
+    
+    // Vérifier le cache d'abord
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    
     // Get all active tenants
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
     const allUsers: any[] = [];
+    let totalCount = 0;
     
     for (const tenant of tenants) {
-      // Skip if filtering by specific tenantId or university
+      // Skip if tenant filter is specified and doesn't match
       if (tid && tenant.id !== tid) continue;
-      if (university && tenant.id !== university && tenant.slug !== university) continue;
       
-      // Skip tenants without valid schema names (like univ_demo)
-      if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
-        console.warn(`Skipping tenant ${tenant.id} with invalid schema: ${tenant.schemaName}`);
-        continue;
+      // Skip if university filter is specified and doesn't match
+      if (university && tenant.nom.toLowerCase().indexOf(university.toLowerCase()) === -1) continue;
+      
+      const schemaName = tenant.schemaName;
+      
+      // Build query based on filters
+      let query = `SELECT id, email, nom, prenom, telephone, role, actif, created_at, derniere_connexion FROM "${schemaName}".utilisateur`;
+      const params: any[] = [];
+      const conditions: string[] = [];
+      
+      if (role) {
+        conditions.push(`role = $${params.length + 1}`);
+        params.push(role);
       }
       
-      // Query users from this tenant's schema using positional parameters
-      const query = role
-        ? `SELECT id, prenom, nom, email, role, actif, created_at, telephone, photo_url, $1::uuid as tenant_id, $2 as university
-           FROM "${tenant.schemaName}".utilisateur
-           WHERE role = $3`
-        : `SELECT id, prenom, nom, email, role, actif, created_at, telephone, photo_url, $1::uuid as tenant_id, $2 as university
-           FROM "${tenant.schemaName}".utilisateur`;
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
       
-      const params = role ? [tenant.id, tenant.nom, role] : [tenant.id, tenant.nom];
+      query += ' ORDER BY created_at DESC';
+      
+      // Ajouter la pagination
+      const offset = (page - 1) * limit;
+      query += ` LIMIT ${limit} OFFSET ${offset}`;
       
       try {
         const users = await this.dataSource.query(query, params);
@@ -227,6 +380,8 @@ export class UsersService {
   }
 
   async update(id: string, dto: any): Promise<any> {
+    console.log(`[UsersService] Updating user ${id} with data:`, { ...dto, password: dto.password ? '***' : undefined });
+    
     // Try to find user in tenant schemas
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     
@@ -241,20 +396,32 @@ export class UsersService {
         const exists = await this.dataSource.query(checkQuery, [id]);
         
         if (exists.length > 0) {
+          console.log(`[UsersService] Found user in schema ${tenant.schemaName}`);
+          
+          // Si l'email est modifié, vérifier qu'il n'existe pas déjà
+          if (dto.email !== undefined) {
+            const emailCheckQuery = `SELECT id FROM "${tenant.schemaName}".utilisateur WHERE email = $1 AND id != $2`;
+            const emailExists = await this.dataSource.query(emailCheckQuery, [dto.email, id]);
+            
+            if (emailExists.length > 0) {
+              throw new ConflictException(`L'email ${dto.email} est déjà utilisé par un autre utilisateur`);
+            }
+          }
+          
           // Build update query dynamically
           const updates: string[] = [];
           const values: any[] = [];
           let paramIndex = 1;
           
-          if (dto.nom) {
+          if (dto.nom !== undefined) {
             updates.push(`nom = $${paramIndex++}`);
             values.push(dto.nom);
           }
-          if (dto.prenom) {
+          if (dto.prenom !== undefined) {
             updates.push(`prenom = $${paramIndex++}`);
             values.push(dto.prenom);
           }
-          if (dto.email) {
+          if (dto.email !== undefined) {
             updates.push(`email = $${paramIndex++}`);
             values.push(dto.email);
           }
@@ -262,7 +429,7 @@ export class UsersService {
             updates.push(`telephone = $${paramIndex++}`);
             values.push(dto.telephone);
           }
-          if (dto.role) {
+          if (dto.role !== undefined) {
             updates.push(`role = $${paramIndex++}`);
             values.push(dto.role);
           }
@@ -270,7 +437,7 @@ export class UsersService {
             updates.push(`actif = $${paramIndex++}`);
             values.push(dto.actif);
           }
-          if (dto.derniereConnexion) {
+          if (dto.derniereConnexion !== undefined) {
             updates.push(`derniere_connexion = $${paramIndex++}`);
             values.push(dto.derniereConnexion);
           }
@@ -278,12 +445,14 @@ export class UsersService {
             const hashedPassword = await bcrypt.hash(dto.password, 12);
             updates.push(`password_hash = $${paramIndex++}`);
             values.push(hashedPassword);
+            updates.push(`password_reset_required = false`);
+            updates.push(`last_password_reset = NOW()`);
           }
           
           // Always update updated_at
           updates.push(`updated_at = NOW()`);
           
-          if (updates.length > 0) {
+          if (updates.length > 1) { // Au moins updated_at + un autre champ
             values.push(id);
             const updateQuery = `
               UPDATE "${tenant.schemaName}".utilisateur
@@ -291,24 +460,36 @@ export class UsersService {
               WHERE id = $${paramIndex}
               RETURNING id, email, nom, prenom, telephone, role, actif, created_at, updated_at
             `;
+            console.log(`[UsersService] Executing update query with ${values.length} params`);
             const result = await this.dataSource.query(updateQuery, values);
+            
+            console.log(`[UsersService] Update successful`);
             return {
               ...result[0],
               tenantId: tenant.id,
               university: tenant.nom
             };
           }
-          return exists[0];
+          
+          // Si aucune mise à jour, retourner l'utilisateur existant
+          const selectQuery = `SELECT id, email, nom, prenom, telephone, role, actif, created_at, updated_at FROM "${tenant.schemaName}".utilisateur WHERE id = $1`;
+          const result = await this.dataSource.query(selectQuery, [id]);
+          return {
+            ...result[0],
+            tenantId: tenant.id,
+            university: tenant.nom
+          };
         }
       } catch (err: any) {
-        console.warn(`Failed to update in schema ${tenant.schemaName}:`, err?.message || String(err));
+        console.error(`[UsersService] Failed to update in schema ${tenant.schemaName}:`, err?.message || String(err));
+        console.error(err);
+        throw err; // Propager l'erreur au lieu de la masquer
       }
     }
     
-    // Fallback to default repository
-    const u = await this.findOne(id);
-    if (dto.password) dto.password = await bcrypt.hash(dto.password, 12);
-    return this.repo.save({ ...u, ...dto });
+    // Si l'utilisateur n'est trouvé dans aucun schéma
+    console.error(`[UsersService] User ${id} not found in any tenant schema`);
+    throw new NotFoundException(`Utilisateur ${id} introuvable`);
   }
 
   async remove(id: string): Promise<void> {

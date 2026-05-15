@@ -14,7 +14,7 @@ export class LogisticsController {
 
   // ========== TICKETS DE MAINTENANCE ==========
   @Post('tickets')
-  @Roles('logistique', 'admin', 'secretaire', 'professeur')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
   @ApiOperation({ summary: 'Créer ticket de maintenance' })
   createTicket(@Body() dto: any) {
     return this.svc.createTicket('', dto);
@@ -94,14 +94,14 @@ export class LogisticsController {
 
   // ========== RÉSERVATIONS DE SALLES ==========
   @Post('reservations')
-  @Roles('logistique', 'admin', 'secretaire', 'professeur')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
   @ApiOperation({ summary: 'Réserver une salle' })
   reserver(@Body() dto: any) {
     return this.svc.reserver('', dto);
   }
 
   @Get('reservations')
-  @Roles('logistique', 'admin', 'secretaire', 'professeur')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
   @ApiOperation({ summary: 'Liste des réservations' })
   getReservations(@Query('salleId') salleId?: string) {
     return this.svc.getReservations('', salleId);

@@ -9,11 +9,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const users_controller_1 = require("./users.controller");
 const users_service_1 = require("./users.service");
+const users_controller_1 = require("./users.controller");
 const user_entity_1 = require("./user.entity");
 const super_admin_entity_1 = require("./super-admin.entity");
 const tenant_entity_1 = require("../tenants/tenant.entity");
+const auth_module_1 = require("../auth/auth.module");
+const email_module_1 = require("../email/email.module");
+const cache_module_1 = require("../cache/cache.module");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
@@ -22,9 +25,12 @@ exports.UsersModule = UsersModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([user_entity_1.User], 'tenant'),
             typeorm_1.TypeOrmModule.forFeature([super_admin_entity_1.SuperAdmin, tenant_entity_1.Tenant], 'default'),
+            (0, common_1.forwardRef)(() => auth_module_1.AuthModule),
+            email_module_1.EmailModule,
+            cache_module_1.ImtechCacheModule,
         ],
-        controllers: [users_controller_1.UsersController],
         providers: [users_service_1.UsersService],
+        controllers: [users_controller_1.UsersController],
         exports: [users_service_1.UsersService],
     })
 ], UsersModule);

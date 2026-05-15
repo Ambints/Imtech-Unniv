@@ -49,7 +49,7 @@ export const RHPage: React.FC = () => {
     {
       id: 1,
       nom: 'Dr. MUKENDI Jean',
-      poste: 'Professeur Titulaire',
+      poste: 'Enseignant Titulaire',
       departement: 'Informatique',
       type: 'Permanent',
       statut: 'Actif',

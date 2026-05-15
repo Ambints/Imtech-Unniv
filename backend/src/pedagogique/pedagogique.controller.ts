@@ -31,7 +31,7 @@ export class PedagogiqueController {
   }
 
   @Get(':tid/referentiels')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT)
   @ApiOperation({ summary: 'Liste des référentiels de compétences' })
   getReferentiels(@Param('tid') tid: string, @Query('parcoursId') parcoursId?: string) {
     return this.svc.getReferentiels(tid, parcoursId);
@@ -60,7 +60,7 @@ export class PedagogiqueController {
   }
 
   @Get(':tid/maquettes')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR, UserRole.SCOLARITE)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT, UserRole.SCOLARITE)
   @ApiOperation({ summary: 'Liste des maquettes de formation' })
   getMaquettes(@Param('tid') tid: string) {
     return this.svc.getMaquettes(tid);
@@ -82,7 +82,7 @@ export class PedagogiqueController {
   }
 
   @Get(':tid/affectations')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR, UserRole.SECRETAIRE_PARCOURS)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT, UserRole.SECRETAIRE_PARCOURS)
   @ApiOperation({ summary: 'Liste des affectations d\'enseignants' })
   getAffectations(@Param('tid') tid: string, @Query('anneeAcademiqueId') anneeId?: string) {
     return this.svc.getAffectations(tid, anneeId);
@@ -104,14 +104,14 @@ export class PedagogiqueController {
 
   // ==================== CONTENUS DE COURS ====================
   @Post(':tid/contenus')
-  @Roles(UserRole.PROFESSEUR, UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN)
+  @Roles(UserRole.ENSEIGNANT, UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN)
   @ApiOperation({ summary: 'Créer/soumettre un contenu de cours' })
   createContenuCours(@Param('tid') tid: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.svc.createContenuCours(tid, dto, user.id);
   }
 
   @Get(':tid/contenus')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT)
   @ApiOperation({ summary: 'Liste des contenus de cours' })
   getContenusCours(@Param('tid') tid: string, @Query('ueId') ueId?: string) {
     return this.svc.getContenusCours(tid, ueId);
@@ -142,14 +142,14 @@ export class PedagogiqueController {
 
   // ==================== SUJETS D'EXAMENS ====================
   @Post(':tid/sujets')
-  @Roles(UserRole.PROFESSEUR, UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN)
+  @Roles(UserRole.ENSEIGNANT, UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN)
   @ApiOperation({ summary: 'Soumettre un sujet d\'examen' })
   createSujetExamen(@Param('tid') tid: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.svc.createSujetExamen(tid, dto, user.id);
   }
 
   @Get(':tid/sujets')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT)
   @ApiOperation({ summary: 'Liste des sujets d\'examen' })
   getSujetsExamen(
     @Param('tid') tid: string,
@@ -229,7 +229,7 @@ export class PedagogiqueController {
   }
 
   @Get(':tid/stages-memoires')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR, UserRole.ETUDIANT)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT, UserRole.ETUDIANT)
   @ApiOperation({ summary: 'Liste des stages et mémoires' })
   getStagesMemoires(
     @Param('tid') tid: string,
@@ -240,7 +240,7 @@ export class PedagogiqueController {
   }
 
   @Patch(':tid/stages-memoires/:id')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT)
   @ApiOperation({ summary: 'Mettre à jour un stage/mémoire' })
   updateStageMemoire(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updateStageMemoire(tid, id, dto);
@@ -262,7 +262,7 @@ export class PedagogiqueController {
   }
 
   @Get(':tid/soutenances')
-  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.PROFESSEUR, UserRole.ETUDIANT)
+  @Roles(UserRole.RESP_PEDAGOGIQUE, UserRole.ADMIN, UserRole.ENSEIGNANT, UserRole.ETUDIANT)
   @ApiOperation({ summary: 'Liste des soutenances' })
   getSoutenances(@Param('tid') tid: string, @Query('date') date?: string) {
     return this.svc.getSoutenances(tid, date);

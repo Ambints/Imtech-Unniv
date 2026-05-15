@@ -3,7 +3,7 @@ export type UserRole =
   | 'secretaire_parcours' | 'surveillant_general' | 'scolarite'
   | 'rh' | 'economat' | 'caissier' | 'communication'
   | 'admin' | 'logistique' | 'entretien'
-  | 'etudiant' | 'parent' | 'professeur';
+  | 'etudiant' | 'parent' | 'enseignant';
 
 export interface User {
   id: string;

@@ -23,8 +23,8 @@ export class PresidentDashboardService {
         JOIN annee_academique aa ON aa.id = i.annee_academique_id
         WHERE aa.active = true AND i.statut = 'validee'
       `),
-      this.dataSource.query(`SELECT COUNT(*) as count FROM utilisateur WHERE role = 'professeur' AND actif = true`),
-      this.dataSource.query(`SELECT COUNT(*) as count FROM utilisateur WHERE role NOT IN ('etudiant', 'parent', 'professeur') AND actif = true`),
+      this.dataSource.query(`SELECT COUNT(*) as count FROM utilisateur WHERE role = 'enseignant' AND actif = true`),
+      this.dataSource.query(`SELECT COUNT(*) as count FROM utilisateur WHERE role NOT IN ('etudiant', 'parent', 'enseignant') AND actif = true`),
     ]);
 
     // Recettes de l'année

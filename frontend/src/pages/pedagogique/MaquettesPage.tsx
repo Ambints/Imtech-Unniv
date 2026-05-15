@@ -164,7 +164,7 @@ export const MaquettesPage: React.FC = () => {
       });
 
       const dataPromise = Promise.all([
-        api.get(`/rp-enhanced/${tid}/maquettes`, { signal }),
+        api.get(`/rp-enhanced/maquettes`, { signal }),
         api.get(`/academic/${tid}/annees`, { signal })
       ]);
 
@@ -223,7 +223,7 @@ export const MaquettesPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes`, {
+      await api.post(`/rp-enhanced/maquettes`, {
         parcours: parcoursForm,
         unites: []
       });
@@ -246,7 +246,7 @@ export const MaquettesPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues`, ueForm);
+      await api.post(`/rp-enhanced/maquettes/${parcoursId}/ues`, ueForm);
       toast.success('UE créée avec succès');
       setShowUEForm(null);
       setUEForm({
@@ -269,7 +269,7 @@ export const MaquettesPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues/${ueId}/ecs`, ecForm);
+      await api.post(`/rp-enhanced/maquettes/${parcoursId}/ues/${ueId}/ecs`, ecForm);
       toast.success('EC créé avec succès');
       setShowECForm(null);
       setECForm({ code: '', intitule: '', coefficient: 1.5 });
@@ -287,7 +287,7 @@ export const MaquettesPage: React.FC = () => {
       return;
     }
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/valider`);
+      await api.post(`/rp-enhanced/maquettes/${parcoursId}/valider`);
       toast.success('Maquette validée avec succès');
       loadData();
     } catch (err: any) {

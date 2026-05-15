@@ -29,6 +29,7 @@ const rh_module_1 = require("./rh/rh.module");
 const economat_module_1 = require("./economat/economat.module");
 const caissier_module_1 = require("./caissier/caissier.module");
 const pedagogique_module_1 = require("./pedagogique/pedagogique.module");
+const cache_module_1 = require("./cache/cache.module");
 const tenant_entity_1 = require("./tenants/tenant.entity");
 const user_entity_1 = require("./users/user.entity");
 const super_admin_entity_1 = require("./users/super-admin.entity");
@@ -142,6 +143,7 @@ exports.AppModule = AppModule = __decorate([
             economat_module_1.EconomatModule,
             pedagogique_module_1.PedagogiqueModule,
             scolarite_module_1.ScolariteModule,
+            cache_module_1.ImtechCacheModule,
         ],
         providers: [
             {

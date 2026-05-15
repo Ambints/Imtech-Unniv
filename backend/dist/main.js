@@ -19,12 +19,31 @@ async function bootstrap() {
     app.use(require('express').urlencoded({ limit: '10mb', extended: true }));
     app.setGlobalPrefix('api/v1');
     const isDev = process.env.NODE_ENV !== 'production';
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        const allowedOrigins = isDev ? ['http://localhost:3000', 'http://localhost:5173'] : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+        if (req.method === 'OPTIONS') {
+            res.header('Access-Control-Allow-Origin', origin || '*');
+            res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With, X-Tenant-Id');
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.header('Access-Control-Max-Age', '3600');
+            return res.status(204).end();
+        }
+        if (allowedOrigins.includes(origin) || isDev) {
+            res.header('Access-Control-Allow-Origin', origin);
+            res.header('Access-Control-Allow-Credentials', 'true');
+        }
+        next();
+    });
     app.enableCors({
-        origin: isDev ? true : (process.env.FRONTEND_URL || 'http://localhost:3000'),
+        origin: isDev ? ['http://localhost:3000', 'http://localhost:5173'] : (process.env.FRONTEND_URL || 'http://localhost:3000'),
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-Tenant-Id'],
         exposedHeaders: ['Content-Range', 'X-Content-Range'],
+        preflightContinue: true,
+        optionsSuccessStatus: 204
     });
     app.use((0, helmet_1.default)());
     app.use((0, compression_1.default)());

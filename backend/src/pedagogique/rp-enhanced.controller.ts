@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Request } from 'express';
 
 /**
  * Contrôleur amélioré et sécurisé pour le Responsable Pédagogique
@@ -38,31 +40,33 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class RPEnhancedController {
   constructor(private readonly rpService: RPEnhancedService) {}
 
+  private getTenantId(req: Request): string {
+    return (req as any).tenantId || '';
+  }
+
   // ==================== MES PARCOURS ====================
 
-  @Get(':tid/mes-parcours')
+  @Get('mes-parcours')
   @ApiOperation({
     summary: 'Liste des parcours dont je suis responsable',
     description: 'Retourne uniquement les parcours assignés au RP connecté'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiResponse({ status: 200, description: 'Liste des parcours récupérée avec succès' })
   @ApiResponse({ status: 403, description: 'Accès interdit' })
   getMesParcours(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getMesParcours(tid, user.id);
+    return this.rpService.getMesParcours(this.getTenantId(req), user.id);
   }
 
   // ==================== GESTION DES MAQUETTES ====================
 
-  @Post(':tid/maquettes')
+  @Post('maquettes')
   @ApiOperation({
     summary: 'Créer une maquette complète',
     description: 'Crée un parcours avec ses UE et EC associés'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -115,50 +119,47 @@ export class RPEnhancedController {
   @ApiResponse({ status: 201, description: 'Maquette créée avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   createMaquette(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Body() dto: CreateMaquetteDto,
     @CurrentUser() user: any
   ) {
-    return this.rpService.createMaquette(tid, user.id, dto);
+    return this.rpService.createMaquette(this.getTenantId(req), user.id, dto);
   }
 
-  @Get(':tid/maquettes')
+  @Get('maquettes')
   @ApiOperation({
     summary: 'Liste toutes les maquettes du RP',
     description: 'Retourne toutes les maquettes avec leurs UE et EC, agrégées avec les totaux de crédits et volumes horaires'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiResponse({ status: 200, description: 'Liste des maquettes récupérée avec succès' })
   getAllMaquettes(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getAllMaquettes(tid, user.id);
+    return this.rpService.getAllMaquettes(this.getTenantId(req), user.id);
   }
 
-  @Get(':tid/maquettes/:parcoursId')
+  @Get('maquettes/:parcoursId')
   @ApiOperation({
     summary: 'Détails d\'une maquette',
     description: 'Retourne une maquette spécifique avec toutes ses UE et EC'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiResponse({ status: 200, description: 'Maquette récupérée avec succès' })
   @ApiResponse({ status: 404, description: 'Maquette non trouvée' })
   getMaquetteById(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getMaquetteById(tid, user.id, parcoursId);
+    return this.rpService.getMaquetteById(this.getTenantId(req), user.id, parcoursId);
   }
 
-  @Patch(':tid/maquettes/:parcoursId')
+  @Patch('maquettes/:parcoursId')
   @ApiOperation({
     summary: 'Mettre à jour une maquette',
     description: 'Met à jour les informations du parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiBody({
     schema: {
@@ -174,52 +175,49 @@ export class RPEnhancedController {
     }
   })
   updateMaquette(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Body() dto: any,
     @CurrentUser() user: any
   ) {
-    return this.rpService.updateMaquette(tid, user.id, parcoursId, dto);
+    return this.rpService.updateMaquette(this.getTenantId(req), user.id, parcoursId, dto);
   }
 
-  @Delete(':tid/maquettes/:parcoursId')
+  @Delete('maquettes/:parcoursId')
   @ApiOperation({
     summary: 'Supprimer une maquette',
     description: 'Désactive logiquement la maquette (pas de suppression physique)'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   deleteMaquette(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.deleteMaquette(tid, user.id, parcoursId);
+    return this.rpService.deleteMaquette(this.getTenantId(req), user.id, parcoursId);
   }
 
-  @Post(':tid/maquettes/:parcoursId/valider')
+  @Post('maquettes/:parcoursId/valider')
   @ApiOperation({
     summary: 'Valider une maquette',
     description: 'Valide définitivement une maquette de formation'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   validerMaquette(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.validerMaquette(tid, user.id, parcoursId);
+    return this.rpService.validerMaquette(this.getTenantId(req), user.id, parcoursId);
   }
 
   // ==================== GESTION DES UE ====================
 
-  @Post(':tid/maquettes/:parcoursId/ues')
+  @Post('maquettes/:parcoursId/ues')
   @ApiOperation({
     summary: 'Ajouter une UE à une maquette',
     description: 'Crée une nouvelle unité d\'enseignement dans le parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiBody({
     schema: {
@@ -251,57 +249,54 @@ export class RPEnhancedController {
     }
   })
   createUE(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Body() dto: CreateUEDto,
     @CurrentUser() user: any
   ) {
-    return this.rpService.createUE(tid, user.id, parcoursId, dto);
+    return this.rpService.createUE(this.getTenantId(req), user.id, parcoursId, dto);
   }
 
-  @Patch(':tid/maquettes/:parcoursId/ues/:ueId')
+  @Patch('maquettes/:parcoursId/ues/:ueId')
   @ApiOperation({
     summary: 'Mettre à jour une UE',
     description: 'Met à jour les informations d\'une unité d\'enseignement'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'ueId', description: 'ID de l\'UE' })
   updateUE(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Param('ueId', ParseUUIDPipe) ueId: string,
     @Body() dto: any,
     @CurrentUser() user: any
   ) {
-    return this.rpService.updateUE(tid, user.id, parcoursId, ueId, dto);
+    return this.rpService.updateUE(this.getTenantId(req), user.id, parcoursId, ueId, dto);
   }
 
-  @Delete(':tid/maquettes/:parcoursId/ues/:ueId')
+  @Delete('maquettes/:parcoursId/ues/:ueId')
   @ApiOperation({
     summary: 'Supprimer une UE',
     description: 'Désactive logiquement l\'UE (pas de suppression physique)'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'ueId', description: 'ID de l\'UE' })
   deleteUE(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Param('ueId', ParseUUIDPipe) ueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.deleteUE(tid, user.id, parcoursId, ueId);
+    return this.rpService.deleteUE(this.getTenantId(req), user.id, parcoursId, ueId);
   }
 
   // ==================== GESTION DES EC ====================
 
-  @Post(':tid/maquettes/:parcoursId/ues/:ueId/ecs')
+  @Post('maquettes/:parcoursId/ues/:ueId/ecs')
   @ApiOperation({
     summary: 'Ajouter un EC à une UE',
     description: 'Crée un nouvel élément constitutif dans l\'UE'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'ueId', description: 'ID de l\'UE' })
   @ApiBody({
@@ -316,62 +311,59 @@ export class RPEnhancedController {
     }
   })
   createEC(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Param('ueId', ParseUUIDPipe) ueId: string,
     @Body() dto: CreateECDto,
     @CurrentUser() user: any
   ) {
-    return this.rpService.createEC(tid, user.id, parcoursId, ueId, dto);
+    return this.rpService.createEC(this.getTenantId(req), user.id, parcoursId, ueId, dto);
   }
 
-  @Patch(':tid/maquettes/:parcoursId/ues/:ueId/ecs/:ecId')
+  @Patch('maquettes/:parcoursId/ues/:ueId/ecs/:ecId')
   @ApiOperation({
     summary: 'Mettre à jour un EC',
     description: 'Met à jour les informations d\'un élément constitutif'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'ueId', description: 'ID de l\'UE' })
   @ApiParam({ name: 'ecId', description: 'ID de l\'EC' })
   updateEC(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Param('ueId', ParseUUIDPipe) ueId: string,
     @Param('ecId', ParseUUIDPipe) ecId: string,
     @Body() dto: any,
     @CurrentUser() user: any
   ) {
-    return this.rpService.updateEC(tid, user.id, parcoursId, ueId, ecId, dto);
+    return this.rpService.updateEC(this.getTenantId(req), user.id, parcoursId, ueId, ecId, dto);
   }
 
-  @Delete(':tid/maquettes/:parcoursId/ues/:ueId/ecs/:ecId')
+  @Delete('maquettes/:parcoursId/ues/:ueId/ecs/:ecId')
   @ApiOperation({
     summary: 'Supprimer un EC',
     description: 'Désactive logiquement l\'EC (pas de suppression physique)'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'ueId', description: 'ID de l\'UE' })
   @ApiParam({ name: 'ecId', description: 'ID de l\'EC' })
   deleteEC(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Param('ueId', ParseUUIDPipe) ueId: string,
     @Param('ecId', ParseUUIDPipe) ecId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.deleteEC(tid, user.id, parcoursId, ueId, ecId);
+    return this.rpService.deleteEC(this.getTenantId(req), user.id, parcoursId, ueId, ecId);
   }
 
   // ==================== GESTION DES AFFECTATIONS ====================
 
-  @Post(':tid/affectations')
+  @Post('affectations')
   @ApiOperation({
     summary: 'Créer une affectation',
     description: 'Affecte un enseignant à un cours (UE ou EC) pour une année académique'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -389,33 +381,32 @@ export class RPEnhancedController {
   @ApiResponse({ status: 201, description: 'Affectation créée avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides ou affectation déjà existante' })
   createAffectation(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Body() dto: CreateAffectationDto,
     @CurrentUser() user: any
   ) {
-    return this.rpService.createAffectation(tid, user.id, dto);
+    return this.rpService.createAffectation(this.getTenantId(req), user.id, dto);
   }
 
-  @Get(':tid/affectations')
+  @Get('affectations')
   @ApiOperation({
     summary: 'Liste des affectations',
     description: 'Retourne toutes les affectations avec filtres optionnels'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: false, description: 'Filtrer par année académique' })
   @ApiQuery({ name: 'ueId', required: false, description: 'Filtrer par UE' })
   @ApiQuery({ name: 'ecId', required: false, description: 'Filtrer par EC' })
   @ApiQuery({ name: 'enseignantId', required: false, description: 'Filtrer par enseignant' })
   @ApiResponse({ status: 200, description: 'Liste des affectations récupérée avec succès' })
   getAffectations(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @CurrentUser() user: any,
     @Query('anneeAcademiqueId') anneeAcademiqueId?: string,
     @Query('ueId') ueId?: string,
     @Query('ecId') ecId?: string,
     @Query('enseignantId') enseignantId?: string
   ) {
-    return this.rpService.getAffectations(tid, user.id, {
+    return this.rpService.getAffectations(this.getTenantId(req), user.id, {
       anneeAcademiqueId,
       ueId,
       ecId,
@@ -423,29 +414,27 @@ export class RPEnhancedController {
     });
   }
 
-  @Get(':tid/parcours/:parcoursId/affectations')
+  @Get('parcours/:parcoursId/affectations')
   @ApiOperation({
     summary: 'Affectations par parcours',
     description: 'Retourne les affectations filtrées par parcours du RP'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: false, description: 'Filtrer par année académique' })
   getAffectationsByParcours(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getAffectationsByParcours(tid, user.id, parcoursId, anneeAcademiqueId);
+    return this.rpService.getAffectationsByParcours(this.getTenantId(req), user.id, parcoursId, anneeAcademiqueId);
   }
 
-  @Patch(':tid/affectations/:affectationId')
+  @Patch('affectations/:affectationId')
   @ApiOperation({
     summary: 'Mettre à jour une affectation',
     description: 'Met à jour les informations d\'une affectation existante'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'affectationId', description: 'ID de l\'affectation' })
   @ApiBody({
     schema: {
@@ -459,37 +448,35 @@ export class RPEnhancedController {
     }
   })
   updateAffectation(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('affectationId', ParseUUIDPipe) affectationId: string,
     @Body() dto: UpdateAffectationDto,
     @CurrentUser() user: any
   ) {
-    return this.rpService.updateAffectation(tid, user.id, affectationId, dto);
+    return this.rpService.updateAffectation(this.getTenantId(req), user.id, affectationId, dto);
   }
 
-  @Delete(':tid/affectations/:affectationId')
+  @Delete('affectations/:affectationId')
   @ApiOperation({
     summary: 'Supprimer une affectation',
     description: 'Supprime définitivement une affectation'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'affectationId', description: 'ID de l\'affectation' })
   deleteAffectation(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('affectationId', ParseUUIDPipe) affectationId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.deleteAffectation(tid, user.id, affectationId);
+    return this.rpService.deleteAffectation(this.getTenantId(req), user.id, affectationId);
   }
 
   // ==================== SUIVI DES PERFORMANCES ====================
 
-  @Get(':tid/parcours/:parcoursId/performance')
+  @Get('parcours/:parcoursId/performance')
   @ApiOperation({
     summary: 'Statistiques de performance',
     description: 'Calcule et retourne les statistiques de performance du parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true, description: 'ID de l\'année académique' })
   @ApiResponse({
@@ -524,45 +511,43 @@ export class RPEnhancedController {
     }
   })
   getPerformanceStats(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.calculatePerformanceStats(tid, user.id, parcoursId, anneeAcademiqueId);
+    return this.rpService.calculatePerformanceStats(this.getTenantId(req), user.id, parcoursId, anneeAcademiqueId);
   }
 
-  @Get(':tid/parcours/:parcoursId/dashboard-performance')
+  @Get('parcours/:parcoursId/dashboard-performance')
   @ApiOperation({
     summary: 'Dashboard de performance complet',
     description: 'Retourne le dashboard complet avec performance, affectations et statistiques enseignants'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true, description: 'ID de l\'année académique' })
   getPerformanceDashboard(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getPerformanceDashboard(tid, user.id, parcoursId, anneeAcademiqueId);
+    return this.rpService.getPerformanceDashboard(this.getTenantId(req), user.id, parcoursId, anneeAcademiqueId);
   }
 
-  @Get(':tid/parcours/:parcoursId/assiduite')
+  @Get('parcours/:parcoursId/assiduite')
   @ApiOperation({
     summary: 'Suivi d\'assiduité détaillé',
     description: 'Retourne le suivi d\'assiduité par étudiant avec alertes'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true, description: 'ID de l\'année académique' })
   getSuiviAssiduite(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId', ParseUUIDPipe) parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getSuiviAssiduiteDetaille(tid, user.id, parcoursId, anneeAcademiqueId);
+    return this.rpService.getSuiviAssiduiteDetaille(this.getTenantId(req), user.id, parcoursId, anneeAcademiqueId);
   }
 }

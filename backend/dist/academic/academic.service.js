@@ -95,11 +95,16 @@ let AcademicService = AcademicService_1 = class AcademicService {
             .createQueryBuilder('p')
             .leftJoin('secretaire_parcours', 'sp', 'sp.parcours_id = p.id AND sp.actif = true')
             .leftJoin('utilisateur', 'u', 'u.id = sp.secretaire_id')
+            .leftJoin('utilisateur', 'rp', 'rp.id = p.responsable_id')
             .select([
             'p.*',
             'sp.secretaire_id as "secretaireAssigneId"',
             'u.nom as "secretaireNom"',
-            'u.prenom as "secretairePrenom"'
+            'u.prenom as "secretairePrenom"',
+            'rp.id as "responsableId"',
+            'rp.nom as "responsableNom"',
+            'rp.prenom as "responsablePrenom"',
+            'rp.email as "responsableEmail"'
         ])
             .where('p.actif = true');
         if (userId && userRole === 'secretaire_parcours') {
@@ -114,6 +119,12 @@ let AcademicService = AcademicService_1 = class AcademicService {
                 id: p.secretaireAssigneId,
                 nom: p.secretaireNom,
                 prenom: p.secretairePrenom
+            } : null,
+            responsable: p.responsableId ? {
+                id: p.responsableId,
+                nom: p.responsableNom,
+                prenom: p.responsablePrenom,
+                email: p.responsableEmail
             } : null
         }));
     }
@@ -439,7 +450,7 @@ let AcademicService = AcademicService_1 = class AcademicService {
         return this.dataSource.query(`
       SELECT id, nom, prenom, email, telephone, photo_url, actif, created_at
       FROM utilisateur
-      WHERE role = 'professeur' AND actif = true
+      WHERE role = 'enseignant' AND actif = true
       ORDER BY nom ASC, prenom ASC
     `);
     }

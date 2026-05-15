@@ -67,6 +67,18 @@ __decorate([
     __metadata("design:type", Date)
 ], User.prototype, "tokenResetExpiry", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id', nullable: true, type: 'uuid' }),
+    __metadata("design:type", String)
+], User.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'password_reset_required', default: false, nullable: true }),
+    __metadata("design:type", Boolean)
+], User.prototype, "passwordResetRequired", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'last_password_reset', nullable: true, type: 'timestamptz' }),
+    __metadata("design:type", Date)
+], User.prototype, "lastPasswordReset", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], User.prototype, "createdAt", void 0);

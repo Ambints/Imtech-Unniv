@@ -36,6 +36,14 @@ export class AdminController {
     return this.adminService.getDetailedStats(req.user.tenantId);
   }
 
+  @Get('global-stats')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Statistiques globales de tous les tenants' })
+  @ApiResponse({ status: 200, description: 'Statistiques globales du système' })
+  async getGlobalStats() {
+    return this.adminService.getGlobalStats();
+  }
+
   @Post('users/bulk-update-status')
   @Roles('admin')
   @ApiOperation({ summary: 'Activer/Désactiver plusieurs utilisateurs en masse' })
@@ -82,6 +90,36 @@ export class AdminController {
       throw new BadRequestException('Vous devez être associé à une université');
     }
     return this.adminService.createBackup(req.user.tenantId);
+  }
+
+  @Get('backups')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Lister toutes les sauvegardes disponibles' })
+  @ApiResponse({ status: 200, description: 'Liste des sauvegardes' })
+  async listBackups(@Request() req) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.listBackups(req.user.tenantId);
+  }
+
+  @Post('backups/:backupId/restore')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Restaurer une sauvegarde' })
+  @ApiResponse({ status: 200, description: 'Sauvegarde restaurée' })
+  async restoreBackup(@Request() req, @Param('backupId') backupId: string) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.restoreBackup(req.user.tenantId, backupId);
+  }
+
+  @Post('backups/cleanup')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Nettoyer les anciennes sauvegardes' })
+  @ApiResponse({ status: 200, description: 'Anciennes sauvegardes supprimées' })
+  async cleanupBackups() {
+    return this.adminService.cleanupOldBackups();
   }
 
   // ==================== GESTION DES SÉCRÉTAIRES PAR PARCOURS ====================

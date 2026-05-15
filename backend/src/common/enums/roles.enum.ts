@@ -14,7 +14,7 @@ export enum UserRole {
   ENTRETIEN = 'entretien',
   ETUDIANT = 'etudiant',
   PARENT = 'parent',
-  PROFESSEUR = 'professeur',
+  ENSEIGNANT = 'enseignant',
 }
 
 export enum AcademicLevel { LICENCE = 'licence', MASTER = 'master', DOCTORAT = 'doctorat' }

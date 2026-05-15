@@ -42,6 +42,15 @@ export class User {
   @Column({ name: 'token_reset_expiry', nullable: true, type: 'timestamptz' })
   tokenResetExpiry: Date;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId: string;
+
+  @Column({ name: 'password_reset_required', default: false, nullable: true })
+  passwordResetRequired: boolean;
+
+  @Column({ name: 'last_password_reset', nullable: true, type: 'timestamptz' })
+  lastPasswordReset: Date;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
   

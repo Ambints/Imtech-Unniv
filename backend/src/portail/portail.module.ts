@@ -4,8 +4,8 @@ import { PortailEtudiantController } from './etudiant.controller';
 import { PortailEtudiantService } from './etudiant.service';
 import { PortailParentController } from './parent.controller';
 import { PortailParentService } from './parent.service';
-import { PortailProfesseurController } from './professeur.controller';
-import { PortailProfesseurService } from './professeur.service';
+import { PortailEnseignantController } from './enseignant.controller';
+import { PortailEnseignantService } from './enseignant.service';
 import { PortailPermissionsController } from './portail-permissions.controller';
 import { Tenant } from '../tenants/tenant.entity';
 
@@ -26,10 +26,10 @@ import {
   controllers: [
     PortailEtudiantController,
     PortailParentController,
-    PortailProfesseurController,
+    PortailEnseignantController,
     PortailPermissionsController
   ],
-  providers: [PortailEtudiantService, PortailParentService, PortailProfesseurService],
-  exports: [PortailEtudiantService, PortailParentService, PortailProfesseurService],
+  providers: [PortailEtudiantService, PortailParentService, PortailEnseignantService],
+  exports: [PortailEtudiantService, PortailParentService, PortailEnseignantService],
 })
 export class PortailModule {}

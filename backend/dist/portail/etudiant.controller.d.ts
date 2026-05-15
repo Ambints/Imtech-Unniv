@@ -18,8 +18,10 @@ export declare class PortailEtudiantController {
         sessionId: string;
     }): Promise<any>;
     getInscriptions(tid: string, user: any): Promise<any>;
+    getDepartements(tid: string): Promise<any>;
     getParcoursDisponibles(tid: string, user: any): Promise<any>;
     getAnneesAcademiques(tid: string): Promise<any>;
+    getNiveauxEtude(tid: string): Promise<any>;
     createInscription(tid: string, user: any, dto: {
         parcoursId: string;
         anneeAcademiqueId: string;
@@ -28,4 +30,15 @@ export declare class PortailEtudiantController {
     }): Promise<any>;
     updateInscription(tid: string, id: string, user: any, dto: any): Promise<any>;
     cancelInscription(tid: string, id: string, user: any): Promise<any>;
+    getMontantInscription(tid: string, inscriptionId: string, user: any): Promise<any>;
+    submitPaiement(tid: string, user: any, dto: {
+        inscriptionId: string;
+        montant: number;
+        methodePaiement: 'virement_bancaire' | 'mobile_money';
+        referencePaiement: string;
+        datePaiement?: Date;
+        preuveUrl?: string;
+    }): Promise<any>;
+    getPaiementStatus(tid: string, inscriptionId: string, user: any): Promise<any>;
+    getPaiementsInscription(tid: string, user: any): Promise<any>;
 }

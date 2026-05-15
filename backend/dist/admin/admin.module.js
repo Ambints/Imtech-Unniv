@@ -11,6 +11,8 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const admin_controller_1 = require("./admin.controller");
 const admin_service_1 = require("./admin.service");
+const niveaux_etude_controller_1 = require("./niveaux-etude.controller");
+const niveaux_etude_service_1 = require("./niveaux-etude.service");
 const tenant_entity_1 = require("../tenants/tenant.entity");
 const tenants_module_1 = require("../tenants/tenants.module");
 let AdminModule = class AdminModule {
@@ -22,9 +24,9 @@ exports.AdminModule = AdminModule = __decorate([
             typeorm_1.TypeOrmModule.forFeature([tenant_entity_1.Tenant], 'default'),
             tenants_module_1.TenantsModule,
         ],
-        controllers: [admin_controller_1.AdminController],
-        providers: [admin_service_1.AdminService],
-        exports: [admin_service_1.AdminService],
+        controllers: [admin_controller_1.AdminController, niveaux_etude_controller_1.NiveauxEtudeController],
+        providers: [admin_service_1.AdminService, niveaux_etude_service_1.NiveauxEtudeService],
+        exports: [admin_service_1.AdminService, niveaux_etude_service_1.NiveauxEtudeService],
     })
 ], AdminModule);
 //# sourceMappingURL=admin.module.js.map

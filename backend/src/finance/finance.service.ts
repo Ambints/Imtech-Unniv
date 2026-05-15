@@ -215,4 +215,183 @@ export class FinanceService {
     if (contratId) where.contratId = contratId;
     return this.fichePaieRepo.find({ where });
   }
+
+  // ==================== VALIDATION DES PAIEMENTS D'INSCRIPTION ====================
+
+  async getPaiementsInscriptionEnAttente(tid: string): Promise<any> {
+    try {
+      const paiements = await this.dataSource.query(`
+        SELECT
+          pi.*,
+          e.nom as etudiant_nom,
+          e.prenom as etudiant_prenom,
+          e.matricule as etudiant_matricule,
+          i.annee_niveau,
+          p.nom as parcours_nom,
+          aa.libelle as annee_academique
+        FROM paiement_inscription pi
+        JOIN etudiant e ON e.id = pi.etudiant_id
+        JOIN inscription i ON i.id = pi.inscription_id
+        JOIN parcours p ON p.id = i.parcours_id
+        JOIN annee_academique aa ON aa.id = i.annee_academique_id
+        WHERE pi.statut = 'en_attente'
+        ORDER BY pi.created_at ASC
+      `);
+
+      return paiements;
+    } catch (error) {
+      throw new BadRequestException('Erreur lors de la récupération des paiements en attente');
+    }
+  }
+
+  async getTousPaiementsInscription(tid: string, statut?: string): Promise<any> {
+    try {
+      let statutFilter = '';
+      if (statut) {
+        statutFilter = `WHERE pi.statut = '${statut}'`;
+      }
+
+      const paiements = await this.dataSource.query(`
+        SELECT
+          pi.*,
+          e.nom as etudiant_nom,
+          e.prenom as etudiant_prenom,
+          e.matricule as etudiant_matricule,
+          i.annee_niveau,
+          p.nom as parcours_nom,
+          aa.libelle as annee_academique,
+          u.nom as validateur_nom,
+          u.prenom as validateur_prenom
+        FROM paiement_inscription pi
+        JOIN etudiant e ON e.id = pi.etudiant_id
+        JOIN inscription i ON i.id = pi.inscription_id
+        JOIN parcours p ON p.id = i.parcours_id
+        JOIN annee_academique aa ON aa.id = i.annee_academique_id
+        LEFT JOIN utilisateur u ON u.id = pi.valide_par
+        ${statutFilter}
+        ORDER BY pi.created_at DESC
+      `);
+
+      return paiements;
+    } catch (error) {
+      throw new BadRequestException('Erreur lors de la récupération des paiements d\'inscription');
+    }
+  }
+
+  async validerPaiementInscription(tid: string, paiementId: string, caissierId: string, noteValidation?: string): Promise<any> {
+    try {
+      // Récupérer le paiement
+      const paiementResult = await this.dataSource.query(`
+        SELECT pi.*, i.etudiant_id, i.id as inscription_id
+        FROM paiement_inscription pi
+        JOIN inscription i ON i.id = pi.inscription_id
+        WHERE pi.id = $1
+      `, [paiementId]);
+
+      if (paiementResult.length === 0) {
+        throw new NotFoundException('Paiement non trouvé');
+      }
+
+      const paiement = paiementResult[0];
+
+      if (paiement.statut !== 'en_attente') {
+        throw new BadRequestException('Ce paiement a déjà été traité');
+      }
+
+      // Valider le paiement
+      await this.dataSource.query(`
+        UPDATE paiement_inscription
+        SET statut = 'valide',
+            valide_par = $1,
+            date_validation = NOW(),
+            note_validation = $2,
+            updated_at = NOW()
+        WHERE id = $3
+      `, [caissierId, noteValidation, paiementId]);
+
+      // Mettre à jour le statut de l'inscription si nécessaire
+      await this.dataSource.query(`
+        UPDATE inscription
+        SET statut = 'validee',
+            updated_at = NOW()
+        WHERE id = $1 AND statut = 'en_attente'
+      `, [paiement.inscription_id]);
+
+      return {
+        message: 'Paiement validé avec succès',
+        paiementId,
+        inscriptionId: paiement.inscription_id
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erreur lors de la validation du paiement');
+    }
+  }
+
+  async rejeterPaiementInscription(tid: string, paiementId: string, caissierId: string, motifRejet: string): Promise<any> {
+    try {
+      // Récupérer le paiement
+      const paiementResult = await this.dataSource.query(`
+        SELECT * FROM paiement_inscription WHERE id = $1
+      `, [paiementId]);
+
+      if (paiementResult.length === 0) {
+        throw new NotFoundException('Paiement non trouvé');
+      }
+
+      const paiement = paiementResult[0];
+
+      if (paiement.statut !== 'en_attente') {
+        throw new BadRequestException('Ce paiement a déjà été traité');
+      }
+
+      // Rejeter le paiement
+      await this.dataSource.query(`
+        UPDATE paiement_inscription
+        SET statut = 'rejete',
+            valide_par = $1,
+            date_validation = NOW(),
+            motif_rejet = $2,
+            updated_at = NOW()
+        WHERE id = $3
+      `, [caissierId, motifRejet, paiementId]);
+
+      return {
+        message: 'Paiement rejeté',
+        paiementId,
+        motifRejet
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erreur lors du rejet du paiement');
+    }
+  }
+
+  async getStatistiquesPaiementsInscription(tid: string): Promise<any> {
+    try {
+      const stats = await this.dataSource.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE statut = 'en_attente') as en_attente,
+          COUNT(*) FILTER (WHERE statut = 'valide') as valides,
+          COUNT(*) FILTER (WHERE statut = 'rejete') as rejetes,
+          SUM(montant) FILTER (WHERE statut = 'valide') as total_valide,
+          SUM(montant) FILTER (WHERE statut = 'en_attente') as total_en_attente
+        FROM paiement_inscription
+      `);
+
+      return stats[0] || {
+        en_attente: 0,
+        valides: 0,
+        rejetes: 0,
+        total_valide: 0,
+        total_en_attente: 0
+      };
+    } catch (error) {
+      throw new BadRequestException('Erreur lors de la récupération des statistiques');
+    }
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { RPSecureService } from './rp-secure.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Request } from 'express';
 
 /**
  * Contrôleur sécurisé pour le Responsable Pédagogique
@@ -20,73 +21,73 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class RPSecureController {
   constructor(private readonly rpService: RPSecureService) {}
 
+  private getTenantId(req: Request): string {
+    return (req as any).tenantId || '';
+  }
+
   // ==================== MES PARCOURS ====================
 
-  @Get(':tid/mes-parcours')
-  @ApiOperation({ 
+  @Get('mes-parcours')
+  @ApiOperation({
     summary: 'Liste des parcours dont je suis responsable',
     description: 'Retourne uniquement les parcours assignés au RP connecté'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
-  getMesParcours(@Param('tid') tid: string, @CurrentUser() user: any) {
-    return this.rpService.getMesParcours(tid, user.id);
+  getMesParcours(@Req() req: Request, @CurrentUser() user: any) {
+    return this.rpService.getMesParcours(this.getTenantId(req), user.id);
   }
 
   // ==================== DASHBOARD RP ====================
 
-  @Get(':tid/dashboard/:parcoursId')
-  @ApiOperation({ 
+  @Get('dashboard/:parcoursId')
+  @ApiOperation({
     summary: 'Dashboard complet du RP pour un parcours',
     description: 'Statistiques, validations en attente, alertes assiduité'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true })
   getDashboard(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getDashboardRP(tid, user.id, parcoursId, anneeAcademiqueId);
+    return this.rpService.getDashboardRP(this.getTenantId(req), user.id, parcoursId, anneeAcademiqueId);
   }
 
   // ==================== VALIDATION SUJETS D'EXAMENS ====================
 
-  @Get(':tid/parcours/:parcoursId/sujets')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/sujets')
+  @ApiOperation({
     summary: 'Liste des sujets d\'examen du parcours',
     description: 'Filtrés par parcours du RP. Optionnel: filtrer par statut'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'statut', required: false, enum: ['soumis', 'en_relecture', 'valide', 'rejete'] })
   getSujetsExamen(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('statut') statut: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getSujetsExamenByParcours(tid, user.id, parcoursId, statut);
+    return this.rpService.getSujetsExamenByParcours(this.getTenantId(req), user.id, parcoursId, statut);
   }
 
-  @Post(':tid/parcours/:parcoursId/sujets/:sujetId/valider')
-  @ApiOperation({ 
+  @Post('parcours/:parcoursId/sujets/:sujetId/valider')
+  @ApiOperation({
     summary: 'Valider un sujet d\'examen',
     description: 'Seul le RP du parcours peut valider. Vérifie l\'appartenance du sujet au parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'sujetId', description: 'ID du sujet' })
   validerSujet(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Param('sujetId') sujetId: string,
     @Body() body: { commentaires?: string },
     @CurrentUser() user: any
   ) {
     return this.rpService.validerSujetExamen(
-      tid,
+      this.getTenantId(req),
       user.id,
       sujetId,
       parcoursId,
@@ -94,23 +95,22 @@ export class RPSecureController {
     );
   }
 
-  @Post(':tid/parcours/:parcoursId/sujets/:sujetId/rejeter')
-  @ApiOperation({ 
+  @Post('parcours/:parcoursId/sujets/:sujetId/rejeter')
+  @ApiOperation({
     summary: 'Rejeter un sujet d\'examen',
     description: 'Rejette avec motif. Vérifie l\'appartenance au parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'sujetId', description: 'ID du sujet' })
   rejeterSujet(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Param('sujetId') sujetId: string,
     @Body() body: { motifRejet: string },
     @CurrentUser() user: any
   ) {
     return this.rpService.rejeterSujetExamen(
-      tid,
+      this.getTenantId(req),
       user.id,
       sujetId,
       parcoursId,
@@ -120,40 +120,38 @@ export class RPSecureController {
 
   // ==================== VALIDATION CONTENUS DE COURS ====================
 
-  @Get(':tid/parcours/:parcoursId/contenus')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/contenus')
+  @ApiOperation({
     summary: 'Liste des contenus de cours du parcours',
     description: 'Filtrés par parcours. Optionnel: filtrer par statut'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'statut', required: false, enum: ['brouillon', 'soumis', 'valide', 'rejete'] })
   getContenusCours(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('statut') statut: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getContenusCoursByParcours(tid, user.id, parcoursId, statut);
+    return this.rpService.getContenusCoursByParcours(this.getTenantId(req), user.id, parcoursId, statut);
   }
 
-  @Post(':tid/parcours/:parcoursId/contenus/:contenuId/valider')
-  @ApiOperation({ 
+  @Post('parcours/:parcoursId/contenus/:contenuId/valider')
+  @ApiOperation({
     summary: 'Valider un contenu de cours',
     description: 'Validation sécurisée par parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'contenuId', description: 'ID du contenu' })
   validerContenu(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Param('contenuId') contenuId: string,
     @Body() body: { commentaires?: string },
     @CurrentUser() user: any
   ) {
     return this.rpService.validerContenuCours(
-      tid,
+      this.getTenantId(req),
       user.id,
       contenuId,
       parcoursId,
@@ -163,94 +161,89 @@ export class RPSecureController {
 
   // ==================== VALIDATION STAGES/MÉMOIRES ====================
 
-  @Get(':tid/parcours/:parcoursId/stages-memoires')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/stages-memoires')
+  @ApiOperation({
     summary: 'Liste des stages et mémoires du parcours',
     description: 'Filtrés par parcours du RP'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'statut', required: false, enum: ['en_cours', 'termine', 'valide', 'abandonne'] })
   getStagesMemoires(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('statut') statut: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getStagesMemoiresByParcours(tid, user.id, parcoursId, statut);
+    return this.rpService.getStagesMemoiresByParcours(this.getTenantId(req), user.id, parcoursId, statut);
   }
 
-  @Post(':tid/parcours/:parcoursId/stages-memoires/:stageId/valider')
-  @ApiOperation({ 
+  @Post('parcours/:parcoursId/stages-memoires/:stageId/valider')
+  @ApiOperation({
     summary: 'Valider un stage/mémoire',
     description: 'Validation sécurisée par parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'stageId', description: 'ID du stage/mémoire' })
   validerStage(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Param('stageId') stageId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.validerStageMemoire(tid, user.id, stageId, parcoursId);
+    return this.rpService.validerStageMemoire(this.getTenantId(req), user.id, stageId, parcoursId);
   }
 
   // ==================== VALIDATION PROCÈS-VERBAUX ====================
 
-  @Get(':tid/parcours/:parcoursId/proces-verbaux')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/proces-verbaux')
+  @ApiOperation({
     summary: 'Liste des procès-verbaux du parcours',
     description: 'Filtrés par parcours du RP'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'statut', required: false, enum: ['brouillon', 'valide', 'archive'] })
   getProcesVerbaux(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('statut') statut: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.getProcesVerbauxByParcours(tid, user.id, parcoursId, statut);
+    return this.rpService.getProcesVerbauxByParcours(this.getTenantId(req), user.id, parcoursId, statut);
   }
 
-  @Post(':tid/parcours/:parcoursId/proces-verbaux/:pvId/valider')
-  @ApiOperation({ 
+  @Post('parcours/:parcoursId/proces-verbaux/:pvId/valider')
+  @ApiOperation({
     summary: 'Valider un procès-verbal',
     description: 'Validation sécurisée par parcours'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiParam({ name: 'pvId', description: 'ID du PV' })
   validerPV(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Param('pvId') pvId: string,
     @CurrentUser() user: any
   ) {
-    return this.rpService.validerProcesVerbal(tid, user.id, pvId, parcoursId);
+    return this.rpService.validerProcesVerbal(this.getTenantId(req), user.id, pvId, parcoursId);
   }
 
   // ==================== STATISTIQUES & PERFORMANCE ====================
 
-  @Get(':tid/parcours/:parcoursId/statistiques')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/statistiques')
+  @ApiOperation({
     summary: 'Statistiques de performance du parcours',
     description: 'Taux de réussite, moyennes par UE, statistiques détaillées'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true })
   getStatistiques(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
     return this.rpService.getStatistiquesPerformance(
-      tid,
+      this.getTenantId(req),
       user.id,
       parcoursId,
       anneeAcademiqueId
@@ -259,22 +252,21 @@ export class RPSecureController {
 
   // ==================== SUIVI ASSIDUITÉ ====================
 
-  @Get(':tid/parcours/:parcoursId/assiduite')
-  @ApiOperation({ 
+  @Get('parcours/:parcoursId/assiduite')
+  @ApiOperation({
     summary: 'Suivi de l\'assiduité des étudiants',
     description: 'Taux de présence, absences, retards, alertes automatiques'
   })
-  @ApiParam({ name: 'tid', description: 'Tenant ID' })
   @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
   @ApiQuery({ name: 'anneeAcademiqueId', required: true })
   getSuiviAssiduite(
-    @Param('tid') tid: string,
+    @Req() req: Request,
     @Param('parcoursId') parcoursId: string,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @CurrentUser() user: any
   ) {
     return this.rpService.getSuiviAssiduite(
-      tid,
+      this.getTenantId(req),
       user.id,
       parcoursId,
       anneeAcademiqueId

@@ -18,7 +18,7 @@ var UserRole;
     UserRole["ENTRETIEN"] = "entretien";
     UserRole["ETUDIANT"] = "etudiant";
     UserRole["PARENT"] = "parent";
-    UserRole["PROFESSEUR"] = "professeur";
+    UserRole["ENSEIGNANT"] = "enseignant";
 })(UserRole || (exports.UserRole = UserRole = {}));
 var AcademicLevel;
 (function (AcademicLevel) {

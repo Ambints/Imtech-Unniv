@@ -24,4 +24,21 @@ export declare class AuthService {
     logout(userId: string): Promise<{
         message: string;
     }>;
+    changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{
+        success: boolean;
+        message: string;
+        passwordResetRequired: boolean;
+    }>;
+    getUserInfo(userId: string): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: string;
+        photoUrl: string;
+        tenantId: string;
+        passwordResetRequired: boolean;
+        lastPasswordReset: Date;
+        actif: boolean;
+    }>;
 }

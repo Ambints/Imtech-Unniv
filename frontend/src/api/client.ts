@@ -249,35 +249,35 @@ export const secretaireApi = {
 
 export const financeApi = {
   // Paiements
-  payer: (tid: string, dto: any) => api.post(`/finance/${tid}/paiements`, dto),
+  payer: (tid: string, dto: any) => api.post(`/finance/paiements`, dto),
   getTousPaiements: (tid: string, date?: string) =>
-    api.get(`/finance/${tid}/paiements${date ? `?date=${date}` : ''}`),
+    api.get(`/finance/paiements${date ? `?date=${date}` : ''}`),
   getPaiementsEtudiant: (tid: string, etudiantId: string) =>
-    api.get(`/finance/${tid}/paiements/${etudiantId}`),
+    api.get(`/finance/paiements/${etudiantId}`),
   
   // Caisse
-  getCaisse: (tid: string) => api.get(`/finance/${tid}/caisse`),
+  getCaisse: (tid: string) => api.get(`/finance/caisse`),
   cloturerCaisse: (tid: string, userId: string) =>
-    api.post(`/finance/${tid}/caisse/cloturer`, { userId }),
+    api.post(`/finance/caisse/cloturer`, { userId }),
   
   // Budgets
   getBudgets: (tid: string, annee?: string) =>
-    api.get(`/finance/${tid}/budgets${annee ? `?annee=${annee}` : ''}`),
-  creerBudget: (tid: string, dto: any) => api.post(`/finance/${tid}/budgets`, dto),
-  updateBudget: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/budgets/${id}`, dto),
-  deleteBudget: (tid: string, id: string) => api.delete(`/finance/${tid}/budgets/${id}`),
+    api.get(`/finance/budgets${annee ? `?annee=${annee}` : ''}`),
+  creerBudget: (tid: string, dto: any) => api.post(`/finance/budgets`, dto),
+  updateBudget: (tid: string, id: string, dto: any) => api.patch(`/finance/budgets/${id}`, dto),
+  deleteBudget: (tid: string, id: string) => api.delete(`/finance/budgets/${id}`),
   
   // Dépenses
   getDepenses: (tid: string, annee?: string) =>
-    api.get(`/finance/${tid}/depenses${annee ? `?annee=${annee}` : ''}`),
-  ajouterDepense: (tid: string, dto: any) => api.post(`/finance/${tid}/depenses`, dto),
-  updateDepense: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/depenses/${id}`, dto),
-  deleteDepense: (tid: string, id: string) => api.delete(`/finance/${tid}/depenses/${id}`),
+    api.get(`/finance/depenses${annee ? `?annee=${annee}` : ''}`),
+  ajouterDepense: (tid: string, dto: any) => api.post(`/finance/depenses`, dto),
+  updateDepense: (tid: string, id: string, dto: any) => api.patch(`/finance/depenses/${id}`, dto),
+  deleteDepense: (tid: string, id: string) => api.delete(`/finance/depenses/${id}`),
   
   // Contrats
-  creerContrat: (tid: string, dto: any) => api.post(`/finance/${tid}/contrats`, dto),
-  getContrats: (tid: string) => api.get(`/finance/${tid}/contrats`),
-  updateContrat: (tid: string, id: string, dto: any) => api.patch(`/finance/${tid}/contrats/${id}`, dto),
+  creerContrat: (tid: string, dto: any) => api.post(`/finance/contrats`, dto),
+  getContrats: (tid: string) => api.get(`/finance/contrats`),
+  updateContrat: (tid: string, id: string, dto: any) => api.patch(`/finance/contrats/${id}`, dto),
   
   // Rapports
   getRapport: (tid: string, annee: string) => api.get(`/finance/${tid}/rapport?annee=${annee}`),

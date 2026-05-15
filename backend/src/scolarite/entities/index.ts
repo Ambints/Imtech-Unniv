@@ -15,5 +15,6 @@ export { Parcours } from './parcours.entity';
 export { AnneeAcademique } from './annee-academique.entity';
 export { UniteEnseignement } from './unite-enseignement.entity';
 export { ElementConstitutif } from './element-constitutif.entity';
+export { NiveauEtude } from './niveau-etude.entity';
 
 // Made with Bob

@@ -115,7 +115,7 @@ export const AffectationsPage: React.FC = () => {
     setLoading(true);
     try {
       const [parcoursResponse, enseignantsResponse, anneesResponse] = await Promise.all([
-        api.get(`/rp-enhanced/${tid}/mes-parcours`),
+        api.get(`/rp-enhanced/mes-parcours`),
         api.get(`/academic/${tid}/enseignants`),
         api.get(`/academic/${tid}/annees`)
       ]);
@@ -143,7 +143,7 @@ export const AffectationsPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get(
-        `/rp-enhanced/${tid}/parcours/${selectedParcours}/affectations?anneeAcademiqueId=${selectedAnnee}`
+        `/rp-enhanced/parcours/${selectedParcours}/affectations?anneeAcademiqueId=${selectedAnnee}`
       );
       setAffectations(response.data || []);
     } catch (err: any) {
@@ -163,10 +163,10 @@ export const AffectationsPage: React.FC = () => {
       };
       
       if (editingId) {
-        await api.patch(`/rp-enhanced/${tid}/affectations/${editingId}`, data);
+        await api.patch(`/rp-enhanced/affectations/${editingId}`, data);
         toast.success('Affectation mise à jour');
       } else {
-        await api.post(`/rp-enhanced/${tid}/affectations`, data);
+        await api.post(`/rp-enhanced/affectations`, data);
         toast.success('Affectation créée avec succès');
       }
       
@@ -185,7 +185,7 @@ export const AffectationsPage: React.FC = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette affectation ?')) return;
     
     try {
-      await api.delete(`/rp-enhanced/${tid}/affectations/${id}`);
+      await api.delete(`/rp-enhanced/affectations/${id}`);
       toast.success('Affectation supprimée');
       loadAffectations();
     } catch (err: any) {

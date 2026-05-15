@@ -203,7 +203,7 @@ export class AcademicController {
 
   // Enseignants
   @Get(':tid/enseignants')
-  @ApiOperation({ summary: 'Liste des enseignants (professeurs)' })
+  @ApiOperation({ summary: 'Liste des enseignants' })
   getEnseignants(@Param('tid') tid: string) { return this.svc.getEnseignants(tid); }
 
   @Post(':tid/annees')

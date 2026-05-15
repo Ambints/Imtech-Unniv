@@ -104,7 +104,7 @@ export const ReferentielsPage: React.FC = () => {
       });
       
       console.log('[ReferentielsPage] Fetching mes-parcours...');
-      const parcoursPromise = api.get(`/rp-enhanced/${tid}/mes-parcours`).catch(err => {
+      const parcoursPromise = api.get(`/rp-enhanced/mes-parcours`).catch(err => {
         console.error('[ReferentielsPage] Error fetching mes-parcours:', err.response?.data || err.message);
         return { data: [] };
       });

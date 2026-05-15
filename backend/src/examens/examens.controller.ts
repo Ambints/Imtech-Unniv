@@ -14,14 +14,14 @@ export class ExamensController {
 
   // ========== SUJETS ==========
   @Post('sujets')
-  @Roles('professeur', 'responsable_pedagogique')
+  @Roles('enseignant', 'responsable_pedagogique')
   @ApiOperation({ summary: 'Déposer un sujet d\'examen' })
   createSujet(@Body() dto: any) {
     return this.svc.createSujet(dto);
   }
 
   @Get('sujets')
-  @Roles('professeur', 'responsable_pedagogique', 'admin', 'secretaire')
+  @Roles('enseignant', 'responsable_pedagogique', 'admin', 'secretaire')
   @ApiOperation({ summary: 'Liste des sujets' })
   findSujets(@Query() filters: any) {
     return this.svc.findSujets(filters);

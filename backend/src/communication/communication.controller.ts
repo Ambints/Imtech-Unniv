@@ -265,7 +265,7 @@ export class CommunicationController {
 
   // ========== FORUMS & ESPACES COMMUNAUTAIRES ==========
   @Post('forums/sujets')
-  @Roles('communication', 'admin', 'professeur', 'etudiant')
+  @Roles('communication', 'admin', 'enseignant', 'etudiant')
   @ApiOperation({ summary: 'Créer un sujet de forum' })
   createSujetForum(@Body() dto: any, @CurrentUser() user: any) {
     return this.svc.createSujetForum({ ...dto, auteurId: user.id });
@@ -278,7 +278,7 @@ export class CommunicationController {
   }
 
   @Post('forums/sujets/:id/repondre')
-  @Roles('communication', 'admin', 'professeur', 'etudiant', 'parent')
+  @Roles('communication', 'admin', 'enseignant', 'etudiant', 'parent')
   @ApiOperation({ summary: 'Répondre à un sujet' })
   repondreForum(@Param('id') sujetId: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.svc.repondreForum(sujetId, { ...dto, auteurId: user.id });

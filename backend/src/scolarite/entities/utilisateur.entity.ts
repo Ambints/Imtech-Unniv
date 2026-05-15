@@ -10,6 +10,7 @@ import { Note } from './note.entity';
 import { Deliberation } from './deliberation.entity';
 import { Diplome } from './diplome.entity';
 import { ArchiveScolarite } from './archive-scolarite.entity';
+import { Parcours } from './parcours.entity';
 
 @Entity('utilisateur')
 export class Utilisateur {
@@ -62,6 +63,9 @@ export class Utilisateur {
 
   @OneToMany(() => ArchiveScolarite, (archive) => archive.archivePar)
   archives: ArchiveScolarite[];
+
+  @OneToMany(() => Parcours, (parcours) => parcours.responsable)
+  parcoursResponsable: Parcours[];
 
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;

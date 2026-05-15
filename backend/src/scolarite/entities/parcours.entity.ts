@@ -3,6 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -10,6 +12,7 @@ import { Inscription } from './inscription.entity';
 import { UniteEnseignement } from './unite-enseignement.entity';
 import { Deliberation } from './deliberation.entity';
 import { Diplome } from './diplome.entity';
+import { Utilisateur } from './utilisateur.entity';
 
 @Entity('parcours')
 export class Parcours {
@@ -36,6 +39,14 @@ export class Parcours {
 
   @Column({ type: 'integer', nullable: true, name: 'annee_ouverture' })
   anneeOuverture: number;
+
+  // Responsable pédagogique du parcours
+  @Column({ type: 'uuid', nullable: true, name: 'responsable_id' })
+  responsableId: string;
+
+  @ManyToOne(() => Utilisateur, { nullable: true, eager: false })
+  @JoinColumn({ name: 'responsable_id' })
+  responsable: Utilisateur;
 
   // Propriétés virtuelles pour compatibilité (n'existent pas en DB)
   mention?: string;

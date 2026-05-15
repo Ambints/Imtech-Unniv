@@ -3,8 +3,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 @Injectable()
-export class PortailProfesseurService {
-  private readonly logger = new Logger(PortailProfesseurService.name);
+export class PortailEnseignantService {
+  private readonly logger = new Logger(PortailEnseignantService.name);
 
   constructor(@InjectDataSource() private dataSource: DataSource) {}
 
@@ -205,9 +205,9 @@ export class PortailProfesseurService {
     return presence[0];
   }
 
-  async genererQRProfesseur(utilisateurId: string): Promise<any> {
-    // Générer un QR code unique pour le professeur (valable pour la journée)
-    const qrData = `PROF-${utilisateurId}-${Date.now()}`;
+  async genererQREnseignant(utilisateurId: string): Promise<any> {
+    // Générer un QR code unique pour l'enseignant (valable pour la journée)
+    const qrData = `ENS-${utilisateurId}-${Date.now()}`;
     
     return {
       qrData,

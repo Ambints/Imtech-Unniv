@@ -14,7 +14,7 @@ export declare enum UserRole {
     ENTRETIEN = "entretien",
     ETUDIANT = "etudiant",
     PARENT = "parent",
-    PROFESSEUR = "professeur"
+    ENSEIGNANT = "enseignant"
 }
 export declare enum AcademicLevel {
     LICENCE = "licence",

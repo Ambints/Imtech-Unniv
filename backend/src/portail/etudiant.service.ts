@@ -6,7 +6,7 @@ import { DataSource } from 'typeorm';
 export class PortailEtudiantService {
   private readonly logger = new Logger(PortailEtudiantService.name);
 
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(@InjectDataSource('tenant') private dataSource: DataSource) {}
   async searchEtudiants(query: string): Promise<any[]> {
     if (!query || query.length < 2) {
       return [];
@@ -276,60 +276,138 @@ export class PortailEtudiantService {
   }
 
   async getInscriptions(utilisateurId: string): Promise<any> {
-    return this.dataSource.query(`
-      SELECT 
-        i.*,
-        p.nom as parcours_nom,
-        p.code as parcours_code,
-        aa.libelle as annee_academique,
-        aa.annee_debut,
-        aa.annee_fin
-      FROM inscription i
-      LEFT JOIN parcours p ON p.id = i.parcours_id
-      LEFT JOIN annee_academique aa ON aa.id = i.annee_academique_id
-      WHERE i.etudiant_id = (SELECT id FROM etudiant WHERE utilisateur_id = $1)
-      ORDER BY i.date_inscription DESC
-    `, [utilisateurId]);
+    try {
+      // Vérifier si l'étudiant existe
+      const etudiantResult = await this.dataSource.query(`
+        SELECT id FROM etudiant WHERE utilisateur_id = $1
+      `, [utilisateurId]);
+
+      if (etudiantResult.length === 0) {
+        this.logger.warn(`Aucun profil étudiant trouvé pour utilisateur ${utilisateurId}`);
+        return []; // Retourner un tableau vide au lieu d'une erreur
+      }
+
+      const etudiantId = etudiantResult[0].id;
+
+      return await this.dataSource.query(`
+        SELECT
+          i.*,
+          p.nom as parcours_nom,
+          p.code as parcours_code,
+          aa.libelle as annee_academique,
+          EXTRACT(YEAR FROM aa.date_debut) as annee_debut,
+          EXTRACT(YEAR FROM aa.date_fin) as annee_fin
+        FROM inscription i
+        LEFT JOIN parcours p ON p.id = i.parcours_id
+        LEFT JOIN annee_academique aa ON aa.id = i.annee_academique_id
+        WHERE i.etudiant_id = $1
+        ORDER BY i.date_inscription DESC
+      `, [etudiantId]);
+    } catch (error) {
+      this.logger.error('Erreur getInscriptions:', error);
+      return []; // Retourner un tableau vide en cas d'erreur
+    }
+  }
+
+  async getDepartements(): Promise<any> {
+    try {
+      return await this.dataSource.query(`
+        SELECT
+          d.id,
+          d.code,
+          d.nom,
+          d.description,
+          COUNT(DISTINCT p.id) as nombre_parcours
+        FROM departement d
+        LEFT JOIN parcours p ON p.departement_id = d.id AND p.actif = true
+        WHERE d.actif = true
+        GROUP BY d.id, d.code, d.nom, d.description
+        ORDER BY d.nom
+      `);
+    } catch (error) {
+      this.logger.error('Erreur getDepartements:', error);
+      throw error;
+    }
   }
 
   async getParcoursDisponibles(utilisateurId: string): Promise<any> {
-    return this.dataSource.query(`
-      SELECT 
-        p.*,
-        d.nom as departement_nom,
-        COUNT(DISTINCT ue.id) as nombre_ues
-      FROM parcours p
-      LEFT JOIN departement d ON d.id = p.departement_id
-      LEFT JOIN unite_enseignement ue ON ue.parcours_id = p.id
-      WHERE p.actif = true
-      GROUP BY p.id, d.nom
-      ORDER BY p.code, p.nom
-    `);
+    try {
+      return await this.dataSource.query(`
+        SELECT
+          p.*,
+          d.nom as departement_nom,
+          d.code as departement_code,
+          COUNT(DISTINCT ue.id) as nombre_ues
+        FROM parcours p
+        LEFT JOIN departement d ON d.id = p.departement_id
+        LEFT JOIN unite_enseignement ue ON ue.parcours_id = p.id
+        WHERE p.actif = true
+        GROUP BY p.id, d.nom, d.code
+        ORDER BY d.nom, p.nom
+      `);
+    } catch (error) {
+      this.logger.error('Erreur getParcoursDisponibles:', error);
+      throw error;
+    }
   }
 
   async getAnneesAcademiques(): Promise<any> {
-    return this.dataSource.query(`
-      SELECT 
-        id,
-        libelle,
-        annee_debut,
-        annee_fin,
-        statut,
-        date_debut,
-        date_fin
-      FROM annee_academique
-      ORDER BY annee_debut DESC, annee_fin DESC
-    `);
+    try {
+      return await this.dataSource.query(`
+        SELECT
+          id,
+          libelle,
+          EXTRACT(YEAR FROM date_debut) as annee_debut,
+          EXTRACT(YEAR FROM date_fin) as annee_fin,
+          CASE WHEN active = true THEN 'en_cours' ELSE 'terminee' END as statut,
+          date_debut,
+          date_fin
+        FROM annee_academique
+        ORDER BY date_debut DESC
+      `);
+    } catch (error) {
+      this.logger.error('Erreur getAnneesAcademiques:', error);
+      throw error;
+    }
+  }
+
+  async getNiveauxEtude(): Promise<any> {
+    try {
+      return await this.dataSource.query(`
+        SELECT
+          id,
+          code,
+          libelle,
+          description,
+          ordre,
+          type_diplome
+        FROM niveau_etude
+        WHERE actif = true
+        ORDER BY ordre ASC
+      `);
+    } catch (error) {
+      this.logger.error('Erreur getNiveauxEtude:', error);
+      throw error;
+    }
   }
 
   async createInscription(utilisateurId: string, dto: any): Promise<any> {
-    const etudiant = await this.getProfil(utilisateurId);
+    // Récupérer l'ID de l'étudiant depuis utilisateur_id
+    const etudiantResult = await this.dataSource.query(`
+      SELECT id FROM etudiant WHERE utilisateur_id = $1
+    `, [utilisateurId]);
+
+    if (etudiantResult.length === 0) {
+      throw new NotFoundException('Profil étudiant non trouvé');
+    }
+
+    const etudiantId = etudiantResult[0].id;
     
     // Vérifier si l'étudiant n'est pas déjà inscrit pour cette année académique
     const existingInscription = await this.dataSource.query(`
-      SELECT id FROM inscription 
+      SELECT id FROM inscription
       WHERE etudiant_id = $1 AND annee_academique_id = $2
-    `, [etudiant.id, dto.anneeAcademiqueId]);
+    `, [etudiantId, dto.anneeAcademiqueId]);
 
     if (existingInscription.length > 0) {
       throw new Error('Vous êtes déjà inscrit pour cette année académique');
@@ -338,17 +416,17 @@ export class PortailEtudiantService {
     // Créer l'inscription
     const result = await this.dataSource.query(`
       INSERT INTO inscription (
-        etudiant_id, 
-        parcours_id, 
-        annee_academique_id, 
-        annee_niveau, 
-        type_inscription, 
-        statut, 
+        etudiant_id,
+        parcours_id,
+        annee_academique_id,
+        annee_niveau,
+        type_inscription,
+        statut,
         date_inscription
       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
       RETURNING *
     `, [
-      etudiant.id,
+      etudiantId,
       dto.parcoursId,
       dto.anneeAcademiqueId,
       dto.anneeNiveau,
@@ -411,5 +489,179 @@ export class PortailEtudiantService {
     `, [inscriptionId]);
 
     return { message: 'Inscription annulée avec succès' };
+  }
+
+  // ==================== MÉTHODES DE PAIEMENT ====================
+
+  async getMontantInscription(utilisateurId: string, inscriptionId: string): Promise<any> {
+    try {
+      // Vérifier que l'inscription appartient à l'étudiant
+      const result = await this.dataSource.query(`
+        SELECT
+          i.id,
+          i.statut as statut_inscription,
+          gt.montant_total as montant_inscription,
+          gt.frais_inscription,
+          gt.frais_scolarite,
+          p.nom as parcours_nom,
+          aa.libelle as annee_academique
+        FROM inscription i
+        JOIN etudiant e ON e.id = i.etudiant_id
+        JOIN parcours p ON p.id = i.parcours_id
+        JOIN annee_academique aa ON aa.id = i.annee_academique_id
+        LEFT JOIN grille_tarifaire gt ON gt.parcours_id = i.parcours_id
+          AND gt.annee_academique_id = i.annee_academique_id
+        WHERE i.id = $1 AND e.utilisateur_id = $2
+      `, [inscriptionId, utilisateurId]);
+
+      if (result.length === 0) {
+        throw new NotFoundException('Inscription non trouvée ou accès non autorisé');
+      }
+
+      return result[0];
+    } catch (error) {
+      this.logger.error('Erreur getMontantInscription:', error);
+      throw error;
+    }
+  }
+
+  async submitPaiement(utilisateurId: string, dto: any): Promise<any> {
+    try {
+      // Récupérer l'ID de l'étudiant
+      const etudiantResult = await this.dataSource.query(`
+        SELECT id FROM etudiant WHERE utilisateur_id = $1
+      `, [utilisateurId]);
+
+      if (etudiantResult.length === 0) {
+        throw new NotFoundException('Profil étudiant non trouvé');
+      }
+
+      const etudiantId = etudiantResult[0].id;
+
+      // Vérifier que l'inscription appartient à l'étudiant
+      const inscriptionCheck = await this.dataSource.query(`
+        SELECT id FROM inscription WHERE id = $1 AND etudiant_id = $2
+      `, [dto.inscriptionId, etudiantId]);
+
+      if (inscriptionCheck.length === 0) {
+        throw new Error('Inscription non trouvée ou accès non autorisé');
+      }
+
+      // Vérifier qu'il n'y a pas déjà un paiement en attente pour cette inscription
+      const existingPaiement = await this.dataSource.query(`
+        SELECT id FROM paiement_inscription
+        WHERE inscription_id = $1 AND statut = 'en_attente'
+      `, [dto.inscriptionId]);
+
+      if (existingPaiement.length > 0) {
+        throw new Error('Un paiement est déjà en attente de validation pour cette inscription');
+      }
+
+      // Créer le paiement
+      const result = await this.dataSource.query(`
+        INSERT INTO paiement_inscription (
+          inscription_id,
+          etudiant_id,
+          montant,
+          methode_paiement,
+          reference_paiement,
+          date_paiement,
+          preuve_url,
+          statut,
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        RETURNING *
+      `, [
+        dto.inscriptionId,
+        etudiantId,
+        dto.montant,
+        dto.methodePaiement, // 'virement_bancaire' ou 'mobile_money'
+        dto.referencePaiement,
+        dto.datePaiement || new Date(),
+        dto.preuveUrl || null,
+        'en_attente'
+      ]);
+
+      this.logger.log(`Paiement soumis: ${result[0].id} pour inscription ${dto.inscriptionId}`);
+
+      return {
+        message: 'Paiement soumis avec succès. En attente de validation par le caissier.',
+        paiement: result[0]
+      };
+    } catch (error) {
+      this.logger.error('Erreur submitPaiement:', error);
+      throw error;
+    }
+  }
+
+  async getPaiementStatus(utilisateurId: string, inscriptionId: string): Promise<any> {
+    try {
+      // Récupérer l'ID de l'étudiant
+      const etudiantResult = await this.dataSource.query(`
+        SELECT id FROM etudiant WHERE utilisateur_id = $1
+      `, [utilisateurId]);
+
+      if (etudiantResult.length === 0) {
+        throw new NotFoundException('Profil étudiant non trouvé');
+      }
+
+      const etudiantId = etudiantResult[0].id;
+
+      // Récupérer tous les paiements pour cette inscription
+      const paiements = await this.dataSource.query(`
+        SELECT
+          pi.*,
+          u.nom as validateur_nom,
+          u.prenom as validateur_prenom
+        FROM paiement_inscription pi
+        LEFT JOIN utilisateur u ON u.id = pi.valide_par
+        WHERE pi.inscription_id = $1 AND pi.etudiant_id = $2
+        ORDER BY pi.created_at DESC
+      `, [inscriptionId, etudiantId]);
+
+      return paiements;
+    } catch (error) {
+      this.logger.error('Erreur getPaiementStatus:', error);
+      throw error;
+    }
+  }
+
+  async getPaiementsInscription(utilisateurId: string): Promise<any> {
+    try {
+      // Récupérer l'ID de l'étudiant
+      const etudiantResult = await this.dataSource.query(`
+        SELECT id FROM etudiant WHERE utilisateur_id = $1
+      `, [utilisateurId]);
+
+      if (etudiantResult.length === 0) {
+        throw new NotFoundException('Profil étudiant non trouvé');
+      }
+
+      const etudiantId = etudiantResult[0].id;
+
+      // Récupérer tous les paiements d'inscription de l'étudiant
+      const paiements = await this.dataSource.query(`
+        SELECT
+          pi.*,
+          i.annee_niveau,
+          p.nom as parcours_nom,
+          aa.libelle as annee_academique,
+          u.nom as validateur_nom,
+          u.prenom as validateur_prenom
+        FROM paiement_inscription pi
+        JOIN inscription i ON i.id = pi.inscription_id
+        JOIN parcours p ON p.id = i.parcours_id
+        JOIN annee_academique aa ON aa.id = i.annee_academique_id
+        LEFT JOIN utilisateur u ON u.id = pi.valide_par
+        WHERE pi.etudiant_id = $1
+        ORDER BY pi.created_at DESC
+      `, [etudiantId]);
+
+      return paiements;
+    } catch (error) {
+      this.logger.error('Erreur getPaiementsInscription:', error);
+      throw error;
+    }
   }
 }

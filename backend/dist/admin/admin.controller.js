@@ -36,6 +36,9 @@ let AdminController = class AdminController {
         }
         return this.adminService.getDetailedStats(req.user.tenantId);
     }
+    async getGlobalStats() {
+        return this.adminService.getGlobalStats();
+    }
     async bulkUpdateUserStatus(req, dto) {
         if (!req.user?.tenantId) {
             throw new common_1.BadRequestException('Vous devez être associé à une université');
@@ -59,6 +62,21 @@ let AdminController = class AdminController {
             throw new common_1.BadRequestException('Vous devez être associé à une université');
         }
         return this.adminService.createBackup(req.user.tenantId);
+    }
+    async listBackups(req) {
+        if (!req.user?.tenantId) {
+            throw new common_1.BadRequestException('Vous devez être associé à une université');
+        }
+        return this.adminService.listBackups(req.user.tenantId);
+    }
+    async restoreBackup(req, backupId) {
+        if (!req.user?.tenantId) {
+            throw new common_1.BadRequestException('Vous devez être associé à une université');
+        }
+        return this.adminService.restoreBackup(req.user.tenantId, backupId);
+    }
+    async cleanupBackups() {
+        return this.adminService.cleanupOldBackups();
     }
     async defineSecretaireParcours(req, parcoursId, secretaireId) {
         if (!req.user?.tenantId) {
@@ -109,6 +127,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "getDetailedStats", null);
 __decorate([
+    (0, common_1.Get)('global-stats'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Statistiques globales de tous les tenants' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Statistiques globales du système' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getGlobalStats", null);
+__decorate([
     (0, common_1.Post)('users/bulk-update-status'),
     (0, roles_decorator_1.Roles)('admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Activer/Désactiver plusieurs utilisateurs en masse' }),
@@ -151,6 +178,36 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "createBackup", null);
+__decorate([
+    (0, common_1.Get)('backups'),
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Lister toutes les sauvegardes disponibles' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des sauvegardes' }),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "listBackups", null);
+__decorate([
+    (0, common_1.Post)('backups/:backupId/restore'),
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Restaurer une sauvegarde' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Sauvegarde restaurée' }),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('backupId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "restoreBackup", null);
+__decorate([
+    (0, common_1.Post)('backups/cleanup'),
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Nettoyer les anciennes sauvegardes' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Anciennes sauvegardes supprimées' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "cleanupBackups", null);
 __decorate([
     (0, common_1.Post)('secretaires-parcours/:parcoursId'),
     (0, roles_decorator_1.Roles)('admin', 'president'),

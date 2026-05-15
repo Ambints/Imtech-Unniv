@@ -84,6 +84,7 @@ const MENUS: Record<string, MenuItem[]> = {
   caissier: [
     { label: 'Encaissement', icon: <BanknoteIcon size={18} />, path: '/caisse/encaissement' },
     { label: 'Caisse du Jour', icon: <Receipt size={18} />, path: '/caisse' },
+    { label: 'Validation Paiements', icon: <CheckCircle size={18} />, path: '/caisse/validation-paiements' },
     { label: 'Échéanciers', icon: <Calendar size={18} />, path: '/caisse/echeanciers' },
     { label: 'Reçus & Quittances', icon: <Printer size={18} />, path: '/caisse/recus' },
     { label: 'Impayés', icon: <CircleDot size={18} />, path: '/caisse/impayes' },
@@ -125,13 +126,13 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Paiements', icon: <CreditCard size={18} />, path: '/portail/parent/paiements' },
     { label: 'Messagerie', icon: <MessageSquare size={18} />, path: '/portail/parent/messages' },
   ],
-  professeur: [
-    { label: 'Mes Cours', icon: <BookText size={18} />, path: '/portail/professeur' },
-    { label: 'Saisie des Notes', icon: <Pencil size={18} />, path: '/portail/professeur/notes' },
-    { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/professeur/presences' },
-    { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/professeur/etudiants' },
-    { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/professeur/ressources' },
-    { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/professeur/demandes' },
+  enseignant: [
+    { label: 'Mes Cours', icon: <BookText size={18} />, path: '/portail/enseignant' },
+    { label: 'Saisie des Notes', icon: <Pencil size={18} />, path: '/portail/enseignant/notes' },
+    { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/enseignant/presences' },
+    { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/enseignant/etudiants' },
+    { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/enseignant/ressources' },
+    { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/enseignant/demandes' },
   ],
 };
 
@@ -140,7 +141,7 @@ const ROLE_LABELS: Record<string, string> = {
   secretaire_parcours: 'Secrétaire Parcours', surveillant_general: 'Surveillant Général',
   scolarite: 'Service Scolarité', economat: 'Économat (CFO)', caissier: 'Caissier',
   rh: 'Ressources Humaines', logistique: 'Resp. Logistique',
-  entretien: 'Service Entretien', etudiant: 'Étudiant', parent: 'Parent', professeur: 'Professeur',
+  entretien: 'Service Entretien', etudiant: 'Étudiant', parent: 'Parent', enseignant: 'Enseignant',
   communication: 'Communication', admin: 'Administrateur', president: 'Président',
 };
 
@@ -296,7 +297,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           // For other pages, match if current path starts with item path
           const isDashboardPath = item.path === '/portail/etudiant' ||
                                   item.path === '/portail/parent' ||
-                                  item.path === '/portail/professeur' ||
+                                  item.path === '/portail/enseignant' ||
                                   item.path === '/admin' ||
                                   item.path === '/pedagogique' ||
                                   item.path === '/president' ||

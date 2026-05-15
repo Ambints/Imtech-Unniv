@@ -137,6 +137,80 @@ let AuthService = class AuthService {
     async logout(userId) {
         return { message: 'Deconnecte avec succes' };
     }
+    async changePassword(userId, currentPassword, newPassword) {
+        try {
+            const superAdmin = await this.users.findSuperAdminById(userId);
+            if (superAdmin) {
+                const valid = await bcrypt.compare(currentPassword, superAdmin.password);
+                if (!valid) {
+                    throw new common_1.UnauthorizedException('Mot de passe actuel incorrect');
+                }
+                const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+                await this.users.updateSuperAdminPassword(userId, hashedNewPassword);
+                return {
+                    success: true,
+                    message: 'Mot de passe changé avec succès',
+                    passwordResetRequired: false
+                };
+            }
+            const user = await this.users.findById(userId);
+            if (!user) {
+                throw new common_1.UnauthorizedException('Utilisateur non trouvé');
+            }
+            const valid = await bcrypt.compare(currentPassword, user.password);
+            if (!valid) {
+                throw new common_1.UnauthorizedException('Mot de passe actuel incorrect');
+            }
+            const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+            await this.users.updateUserPassword(userId, hashedNewPassword);
+            return {
+                success: true,
+                message: 'Mot de passe changé avec succès',
+                passwordResetRequired: false
+            };
+        }
+        catch (error) {
+            throw error;
+        }
+    }
+    async getUserInfo(userId) {
+        try {
+            const superAdmin = await this.users.findSuperAdminById(userId);
+            if (superAdmin) {
+                return {
+                    id: superAdmin.id,
+                    email: superAdmin.email,
+                    firstName: superAdmin.prenom,
+                    lastName: superAdmin.nom,
+                    role: 'super_admin',
+                    photoUrl: null,
+                    tenantId: null,
+                    passwordResetRequired: superAdmin.passwordResetRequired || false,
+                    lastPasswordReset: superAdmin.lastPasswordReset,
+                    actif: superAdmin.actif
+                };
+            }
+            const user = await this.users.findById(userId);
+            if (!user) {
+                throw new common_1.UnauthorizedException('Utilisateur non trouvé');
+            }
+            return {
+                id: user.id,
+                email: user.email,
+                firstName: user.prenom,
+                lastName: user.nom,
+                role: user.role,
+                photoUrl: user.photoUrl || null,
+                tenantId: user.tenantId,
+                passwordResetRequired: user.passwordResetRequired || false,
+                lastPasswordReset: user.lastPasswordReset,
+                actif: user.actif
+            };
+        }
+        catch (error) {
+            throw error;
+        }
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([

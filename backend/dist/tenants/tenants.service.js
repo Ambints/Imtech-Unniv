@@ -24,9 +24,10 @@ function getErrorMessage(error) {
     return String(error);
 }
 let TenantsService = class TenantsService {
-    constructor(repo, tenantCreationService) {
+    constructor(repo, tenantCreationService, dataSource) {
         this.repo = repo;
         this.tenantCreationService = tenantCreationService;
+        this.dataSource = dataSource;
     }
     async create(dto) {
         console.log('');
@@ -182,7 +183,7 @@ let TenantsService = class TenantsService {
     async getSubscriptions() {
         const tenants = await this.repo.find({
             order: { createdAt: 'DESC' },
-            select: ['id', 'nom', 'slug', 'actif', 'createdAt', 'planAbonnement',
+            select: ['id', 'nom', 'slug', 'schemaName', 'actif', 'createdAt', 'planAbonnement',
                 'statutAbonnement', 'dateDebutAbonnement', 'dateFinAbonnement',
                 'prixMensuel', 'maxUtilisateurs']
         });
@@ -195,19 +196,36 @@ let TenantsService = class TenantsService {
                 return new Date(date).toISOString();
             return new Date().toISOString();
         };
-        const subscriptions = tenants.map(tenant => ({
-            id: tenant.id,
-            tenantId: tenant.slug,
-            tenantName: tenant.nom,
-            plan: tenant.planAbonnement || 'basic',
-            status: tenant.statutAbonnement || 'active',
-            startDate: toISODate(tenant.dateDebutAbonnement),
-            endDate: toISODate(tenant.dateFinAbonnement) || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-            monthlyPrice: Number(tenant.prixMensuel) || 50000,
-            maxUsers: tenant.maxUtilisateurs || 100,
-            currentUsers: 0,
-            features: this.getPlanFeatures(tenant.planAbonnement || 'basic'),
+        const subscriptionsWithData = await Promise.all(tenants.map(async (tenant) => {
+            let currentUsers = 0;
+            let currentStudents = 0;
+            if (tenant.schemaName && tenant.actif) {
+                try {
+                    const usersResult = await this.dataSource.query(`SELECT COUNT(*) as count FROM "${tenant.schemaName}".utilisateur WHERE actif = true`);
+                    currentUsers = parseInt(usersResult[0]?.count || '0');
+                    const studentsResult = await this.dataSource.query(`SELECT COUNT(*) as count FROM "${tenant.schemaName}".etudiant WHERE actif = true`);
+                    currentStudents = parseInt(studentsResult[0]?.count || '0');
+                }
+                catch (error) {
+                    console.warn(`Impossible de récupérer les stats pour ${tenant.nom}:`, error instanceof Error ? error.message : String(error));
+                }
+            }
+            return {
+                id: tenant.id,
+                tenantId: tenant.slug,
+                tenantName: tenant.nom,
+                plan: tenant.planAbonnement || 'basic',
+                status: tenant.statutAbonnement || 'active',
+                startDate: toISODate(tenant.dateDebutAbonnement),
+                endDate: toISODate(tenant.dateFinAbonnement) || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                monthlyPrice: Number(tenant.prixMensuel) || 50000,
+                maxUsers: tenant.maxUtilisateurs || 100,
+                currentUsers,
+                currentStudents,
+                features: this.getPlanFeatures(tenant.planAbonnement || 'basic'),
+            };
         }));
+        const subscriptions = subscriptionsWithData;
         const now = new Date();
         const activeSubscriptions = subscriptions.filter(s => s.status === 'active').length;
         const expiringSoon = subscriptions.filter(s => {
@@ -299,7 +317,7 @@ let TenantsService = class TenantsService {
             const parcoursCount = await connection.query(`SELECT COUNT(*) as count FROM ${schemaName}.parcours WHERE actif = true`);
             const ueCount = await connection.query(`SELECT COUNT(*) as count FROM ${schemaName}.unite_enseignement`);
             const studentsCount = await connection.query(`SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'etudiant' AND actif = true`);
-            const teachersCount = await connection.query(`SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'professeur' AND actif = true`);
+            const teachersCount = await connection.query(`SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'enseignant' AND actif = true`);
             const monthlyRevenue = await connection.query(`
         SELECT COALESCE(SUM(montant), 0) as total
         FROM ${schemaName}.paiement
@@ -358,7 +376,9 @@ exports.TenantsService = TenantsService;
 exports.TenantsService = TenantsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(tenant_entity_1.Tenant)),
+    __param(2, (0, typeorm_1.InjectDataSource)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        tenant_creation_service_1.TenantCreationService])
+        tenant_creation_service_1.TenantCreationService,
+        typeorm_2.DataSource])
 ], TenantsService);
 //# sourceMappingURL=tenants.service.js.map

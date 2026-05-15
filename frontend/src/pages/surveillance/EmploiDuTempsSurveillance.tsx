@@ -10,7 +10,7 @@ interface Cours {
   matiere: string;
   code: string;
   type: 'CM' | 'TD' | 'TP';
-  professeur: string;
+  enseignant: string;
   salle: string;
   classe: string;
   heureDebut: string;
@@ -68,7 +68,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Mathématiques Appliquées',
           code: 'MATH301',
           type: 'CM',
-          professeur: 'Dr. KOUASSI',
+          enseignant: 'Dr. KOUASSI',
           salle: 'Amphi A',
           classe: 'L3 Informatique',
           heureDebut: '08:00',
@@ -82,7 +82,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Programmation Web',
           code: 'INFO205',
           type: 'TD',
-          professeur: 'Prof. DIALLO',
+          enseignant: 'Prof. DIALLO',
           salle: 'Salle B105',
           classe: 'L2 Informatique',
           heureDebut: '10:00',
@@ -96,7 +96,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Base de Données',
           code: 'INFO302',
           type: 'TP',
-          professeur: 'Dr. TRAORE',
+          enseignant: 'Dr. TRAORE',
           salle: 'Lab C201',
           classe: 'L3 Informatique',
           heureDebut: '14:00',
@@ -110,7 +110,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Réseaux Informatiques',
           code: 'INFO401',
           type: 'CM',
-          professeur: 'Prof. KONE',
+          enseignant: 'Prof. KONE',
           salle: 'Amphi B',
           classe: 'L3 Informatique',
           heureDebut: '08:00',
@@ -124,7 +124,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Gestion de Projet',
           code: 'GEST201',
           type: 'TD',
-          professeur: 'Dr. COULIBALY',
+          enseignant: 'Dr. COULIBALY',
           salle: 'Salle A203',
           classe: 'L2 Gestion',
           heureDebut: '10:00',
@@ -138,7 +138,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Comptabilité Analytique',
           code: 'COMPTA301',
           type: 'CM',
-          professeur: 'Prof. BAMBA',
+          enseignant: 'Prof. BAMBA',
           salle: 'Amphi C',
           classe: 'L3 Gestion',
           heureDebut: '14:00',
@@ -152,7 +152,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Systèmes d\'Exploitation',
           code: 'INFO305',
           type: 'TP',
-          professeur: 'Dr. KOUASSI',
+          enseignant: 'Dr. KOUASSI',
           salle: 'Lab B102',
           classe: 'L3 Informatique',
           heureDebut: '08:00',
@@ -166,7 +166,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Marketing Digital',
           code: 'MARK201',
           type: 'TD',
-          professeur: 'Prof. DIALLO',
+          enseignant: 'Prof. DIALLO',
           salle: 'Salle C105',
           classe: 'L2 Gestion',
           heureDebut: '14:00',
@@ -180,7 +180,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Intelligence Artificielle',
           code: 'INFO501',
           type: 'CM',
-          professeur: 'Dr. TRAORE',
+          enseignant: 'Dr. TRAORE',
           salle: 'Amphi A',
           classe: 'M1 Informatique',
           heureDebut: '08:00',
@@ -194,7 +194,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
           matiere: 'Droit des Affaires',
           code: 'DROIT301',
           type: 'CM',
-          professeur: 'Prof. KONE',
+          enseignant: 'Prof. KONE',
           salle: 'Amphi B',
           classe: 'L3 Gestion',
           heureDebut: '10:00',
@@ -437,7 +437,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
                                   cursor: 'pointer',
                                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                 }}
-                                title={`${c.matiere} - ${c.professeur}`}
+                                title={`${c.matiere} - ${c.enseignant}`}
                               >
                                 <div className="fw-bold mb-1" style={{ fontSize: '11px' }}>
                                   {c.code} - {c.type}
@@ -521,7 +521,7 @@ export const EmploiDuTempsSurveillance: React.FC = () => {
                               <strong>Salle:</strong> {c.salle}
                             </div>
                             <div>
-                              👨‍🏫 <strong>Professeur:</strong> {c.professeur}
+                              👨‍🏫 <strong>Enseignant:</strong> {c.enseignant}
                             </div>
                           </div>
                         </div>

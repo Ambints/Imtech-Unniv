@@ -13,6 +13,7 @@ import { ElementConstitutif } from './element-constitutif.entity';
 import { Note } from './note.entity';
 import { ResultatUE } from './resultat-ue.entity';
 import { TransfertEtudiant } from './transfert-etudiant.entity';
+import { Utilisateur } from './utilisateur.entity';
 
 @Entity('unite_enseignement')
 export class UniteEnseignement {
@@ -61,6 +62,13 @@ export class UniteEnseignement {
 
   @Column({ type: 'jsonb', nullable: true })
   prerequis: string[];
+
+  @Column({ type: 'uuid', nullable: true })
+  enseignantId: string;
+
+  @ManyToOne(() => Utilisateur, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'enseignant_id' })
+  enseignant: Utilisateur;
 
   @OneToMany(() => ElementConstitutif, (ec) => ec.uniteEnseignement)
   elementsConstitutifs: ElementConstitutif[];

@@ -13,6 +13,7 @@ import { EditSubscription } from './pages/super-admin/EditSubscription';
 import { UserManagement } from './pages/super-admin/UserManagement';
 import { UserForm } from './pages/super-admin/UserForm';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { GestionNiveauxPage } from './pages/admin/GestionNiveauxPage';
 import { PresidentDashboard } from './pages/president/PresidentDashboard';
 import { CaissePage } from './pages/finance/CaissePage';
 import { FinanceManagementPage } from './pages/finance/FinanceManagementPage';
@@ -25,6 +26,7 @@ const FraisInscriptionPage = lazy(() => import('./pages/caisse/FraisInscriptionP
 const ClotureCaissePage = lazy(() => import('./pages/caisse/ClotureCaissePage').then(module => ({ default: module.ClotureCaissePage })));
 const EcheanciersPage = lazy(() => import('./pages/caisse/EcheanciersPage').then(module => ({ default: module.EcheanciersPage })));
 const ReportingPage = lazy(() => import('./pages/caisse/ReportingPage').then(module => ({ default: module.ReportingPage })));
+const ValidationPaiementsPage = lazy(() => import('./pages/caisse/ValidationPaiementsPage').then(module => ({ default: module.ValidationPaiementsPage })));
 import { LogistiquePage } from './pages/logistics/LogistiquePage';
 import { EtudiantPortal } from './pages/portals/EtudiantPortal';
 import { NotesEtudiantPage } from './pages/portals/etudiant/NotesEtudiantPage';
@@ -36,7 +38,7 @@ import { InscriptionEtudiantPage } from './pages/portals/etudiant/InscriptionEtu
 import { InscriptionGuard } from './components/guards/InscriptionGuard';
 import EDTEtudiantPage from './pages/portals/etudiant/EDTEtudiantPage';
 import { ParentPortal } from './pages/portals/ParentPortal';
-import { ProfesseurPortal } from './pages/portals/ProfesseurPortal';
+import { EnseignantPortal } from './pages/portals/EnseignantPortal';
 import { CommunicationPage } from './pages/communication/CommunicationPage';
 import { RHPage } from './pages/rh/RHPage';
 import { EconomatPage } from './pages/economat/EconomatPage';
@@ -73,7 +75,7 @@ import {
   BookOpen, BookText, CheckCircle,
   CalendarDays, ClipboardList, AlertTriangle, Briefcase, BarChart3, Users, FileText,
   School, User, GraduationCap, GraduationCap as ProfIcon, Construction,
-  QrCode, Calculator, Lock
+  QrCode, Calculator, Lock, Printer, CircleDot
 } from 'lucide-react';
 
 const Guard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -173,7 +175,7 @@ const App: React.FC = () => {
       president: '/president',
       etudiant: '/portail/etudiant',
       parent: '/portail/parent',
-      professeur: '/portail/professeur',
+      enseignant: '/portail/enseignant',
       caissier: '/caisse',
       logistique: '/logistique/tickets',
       communication: '/communication',
@@ -215,6 +217,7 @@ const App: React.FC = () => {
         <Route path="/admin/config" element={<Wrapped><AdminDashboard defaultTab="config" /></Wrapped>} />
         <Route path="/admin/portals" element={<Wrapped><AdminDashboard defaultTab="portals" /></Wrapped>} />
         <Route path="/admin/academic" element={<Wrapped><AdminDashboard defaultTab="academic" /></Wrapped>} />
+        <Route path="/admin/niveaux" element={<Wrapped><GestionNiveauxPage /></Wrapped>} />
         <Route path="/admin/finance" element={<Wrapped><AdminDashboard defaultTab="finance" /></Wrapped>} />
         <Route path="/admin/rh" element={<Wrapped><AdminDashboard defaultTab="rh" /></Wrapped>} />
         <Route path="/admin/communication" element={<Wrapped><AdminDashboard defaultTab="communication" /></Wrapped>} />
@@ -241,6 +244,7 @@ const App: React.FC = () => {
         <Route path="/surveillance/incidents" element={<Wrapped><IncidentsPage /></Wrapped>} />
 
         {/* Finance */}
+        <Route path="/finance/gestion" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/finance/caisse" element={<Wrapped><CaissePage /></Wrapped>} />
         <Route path="/finance/management" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
         <Route path="/finance/paiements" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
@@ -253,6 +257,9 @@ const App: React.FC = () => {
         <Route path="/caisse/frais-inscription" element={<Wrapped><Suspense fallback={<PageLoader />}><FraisInscriptionPage /></Suspense></Wrapped>} />
         <Route path="/caisse/cloture" element={<Wrapped><Suspense fallback={<PageLoader />}><ClotureCaissePage /></Suspense></Wrapped>} />
         <Route path="/caisse/echeanciers" element={<Wrapped><Suspense fallback={<PageLoader />}><EcheanciersPage /></Suspense></Wrapped>} />
+        <Route path="/caisse/validation-paiements" element={<Wrapped><Suspense fallback={<PageLoader />}><ValidationPaiementsPage /></Suspense></Wrapped>} />
+        <Route path="/caisse/recus" element={<Wrapped><Placeholder title="Reçus & Quittances" icon={<Printer size={48} />} desc="Cette section sera disponible prochainement dans IMTECH UNIVERSITY." /></Wrapped>} />
+        <Route path="/caisse/impayes" element={<Wrapped><Placeholder title="Impayés" icon={<CircleDot size={48} />} desc="Cette section sera disponible prochainement dans IMTECH UNIVERSITY." /></Wrapped>} />
         <Route path="/caisse/rapports" element={<Wrapped><Suspense fallback={<PageLoader />}><ReportingPage /></Suspense></Wrapped>} />
 
         {/* Economat */}
@@ -328,7 +335,12 @@ const App: React.FC = () => {
         <Route path="/portail/etudiant/absences" element={<Wrapped><InscriptionGuard><AbsencesEtudiantPage /></InscriptionGuard></Wrapped>} />
         <Route path="/portail/etudiant/attestations" element={<Wrapped><InscriptionGuard><AttestationsEtudiantPage /></InscriptionGuard></Wrapped>} />
         <Route path="/portail/parent" element={<Wrapped><ParentPortal /></Wrapped>} />
-        <Route path="/portail/professeur" element={<Wrapped><ProfesseurPortal /></Wrapped>} />
+        <Route path="/portail/enseignant" element={<Wrapped><EnseignantPortal /></Wrapped>} />
+        <Route path="/portail/enseignant/notes" element={<Wrapped><EnseignantPortal /></Wrapped>} />
+        <Route path="/portail/enseignant/presences" element={<Wrapped><EnseignantPortal /></Wrapped>} />
+        <Route path="/portail/enseignant/etudiants" element={<Wrapped><EnseignantPortal /></Wrapped>} />
+        <Route path="/portail/enseignant/ressources" element={<Wrapped><EnseignantPortal /></Wrapped>} />
+        <Route path="/portail/enseignant/demandes" element={<Wrapped><EnseignantPortal /></Wrapped>} />
 
         {/* Catch-all */}
         <Route path="*" element={

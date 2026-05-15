@@ -110,6 +110,12 @@ export class PortailEtudiantController {
     return this.svc.getInscriptions(user.id);
   }
 
+  @Get('etudiant/departements')
+  @ApiOperation({ summary: 'Liste des départements/filières disponibles' })
+  getDepartements(@Param('tid') tid: string) {
+    return this.svc.getDepartements();
+  }
+
   @Get('etudiant/parcours-disponibles')
   @ApiOperation({ summary: 'Parcours disponibles pour inscription' })
   getParcoursDisponibles(@Param('tid') tid: string, @CurrentUser() user: any) {
@@ -120,6 +126,12 @@ export class PortailEtudiantController {
   @ApiOperation({ summary: 'Années académiques disponibles' })
   getAnneesAcademiques(@Param('tid') tid: string) {
     return this.svc.getAnneesAcademiques();
+  }
+
+  @Get('etudiant/niveaux-etude')
+  @ApiOperation({ summary: 'Niveaux d\'études disponibles pour inscription' })
+  getNiveauxEtude(@Param('tid') tid: string) {
+    return this.svc.getNiveauxEtude();
   }
 
   @Post('etudiant/inscription')
@@ -156,5 +168,53 @@ export class PortailEtudiantController {
     @CurrentUser() user: any
   ) {
     return this.svc.cancelInscription(user.id, id);
+  }
+
+  // ==================== ENDPOINTS DE PAIEMENT D'INSCRIPTION ====================
+
+  @Get('etudiant/inscription/:id/montant')
+  @ApiOperation({ summary: 'Obtenir le montant à payer pour une inscription' })
+  getMontantInscription(
+    @Param('tid') tid: string,
+    @Param('id') inscriptionId: string,
+    @CurrentUser() user: any
+  ) {
+    return this.svc.getMontantInscription(user.id, inscriptionId);
+  }
+
+  @Post('etudiant/paiement-inscription')
+  @ApiOperation({ summary: 'Soumettre un paiement d\'inscription' })
+  submitPaiement(
+    @Param('tid') tid: string,
+    @CurrentUser() user: any,
+    @Body() dto: {
+      inscriptionId: string;
+      montant: number;
+      methodePaiement: 'virement_bancaire' | 'mobile_money';
+      referencePaiement: string;
+      datePaiement?: Date;
+      preuveUrl?: string;
+    }
+  ) {
+    return this.svc.submitPaiement(user.id, dto);
+  }
+
+  @Get('etudiant/paiement-inscription/:inscriptionId/status')
+  @ApiOperation({ summary: 'Vérifier le statut des paiements pour une inscription' })
+  getPaiementStatus(
+    @Param('tid') tid: string,
+    @Param('inscriptionId') inscriptionId: string,
+    @CurrentUser() user: any
+  ) {
+    return this.svc.getPaiementStatus(user.id, inscriptionId);
+  }
+
+  @Get('etudiant/paiements-inscription')
+  @ApiOperation({ summary: 'Liste de tous les paiements d\'inscription de l\'étudiant' })
+  getPaiementsInscription(
+    @Param('tid') tid: string,
+    @CurrentUser() user: any
+  ) {
+    return this.svc.getPaiementsInscription(user.id);
   }
 }

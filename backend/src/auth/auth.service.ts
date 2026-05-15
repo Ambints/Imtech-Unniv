@@ -98,4 +98,100 @@ export class AuthService {
     // Note: token_reset columns don't exist in current schema
     return { message: 'Deconnecte avec succes' };
   }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    try {
+      // Vérifier si c'est un super admin
+      const superAdmin = await this.users.findSuperAdminById(userId);
+      if (superAdmin) {
+        // Vérifier le mot de passe actuel
+        const valid = await bcrypt.compare(currentPassword, superAdmin.password);
+        if (!valid) {
+          throw new UnauthorizedException('Mot de passe actuel incorrect');
+        }
+
+        // Hasher le nouveau mot de passe
+        const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+        // Mettre à jour le mot de passe et marquer que le changement n'est plus requis
+        await this.users.updateSuperAdminPassword(userId, hashedNewPassword);
+
+        return {
+          success: true,
+          message: 'Mot de passe changé avec succès',
+          passwordResetRequired: false
+        };
+      }
+
+      // Vérifier si c'est un utilisateur tenant
+      const user = await this.users.findById(userId);
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur non trouvé');
+      }
+
+      // Vérifier le mot de passe actuel
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) {
+        throw new UnauthorizedException('Mot de passe actuel incorrect');
+      }
+
+      // Hasher le nouveau mot de passe
+      const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+      // Mettre à jour le mot de passe
+      await this.users.updateUserPassword(userId, hashedNewPassword);
+
+      return {
+        success: true,
+        message: 'Mot de passe changé avec succès',
+        passwordResetRequired: false
+      };
+
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  async getUserInfo(userId: string) {
+    try {
+      // Vérifier si c'est un super admin
+      const superAdmin = await this.users.findSuperAdminById(userId);
+      if (superAdmin) {
+        return {
+          id: superAdmin.id,
+          email: superAdmin.email,
+          firstName: superAdmin.prenom,
+          lastName: superAdmin.nom,
+          role: 'super_admin',
+          photoUrl: null,
+          tenantId: null,
+          passwordResetRequired: superAdmin.passwordResetRequired || false,
+          lastPasswordReset: superAdmin.lastPasswordReset,
+          actif: superAdmin.actif
+        };
+      }
+
+      // Vérifier si c'est un utilisateur tenant
+      const user = await this.users.findById(userId);
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur non trouvé');
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        firstName: user.prenom,
+        lastName: user.nom,
+        role: user.role,
+        photoUrl: user.photoUrl || null,
+        tenantId: user.tenantId,
+        passwordResetRequired: user.passwordResetRequired || false,
+        lastPasswordReset: user.lastPasswordReset,
+        actif: user.actif
+      };
+
+    } catch (error: any) {
+      throw error;
+    }
+  }
 }

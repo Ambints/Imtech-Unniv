@@ -20,6 +20,7 @@ import { RHModule } from './rh/rh.module';
 import { EconomatModule } from './economat/economat.module';
 import { CaissierModule } from './caissier/caissier.module';
 import { PedagogiqueModule } from './pedagogique/pedagogique.module';
+import { ImtechCacheModule } from './cache/cache.module';
 import { Tenant } from './tenants/tenant.entity';
 import { User } from './users/user.entity';
 import { SuperAdmin } from './users/super-admin.entity';
@@ -172,6 +173,7 @@ import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
     EconomatModule,
     PedagogiqueModule,
     ScolariteModule,
+    ImtechCacheModule,
   ],
   providers: [
     {

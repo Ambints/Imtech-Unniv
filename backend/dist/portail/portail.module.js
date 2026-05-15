@@ -13,8 +13,8 @@ const etudiant_controller_1 = require("./etudiant.controller");
 const etudiant_service_1 = require("./etudiant.service");
 const parent_controller_1 = require("./parent.controller");
 const parent_service_1 = require("./parent.service");
-const professeur_controller_1 = require("./professeur.controller");
-const professeur_service_1 = require("./professeur.service");
+const enseignant_controller_1 = require("./enseignant.controller");
+const enseignant_service_1 = require("./enseignant.service");
 const portail_permissions_controller_1 = require("./portail-permissions.controller");
 const tenant_entity_1 = require("../tenants/tenant.entity");
 const entities_1 = require("../scolarite/entities");
@@ -33,11 +33,11 @@ exports.PortailModule = PortailModule = __decorate([
         controllers: [
             etudiant_controller_1.PortailEtudiantController,
             parent_controller_1.PortailParentController,
-            professeur_controller_1.PortailProfesseurController,
+            enseignant_controller_1.PortailEnseignantController,
             portail_permissions_controller_1.PortailPermissionsController
         ],
-        providers: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, professeur_service_1.PortailProfesseurService],
-        exports: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, professeur_service_1.PortailProfesseurService],
+        providers: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, enseignant_service_1.PortailEnseignantService],
+        exports: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, enseignant_service_1.PortailEnseignantService],
     })
 ], PortailModule);
 //# sourceMappingURL=portail.module.js.map

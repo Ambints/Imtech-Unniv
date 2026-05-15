@@ -20,16 +20,39 @@ let TenantMiddleware = class TenantMiddleware {
     constructor(tenantConnection, defaultConnection) {
         this.tenantConnection = tenantConnection;
         this.defaultConnection = defaultConnection;
+        this.whitelistRoutes = [
+            { path: '/api/v1/auth/login', method: 'POST' },
+            { path: '/api/v1/auth/register', method: 'POST' },
+            { path: '/api/v1/auth/refresh', method: 'POST' },
+            { path: '/api/v1/tenants', method: 'GET' },
+            { path: '/api/v1/tenants', method: 'POST' },
+            { path: '/api/v1/users', method: 'GET' },
+            { path: '/api/v1/health' },
+            { path: '/api/v1/docs' },
+        ];
     }
     async use(req, res, next) {
-        const fullPath = req.originalUrl || req.url;
-        if (fullPath.includes('/auth/') || fullPath.includes('/login')) {
-            console.log(`[TenantMiddleware] Skipping tenant resolution for auth route: ${fullPath}`);
+        const fullPath = (req.originalUrl || req.url).split('?')[0];
+        const method = req.method;
+        const isWhitelisted = this.whitelistRoutes.some(route => {
+            const pathMatches = fullPath === route.path || fullPath.startsWith(route.path + '/');
+            const methodMatches = !route.method || route.method === method;
+            return pathMatches && methodMatches;
+        });
+        if (isWhitelisted) {
+            console.log(`[TenantMiddleware] Whitelisted route: ${method} ${fullPath}`);
             req.tenantSchema = 'public';
             req.tenantId = null;
+            req.isSuperAdminRoute = true;
             return next();
         }
-        let tenantId = req.headers['x-tenant-id'] || '';
+        let tenantId = req.headers['x-tenant-id'];
+        if (!tenantId) {
+            tenantId = req.headers['X-Tenant-ID'];
+        }
+        if (!tenantId && req.query && req.query.tenantId) {
+            tenantId = req.query.tenantId;
+        }
         if (!tenantId) {
             const pathParts = fullPath.split('/');
             const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -39,29 +62,41 @@ let TenantMiddleware = class TenantMiddleware {
                 console.log(`[TenantMiddleware] Extracted tenant ID from URL: ${tenantId}`);
             }
         }
-        if (this.tenantConnection.isConnected && tenantId) {
+        if (!tenantId) {
+            console.error(`[TenantMiddleware] Tenant ID required but not provided for: ${method} ${fullPath}`);
+            return res.status(400).json({
+                statusCode: 400,
+                message: 'Tenant ID is required. Please provide X-Tenant-ID header or tenantId query parameter.',
+                error: 'Bad Request',
+            });
+        }
+        if (this.tenantConnection.isConnected) {
             try {
                 const tenantResult = await this.defaultConnection.query('SELECT schema_name FROM public.tenant WHERE id = $1 AND actif = true', [tenantId]);
-                let schemaName;
-                if (tenantResult && tenantResult.length > 0) {
-                    schemaName = tenantResult[0].schema_name;
-                    console.log(`[TenantMiddleware] Found schema "${schemaName}" for tenant ${tenantId}`);
+                if (!tenantResult || tenantResult.length === 0) {
+                    console.error(`[TenantMiddleware] Tenant ${tenantId} not found or inactive`);
+                    return res.status(404).json({
+                        statusCode: 404,
+                        message: `Tenant ${tenantId} not found or inactive`,
+                        error: 'Not Found',
+                    });
                 }
-                else {
-                    console.error(`[TenantMiddleware] Tenant ${tenantId} not found`);
-                    throw new Error(`Tenant ${tenantId} not found`);
-                }
+                const schemaName = tenantResult[0].schema_name;
+                console.log(`[TenantMiddleware] Found schema "${schemaName}" for tenant ${tenantId}`);
                 await this.tenantConnection.query(`SET search_path TO "${schemaName}", public`);
                 req.tenantSchema = schemaName;
                 req.tenantId = tenantId;
+                req.isSuperAdminRoute = false;
                 console.log(`[TenantMiddleware] Schema set to: ${schemaName} for tenant: ${tenantId}`);
             }
             catch (error) {
                 console.error(`[TenantMiddleware] Failed to set schema for tenant ${tenantId}:`, error instanceof Error ? error.message : String(error));
+                return res.status(500).json({
+                    statusCode: 500,
+                    message: 'Failed to resolve tenant schema',
+                    error: 'Internal Server Error',
+                });
             }
-        }
-        else {
-            console.warn(`[TenantMiddleware] No tenant ID provided. URL: ${fullPath}`);
         }
         next();
     }

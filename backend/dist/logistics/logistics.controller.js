@@ -75,7 +75,7 @@ let LogisticsController = class LogisticsController {
 exports.LogisticsController = LogisticsController;
 __decorate([
     (0, common_1.Post)('tickets'),
-    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'professeur'),
+    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'enseignant'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer ticket de maintenance' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -173,7 +173,7 @@ __decorate([
 ], LogisticsController.prototype, "getMouvements", null);
 __decorate([
     (0, common_1.Post)('reservations'),
-    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'professeur'),
+    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'enseignant'),
     (0, swagger_1.ApiOperation)({ summary: 'Réserver une salle' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -182,7 +182,7 @@ __decorate([
 ], LogisticsController.prototype, "reserver", null);
 __decorate([
     (0, common_1.Get)('reservations'),
-    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'professeur'),
+    (0, roles_decorator_1.Roles)('logistique', 'admin', 'secretaire', 'enseignant'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des réservations' }),
     __param(0, (0, common_1.Query)('salleId')),
     __metadata("design:type", Function),

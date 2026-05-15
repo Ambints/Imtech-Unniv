@@ -37,13 +37,15 @@ CREATE TABLE IF NOT EXISTS utilisateur (
                             'surveillant_general', 'scolarite', 'rh',
                             'economat', 'caissier', 'communication',
                             'logistique', 'entretien', 'admin',
-                            'etudiant', 'parent', 'professeur'
+                            'etudiant', 'parent', 'enseignant'
                         )),
     actif               BOOLEAN      DEFAULT TRUE,
     email_verifie       BOOLEAN      DEFAULT FALSE,
     derniere_connexion  TIMESTAMPTZ,
     token_reset         TEXT,
     token_reset_expiry  TIMESTAMPTZ,
+    password_reset_required BOOLEAN DEFAULT FALSE,
+    last_password_reset TIMESTAMPTZ,
     created_at          TIMESTAMPTZ  DEFAULT NOW(),
     updated_at          TIMESTAMPTZ  DEFAULT NOW()
 );
@@ -71,6 +73,31 @@ CREATE TABLE IF NOT EXISTS annee_academique (
     active          BOOLEAN     DEFAULT FALSE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Table des niveaux d'études configurables par tenant
+CREATE TABLE IF NOT EXISTS niveau_etude (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            VARCHAR(10) NOT NULL UNIQUE,
+    libelle         VARCHAR(100) NOT NULL,
+    description     TEXT,
+    ordre           SMALLINT    NOT NULL,
+    type_diplome    VARCHAR(20) CHECK (type_diplome IN ('Licence', 'Master', 'Doctorat', 'BTS', 'DUT', 'Autre')),
+    actif           BOOLEAN     DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour tri par ordre
+CREATE INDEX IF NOT EXISTS idx_niveau_etude_ordre ON niveau_etude(ordre) WHERE actif = TRUE;
+
+-- Données par défaut : niveaux standards
+INSERT INTO niveau_etude (code, libelle, description, ordre, type_diplome) VALUES
+    ('L1', 'L1 - 1ère année', 'Première année de Licence', 1, 'Licence'),
+    ('L2', 'L2 - 2ème année', 'Deuxième année de Licence', 2, 'Licence'),
+    ('L3', 'L3 - 3ème année', 'Troisième année de Licence', 3, 'Licence'),
+    ('M1', 'M1 - 1ère année Master', 'Première année de Master', 4, 'Master'),
+    ('M2', 'M2 - 2ème année Master', 'Deuxième année de Master', 5, 'Master')
+ON CONFLICT (code) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS departement (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -127,10 +154,18 @@ CREATE TABLE IF NOT EXISTS unite_enseignement (
     semestre        SMALLINT    NOT NULL CHECK (semestre BETWEEN 1 AND 12),
     annee_niveau    SMALLINT    NOT NULL CHECK (annee_niveau BETWEEN 1 AND 8),
     type_ue         VARCHAR(20) DEFAULT 'obligatoire' CHECK (type_ue IN ('obligatoire', 'optionnel', 'libre')),
+    enseignant_id   UUID        REFERENCES enseignant(id) ON DELETE SET NULL,
     actif           BOOLEAN     DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (parcours_id, code)
 );
+
+-- Index pour améliorer les performances des requêtes par enseignant
+CREATE INDEX IF NOT EXISTS idx_ue_enseignant ON unite_enseignement(enseignant_id);
+
+-- Commentaire pour documenter la règle métier
+COMMENT ON COLUMN unite_enseignement.enseignant_id IS
+'enseignant responsable de l''UE. RÈGLE MÉTIER: Une UE ne peut avoir qu''un seul enseignant responsable.';
 
 CREATE TABLE IF NOT EXISTS element_constitutif (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -812,7 +847,7 @@ CREATE TABLE IF NOT EXISTS annonce (
     type_annonce        VARCHAR(30) DEFAULT 'information'
                         CHECK (type_annonce IN ('information', 'urgent', 'evenement', 'resultat', 'pastoral', 'fermeture')),
     cible               VARCHAR(20) DEFAULT 'tous'
-                        CHECK (cible IN ('tous', 'etudiants', 'parents', 'professeurs', 'personnel', 'parcours')),
+                        CHECK (cible IN ('tous', 'etudiants', 'parents', 'enseignants', 'personnel', 'parcours')),
     parcours_id         UUID        REFERENCES parcours(id),
     publie              BOOLEAN     DEFAULT FALSE,
     date_publication    TIMESTAMPTZ,
@@ -854,7 +889,7 @@ CREATE TABLE IF NOT EXISTS message (
 
 CREATE TABLE IF NOT EXISTS permissions_portail (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    type_portail        VARCHAR(20) NOT NULL CHECK (type_portail IN ('etudiant', 'parent', 'professeur')),
+    type_portail        VARCHAR(20) NOT NULL CHECK (type_portail IN ('etudiant', 'parent', 'enseignant')),
     permission_key      VARCHAR(100) NOT NULL,
     permission_label    VARCHAR(200) NOT NULL,
     actif               BOOLEAN     DEFAULT TRUE,
@@ -886,15 +921,15 @@ INSERT INTO permissions_portail (type_portail, permission_key, permission_label,
 ('parent', 'messagerie', 'Messagerie', true, 'Communication avec l''administration'),
 ('parent', 'notifications', 'Notifications', true, 'Réception de notifications'),
 
--- Portail Professeur
-('professeur', 'publier_cours', 'Publier supports de cours', true, 'Publication de documents pédagogiques'),
-('professeur', 'saisie_notes', 'Saisie des notes', true, 'Saisie et modification des notes'),
-('professeur', 'pointage_presences', 'Pointage présences', true, 'Gestion des présences étudiants'),
-('professeur', 'depot_sujets', 'Dépôt sujets examens', true, 'Dépôt des sujets d''examens'),
-('professeur', 'listes_etudiants', 'Consultation listes étudiants', true, 'Accès aux listes d''étudiants'),
-('professeur', 'demande_ressources', 'Demande ressources', true, 'Demande de ressources pédagogiques'),
-('professeur', 'messagerie_etudiants', 'Messagerie étudiants', true, 'Communication avec les étudiants'),
-('professeur', 'signature_presence', 'Signature présence', true, 'Signature électronique de présence')
+-- Portail enseignant
+('enseignant', 'publier_cours', 'Publier supports de cours', true, 'Publication de documents pédagogiques'),
+('enseignant', 'saisie_notes', 'Saisie des notes', true, 'Saisie et modification des notes'),
+('enseignant', 'pointage_presences', 'Pointage présences', true, 'Gestion des présences étudiants'),
+('enseignant', 'depot_sujets', 'Dépôt sujets examens', true, 'Dépôt des sujets d''examens'),
+('enseignant', 'listes_etudiants', 'Consultation listes étudiants', true, 'Accès aux listes d''étudiants'),
+('enseignant', 'demande_ressources', 'Demande ressources', true, 'Demande de ressources pédagogiques'),
+('enseignant', 'messagerie_etudiants', 'Messagerie étudiants', true, 'Communication avec les étudiants'),
+('enseignant', 'signature_presence', 'Signature présence', true, 'Signature électronique de présence')
 ON CONFLICT (type_portail, permission_key) DO NOTHING;
 
 -- =============================================================================
@@ -988,6 +1023,8 @@ CREATE INDEX IF NOT EXISTS idx_pv_date ON proces_verbal(date_deliberation);
 
 CREATE INDEX IF NOT EXISTS idx_utilisateur_email ON utilisateur(email);
 CREATE INDEX IF NOT EXISTS idx_utilisateur_role ON utilisateur(role);
+CREATE INDEX IF NOT EXISTS idx_utilisateur_password_reset ON utilisateur(password_reset_required);
+CREATE INDEX IF NOT EXISTS idx_utilisateur_last_password_reset ON utilisateur(last_password_reset);
 CREATE INDEX IF NOT EXISTS idx_session_jwt_token ON session_jwt(refresh_token);
 CREATE INDEX IF NOT EXISTS idx_session_jwt_user ON session_jwt(utilisateur_id);
 
@@ -1212,8 +1249,8 @@ SELECT
     (SELECT COUNT(*) FROM inscription i
      JOIN annee_academique aa ON aa.id = i.annee_academique_id
      WHERE aa.active = TRUE AND i.statut = 'validee')                       AS etudiants_inscrits_annee,
-    (SELECT COUNT(*) FROM utilisateur WHERE role = 'professeur' AND actif = TRUE) AS total_enseignants,
-    (SELECT COUNT(*) FROM utilisateur WHERE role NOT IN ('etudiant', 'parent', 'professeur') AND actif = TRUE) AS total_personnel,
+    (SELECT COUNT(*) FROM utilisateur WHERE role = 'enseignant' AND actif = TRUE) AS total_enseignants,
+    (SELECT COUNT(*) FROM utilisateur WHERE role NOT IN ('etudiant', 'parent', 'enseignant') AND actif = TRUE) AS total_personnel,
     (SELECT COALESCE(SUM(p.montant), 0)
      FROM paiement p
      JOIN inscription i ON p.inscription_id = i.id
@@ -1642,6 +1679,163 @@ JOIN annee_academique aa ON aa.id = i.annee_academique_id
 LEFT JOIN paiement pa ON pa.inscription_id = i.id AND pa.statut = 'valide'
 GROUP BY p.id, p.code, p.nom, aa.annee_debut, aa.annee_fin
 ORDER BY total_encaisse DESC;
+
+-- =============================================================================
+-- MODULE : PORTAIL enseignant - Tables supplémentaires
+-- =============================================================================
+
+-- Table: support_cours (ressources pédagogiques)
+CREATE TABLE IF NOT EXISTS support_cours (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    titre               VARCHAR(300) NOT NULL,
+    description         TEXT,
+    type_fichier        VARCHAR(50) NOT NULL CHECK (type_fichier IN ('pdf', 'docx', 'pptx', 'xlsx', 'zip', 'video', 'autre')),
+    fichier_url         VARCHAR(500) NOT NULL,
+    taille_fichier      BIGINT,
+    ec_id               UUID        REFERENCES element_constitutif(id) ON DELETE CASCADE,
+    auteur_id           UUID        NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+    date_depot          TIMESTAMPTZ DEFAULT NOW(),
+    partage_parcours_ids UUID[]     DEFAULT '{}',
+    date_partage        TIMESTAMPTZ,
+    nb_telechargements  INTEGER     DEFAULT 0,
+    actif               BOOLEAN     DEFAULT TRUE,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_cours_ec ON support_cours(ec_id);
+CREATE INDEX IF NOT EXISTS idx_support_cours_auteur ON support_cours(auteur_id);
+CREATE INDEX IF NOT EXISTS idx_support_cours_date ON support_cours(date_depot);
+
+-- Table: stage (stages et mémoires)
+CREATE TABLE IF NOT EXISTS stage (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    etudiant_id         UUID        NOT NULL REFERENCES etudiant(id) ON DELETE CASCADE,
+    parcours_id         UUID        NOT NULL REFERENCES parcours(id) ON DELETE RESTRICT,
+    annee_academique_id UUID        NOT NULL REFERENCES annee_academique(id),
+    type_stage          VARCHAR(30) NOT NULL CHECK (type_stage IN ('stage', 'memoire', 'projet_fin_etude', 'these')),
+    titre               VARCHAR(500) NOT NULL,
+    entreprise          VARCHAR(300),
+    lieu                VARCHAR(300),
+    encadrant_id        UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    rapporteur_id       UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_debut          DATE        NOT NULL,
+    date_fin            DATE        NOT NULL,
+    duree_mois          SMALLINT,
+    statut              VARCHAR(30) DEFAULT 'en_cours' CHECK (statut IN ('en_cours', 'termine', 'abandonne', 'valide')),
+    note_finale         DECIMAL(5,2),
+    appreciation        TEXT,
+    fichier_rapport_url VARCHAR(500),
+    date_soutenance     TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    CHECK (date_fin > date_debut)
+);
+
+CREATE INDEX IF NOT EXISTS idx_stage_etudiant ON stage(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_stage_encadrant ON stage(encadrant_id);
+CREATE INDEX IF NOT EXISTS idx_stage_rapporteur ON stage(rapporteur_id);
+CREATE INDEX IF NOT EXISTS idx_stage_statut ON stage(statut);
+
+-- Table: fiche_suivi_stage
+CREATE TABLE IF NOT EXISTS fiche_suivi_stage (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    stage_id            UUID        NOT NULL REFERENCES stage(id) ON DELETE CASCADE,
+    date_rencontre      DATE        NOT NULL,
+    travail_effectue    TEXT        NOT NULL,
+    observations        TEXT,
+    note_avancement     DECIMAL(5,2) CHECK (note_avancement >= 0 AND note_avancement <= 20),
+    auteur_id           UUID        NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fiche_suivi_stage ON fiche_suivi_stage(stage_id);
+CREATE INDEX IF NOT EXISTS idx_fiche_suivi_date ON fiche_suivi_stage(date_rencontre);
+
+-- Table: soutenance
+CREATE TABLE IF NOT EXISTS soutenance (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    stage_id            UUID        NOT NULL UNIQUE REFERENCES stage(id) ON DELETE CASCADE,
+    date_soutenance     TIMESTAMPTZ NOT NULL,
+    salle_id            UUID        REFERENCES salle(id) ON DELETE SET NULL,
+    president_jury_id   UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    membres_jury        JSONB       DEFAULT '[]',
+    duree_minutes       SMALLINT    DEFAULT 60,
+    statut              VARCHAR(30) DEFAULT 'planifie' CHECK (statut IN ('planifie', 'realise', 'annule')),
+    note_finale         DECIMAL(5,2),
+    mention             VARCHAR(30) CHECK (mention IN ('passable', 'assez_bien', 'bien', 'tres_bien', 'excellent')),
+    observations        TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_soutenance_stage ON soutenance(stage_id);
+CREATE INDEX IF NOT EXISTS idx_soutenance_date ON soutenance(date_soutenance);
+CREATE INDEX IF NOT EXISTS idx_soutenance_statut ON soutenance(statut);
+
+-- Table: evaluation_soutenance
+CREATE TABLE IF NOT EXISTS evaluation_soutenance (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    soutenance_id       UUID        NOT NULL REFERENCES soutenance(id) ON DELETE CASCADE,
+    evaluateur_id       UUID        NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+    note                DECIMAL(5,2) NOT NULL CHECK (note >= 0 AND note <= 20),
+    appreciation        TEXT,
+    date_evaluation     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(soutenance_id, evaluateur_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_evaluation_soutenance ON evaluation_soutenance(soutenance_id);
+CREATE INDEX IF NOT EXISTS idx_evaluation_evaluateur ON evaluation_soutenance(evaluateur_id);
+
+-- Table: demande_ressource (demandes de matériel, salles, etc.)
+CREATE TABLE IF NOT EXISTS demande_ressource (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    type_ressource      VARCHAR(50) NOT NULL CHECK (type_ressource IN ('salle', 'materiel', 'laboratoire', 'equipement', 'autre')),
+    date_souhaitee      DATE        NOT NULL,
+    heure_debut         TIME,
+    heure_fin           TIME,
+    motif               TEXT        NOT NULL,
+    nb_participants     SMALLINT,
+    materiel_requis     TEXT,
+    demandeur_id        UUID        NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+    statut              VARCHAR(30) DEFAULT 'soumise' CHECK (statut IN ('soumise', 'en_cours', 'approuvee', 'rejetee', 'livree')),
+    traite_par          UUID        REFERENCES utilisateur(id) ON DELETE SET NULL,
+    date_traitement     TIMESTAMPTZ,
+    commentaire_rejet   TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_demande_ressource_demandeur ON demande_ressource(demandeur_id);
+CREATE INDEX IF NOT EXISTS idx_demande_ressource_statut ON demande_ressource(statut);
+CREATE INDEX IF NOT EXISTS idx_demande_ressource_date ON demande_ressource(date_souhaitee);
+
+-- Ajout de colonnes manquantes à sujet_examen
+ALTER TABLE sujet_examen 
+ADD COLUMN IF NOT EXISTS fichier_correction_url VARCHAR(500),
+ADD COLUMN IF NOT EXISTS date_depot_correction TIMESTAMPTZ;
+
+-- Triggers pour updated_at des tables portail enseignant
+DROP TRIGGER IF EXISTS update_support_cours_updated_at ON support_cours;
+CREATE TRIGGER update_support_cours_updated_at 
+BEFORE UPDATE ON support_cours 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_stage_updated_at ON stage;
+CREATE TRIGGER update_stage_updated_at 
+BEFORE UPDATE ON stage 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_soutenance_updated_at ON soutenance;
+CREATE TRIGGER update_soutenance_updated_at 
+BEFORE UPDATE ON soutenance 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_demande_ressource_updated_at ON demande_ressource;
+CREATE TRIGGER update_demande_ressource_updated_at 
+BEFORE UPDATE ON demande_ressource 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- -----------------------------------------------------------------------------
 -- Commentaires sur les tables caisse

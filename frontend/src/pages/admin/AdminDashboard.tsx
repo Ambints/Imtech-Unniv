@@ -56,7 +56,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   const [permissions, setPermissions] = useState<any>({
     etudiant: [],
     parent: [],
-    professeur: []
+    enseignant: []
   });
   const [savingPermissions, setSavingPermissions] = useState(false);
 
@@ -77,13 +77,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
 
   // === ÉTATS POUR LA GESTION ACADÉMIQUE ===
   // Sous-onglet actif dans la section académique
-  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'etudiants'>('departements');
+  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'niveaux' | 'etudiants'>('departements');
   const [loadingAcademic, setLoadingAcademic] = useState(false);
 
   // Données académiques
   const [departements, setDepartements] = useState<any[]>([]);
   const [parcours, setParcours] = useState<any[]>([]);
   const [ues, setUes] = useState<any[]>([]);
+  const [niveauxEtude, setNiveauxEtude] = useState<any[]>([]);
   const [etudiants, setEtudiants] = useState<any[]>([]);
   const [rpUsers, setRpUsers] = useState<any[]>([]);
 
@@ -212,10 +213,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         }
       };
 
-      const [deptData, parcData, ueData, etuData, rpData] = await Promise.all([
+      const [deptData, parcData, ueData, niveauxData, etuData, rpData] = await Promise.all([
         loadWithFallback(api.get(`/academic/${tid}/departements`)),
         loadWithFallback(api.get(`/academic/${tid}/parcours`)),
         loadWithFallback(api.get(`/academic/${tid}/ue${selectedParcoursForUE ? `?parcoursId=${selectedParcoursForUE}` : ''}`)),
+        loadWithFallback(api.get(`/admin/${tid}/niveaux-etude`)),
         loadWithFallback(api.get(`/academic/${tid}/etudiants`)),
         loadWithFallback(api.get(`/users?role=resp_pedagogique&tenantId=${tid}`))
       ]);
@@ -224,6 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       setDepartements(deptData || []);
       setParcours(parcData || []);
       setUes(ueData || []);
+      setNiveauxEtude(niveauxData || []);
       setEtudiants(etuData || []);
       setRpUsers(rpData || []);
     } catch (error) {
@@ -232,6 +235,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       setDepartements([]);
       setParcours([]);
       setUes([]);
+      setNiveauxEtude([]);
       setEtudiants([]);
       setRpUsers([]);
     } finally {
@@ -1218,7 +1222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     const portailsConfig = [
       { type: 'etudiant', label: 'Portail Étudiant', icon: GraduationCap, color: 'primary' },
       { type: 'parent', label: 'Portail Parent', icon: Users, color: 'success' },
-      { type: 'professeur', label: 'Portail Professeur', icon: UserCog, color: 'warning' }
+      { type: 'enseignant', label: 'Portail Enseignant', icon: UserCog, color: 'warning' }
     ];
 
     return (
@@ -1295,7 +1299,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       entretien: 'Entretien',
       etudiant: 'Étudiant',
       parent: 'Parent',
-      professeur: 'Professeur'
+      enseignant: 'Enseignant'
     };
 
     const getRoleBadgeColor = (role: string) => {
@@ -1305,7 +1309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         resp_pedagogique: 'info',
         etudiant: 'success',
         parent: 'warning',
-        professeur: 'secondary'
+        enseignant: 'secondary'
       };
       return colors[role] || 'secondary';
     };
@@ -1503,7 +1507,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                           <optgroup label="Portails">
                             <option value="etudiant">Étudiant</option>
                             <option value="parent">Parent</option>
-                            <option value="professeur">Professeur</option>
+                            <option value="enseignant">Enseignant</option>
                           </optgroup>
                         </select>
                       </div>
@@ -1551,6 +1555,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       { key: 'departements', label: 'Départements', icon: Building2, count: departements.length, color: 'primary' },
       { key: 'parcours', label: 'Parcours', icon: GraduationCap, count: parcours.length, color: 'success' },
       { key: 'ue', label: 'UE', icon: BookOpen, count: ues.length, color: 'warning' },
+      { key: 'niveaux', label: 'Niveaux', icon: Award, count: niveauxEtude.length, color: 'secondary' },
       { key: 'etudiants', label: 'Étudiants', icon: Users, count: etudiants.length, color: 'info' }
     ];
 
@@ -1614,6 +1619,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
             {academicSubTab === 'departements' && renderDepartementsSection()}
             {academicSubTab === 'parcours' && renderParcoursSection()}
             {academicSubTab === 'ue' && renderUESection()}
+            {academicSubTab === 'niveaux' && renderNiveauxSection()}
             {academicSubTab === 'etudiants' && renderEtudiantsSection()}
           </>
         )}
@@ -2044,7 +2050,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
               <tbody>
                 {filteredParcours.map((p) => {
                   const dept = departements.find((d) => d.id === p.departementId);
-                  const rp = rpUsers.find((r) => r.id === p.responsableId);
+                  // Utiliser les données du responsable retournées par le backend
+                  const rp = p.responsable || rpUsers.find((r) => r.id === p.responsableId);
                   // Utiliser secretaireAssigne du backend (via secretaire_parcours)
                   const sec = p.secretaireAssigne || secretaireUsers.find((s) => s.id === p.secretaireId);
                   return (
@@ -2626,6 +2633,103 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       </div>
     );
   };
+
+  // === SECTION NIVEAUX D'ÉTUDES ===
+  const renderNiveauxSection = () => (
+    <div className="card border-0 shadow-sm">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex align-items-center gap-2">
+            <h6 className="card-title mb-0 text-secondary">
+              <Award size={18} className="me-2" />
+              Niveaux d'Études
+            </h6>
+            <span className="badge bg-secondary bg-opacity-10 text-secondary">
+              {niveauxEtude.length}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => navigate('/admin/niveaux')}
+          >
+            <Award size={16} className="me-2" />
+            Gérer les Niveaux
+          </button>
+        </div>
+
+        {niveauxEtude.length === 0 ? (
+          <div className="text-center py-5">
+            <Award size={48} className="text-muted mb-3" />
+            <h6 className="text-muted">Aucun niveau configuré</h6>
+            <p className="text-muted small mb-3">
+              Configurez les niveaux d'études disponibles pour les inscriptions
+            </p>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => navigate('/admin/niveaux')}
+            >
+              <Plus size={16} className="me-2" />
+              Configurer les niveaux
+            </button>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: '80px' }}>Ordre</th>
+                  <th style={{ width: '100px' }}>Code</th>
+                  <th>Libellé</th>
+                  <th style={{ width: '150px' }}>Type Diplôme</th>
+                  <th style={{ width: '100px' }} className="text-center">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {niveauxEtude.map((niveau) => (
+                  <tr key={niveau.id}>
+                    <td>
+                      <span className="badge bg-secondary">{niveau.ordre}</span>
+                    </td>
+                    <td>
+                      <code className="text-secondary">{niveau.code}</code>
+                    </td>
+                    <td>
+                      <div>
+                        <div className="fw-medium">{niveau.libelle}</div>
+                        {niveau.description && (
+                          <small className="text-muted">{niveau.description}</small>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge bg-info bg-opacity-10 text-info">
+                        {niveau.type_diplome || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      {niveau.actif ? (
+                        <span className="badge bg-success">Actif</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactif</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-top">
+          <small className="text-muted">
+            <Award size={14} className="me-1" />
+            Les niveaux d'études sont utilisés dans le formulaire d'inscription des étudiants.
+            Cliquez sur "Gérer les Niveaux" pour ajouter, modifier ou supprimer des niveaux.
+          </small>
+        </div>
+      </div>
+    </div>
+  );
 
   // === SECTION ÉTUDIANTS ===
   const renderEtudiantsSection = () => (

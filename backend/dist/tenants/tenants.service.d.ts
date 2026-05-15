@@ -1,11 +1,12 @@
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './tenant.entity';
 import { TenantCreationService } from './tenant-creation.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
 export declare class TenantsService {
     private repo;
     private tenantCreationService;
-    constructor(repo: Repository<Tenant>, tenantCreationService: TenantCreationService);
+    private dataSource;
+    constructor(repo: Repository<Tenant>, tenantCreationService: TenantCreationService, dataSource: DataSource);
     create(dto: CreateTenantDto): Promise<Tenant>;
     findAll(): Promise<Tenant[]>;
     findOne(id: string): Promise<Tenant>;

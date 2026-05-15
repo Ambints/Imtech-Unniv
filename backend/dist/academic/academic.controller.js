@@ -409,7 +409,7 @@ __decorate([
 ], AcademicController.prototype, "getAnneesAcademiques", null);
 __decorate([
     (0, common_1.Get)(':tid/enseignants'),
-    (0, swagger_1.ApiOperation)({ summary: 'Liste des enseignants (professeurs)' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des enseignants' }),
     __param(0, (0, common_1.Param)('tid')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

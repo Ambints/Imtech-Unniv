@@ -64,4 +64,9 @@ export declare class FinanceService {
     getEcheanciers(tid: string, inscriptionId?: string): Promise<Echeancier[]>;
     creerFichePaie(dto: any): Promise<FichePaie[]>;
     getFichesPaie(contratId?: string): Promise<FichePaie[]>;
+    getPaiementsInscriptionEnAttente(tid: string): Promise<any>;
+    getTousPaiementsInscription(tid: string, statut?: string): Promise<any>;
+    validerPaiementInscription(tid: string, paiementId: string, caissierId: string, noteValidation?: string): Promise<any>;
+    rejeterPaiementInscription(tid: string, paiementId: string, caissierId: string, motifRejet: string): Promise<any>;
+    getStatistiquesPaiementsInscription(tid: string): Promise<any>;
 }

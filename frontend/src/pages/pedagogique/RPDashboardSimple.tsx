@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../api/client';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ interface DashboardData {
 }
 
 export const RPDashboardSimple: React.FC = () => {
+  const navigate = useNavigate();
   const { user, tenant } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -64,7 +66,7 @@ export const RPDashboardSimple: React.FC = () => {
       console.log('[RP Dashboard] Loading with tid:', tid);
       
       // Charger les parcours
-      const parcoursResponse = await api.get(`/rp-enhanced/${tid}/mes-parcours`);
+      const parcoursResponse = await api.get(`/rp-enhanced/mes-parcours`);
       console.log('[RP Dashboard] Parcours loaded:', parcoursResponse.data);
 
       setDashboardData({
@@ -211,6 +213,7 @@ export const RPDashboardSimple: React.FC = () => {
                   </p>
                 </div>
                 <button
+                  onClick={() => navigate(`/pedagogique/maquettes?parcoursId=${parcours.id}`)}
                   style={{
                     padding: '8px 16px',
                     background: '#1a5276',
@@ -219,8 +222,11 @@ export const RPDashboardSimple: React.FC = () => {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: 13,
-                    fontWeight: 600
+                    fontWeight: 600,
+                    transition: 'background 0.2s'
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#0f3a54'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#1a5276'}
                 >
                   Gérer
                 </button>

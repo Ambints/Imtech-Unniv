@@ -74,7 +74,7 @@ export const CoursEtudiantPage: React.FC = () => {
         <p style={{ color: '#94a3b8', textAlign: 'center', padding: 40, fontSize: 14 }}>
           Les supports de cours seront disponibles prochainement.
           <br />
-          Consultez régulièrement cette section pour télécharger les documents partagés par vos professeurs.
+          Consultez régulièrement cette section pour télécharger les documents partagés par vos enseignants.
         </p>
       </div>
     </div>

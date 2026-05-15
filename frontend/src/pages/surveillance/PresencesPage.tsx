@@ -12,7 +12,7 @@ interface Cours {
   code: string;
   horaire: string;
   salle: string;
-  professeur: string;
+  enseignant: string;
   effectif: number;
 }
 
@@ -232,7 +232,7 @@ export const PresencesPage: React.FC = () => {
                       📍 Salle {cours.salle}
                     </div>
                     <div className="mb-1">
-                      👨‍🏫 {cours.professeur}
+                      👨‍🏫 {cours.enseignant}
                     </div>
                     <div className="mt-2 fw-semibold text-dark">
                       {cours.effectif} étudiants

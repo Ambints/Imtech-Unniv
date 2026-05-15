@@ -432,7 +432,7 @@ __decorate([
 ], CommunicationController.prototype, "marquerLu", null);
 __decorate([
     (0, common_1.Post)('forums/sujets'),
-    (0, roles_decorator_1.Roles)('communication', 'admin', 'professeur', 'etudiant'),
+    (0, roles_decorator_1.Roles)('communication', 'admin', 'enseignant', 'etudiant'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer un sujet de forum' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
@@ -450,7 +450,7 @@ __decorate([
 ], CommunicationController.prototype, "findSujetsForum", null);
 __decorate([
     (0, common_1.Post)('forums/sujets/:id/repondre'),
-    (0, roles_decorator_1.Roles)('communication', 'admin', 'professeur', 'etudiant', 'parent'),
+    (0, roles_decorator_1.Roles)('communication', 'admin', 'enseignant', 'etudiant', 'parent'),
     (0, swagger_1.ApiOperation)({ summary: 'Répondre à un sujet' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),

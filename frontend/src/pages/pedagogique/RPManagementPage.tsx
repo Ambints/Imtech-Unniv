@@ -260,7 +260,7 @@ export const RPManagementPage: React.FC = () => {
 
   const loadMesParcours = async () => {
     try {
-      const response = await api.get(`/rp-enhanced/${tid}/mes-parcours`);
+      const response = await api.get(`/rp-enhanced/mes-parcours`);
       const data = response.data || [];
       setMesParcours(data);
       if (data.length > 0 && !parcoursSelectionne) {
@@ -303,7 +303,7 @@ export const RPManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get(
-        `/rp-enhanced/${tid}/parcours/${parcoursSelectionne}/affectations?anneeAcademiqueId=${anneeAcademique}`
+        `/rp-enhanced/parcours/${parcoursSelectionne}/affectations?anneeAcademiqueId=${anneeAcademique}`
       );
       setAffectations(response.data);
     } catch (err: any) {
@@ -317,7 +317,7 @@ export const RPManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get(
-        `/rp-enhanced/${tid}/parcours/${parcoursSelectionne}/dashboard-performance?anneeAcademiqueId=${anneeAcademique}`
+        `/rp-enhanced/parcours/${parcoursSelectionne}/dashboard-performance?anneeAcademiqueId=${anneeAcademique}`
       );
       setPerformanceDashboard(response.data);
     } catch (err: any) {
@@ -331,7 +331,7 @@ export const RPManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get(
-        `/rp-enhanced/${tid}/parcours/${parcoursSelectionne}/assiduite?anneeAcademiqueId=${anneeAcademique}`
+        `/rp-enhanced/parcours/${parcoursSelectionne}/assiduite?anneeAcademiqueId=${anneeAcademique}`
       );
       setSuiviAssiduite(response.data);
     } catch (err: any) {
@@ -345,7 +345,7 @@ export const RPManagementPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes`, {
+      await api.post(`/rp-enhanced/maquettes`, {
         parcours: maquetteForm,
         unites: [],
       });
@@ -371,7 +371,7 @@ export const RPManagementPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/maquettes/${parcoursId}/ues`, ueForm);
+      await api.post(`/rp-enhanced/maquettes/${parcoursId}/ues`, ueForm);
       toast.success('UE créée avec succès');
       setShowUEForm(null);
       setUEForm({
@@ -398,7 +398,7 @@ export const RPManagementPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post(`/rp-enhanced/${tid}/affectations`, {
+      await api.post(`/rp-enhanced/affectations`, {
         ...affectationForm,
         anneeAcademiqueId: anneeAcademique,
       });

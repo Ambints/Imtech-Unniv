@@ -12,6 +12,9 @@ export declare class User {
     derniereConnexion: Date;
     tokenReset: string;
     tokenResetExpiry: Date;
+    tenantId: string;
+    passwordResetRequired: boolean;
+    lastPasswordReset: Date;
     createdAt: Date;
     updatedAt: Date;
 }

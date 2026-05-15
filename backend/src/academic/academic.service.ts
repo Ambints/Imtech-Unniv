@@ -98,16 +98,21 @@ export class AcademicService {
   async getParcours(tid?: string, userId?: string, userRole?: string) {
     if (tid) await this.tenantConnection.setTenantSchema(tid);
     
-    // Construire la requête de base
+    // Construire la requête de base avec jointures pour secrétaire ET responsable pédagogique
     let query = this.parcoursRepo
       .createQueryBuilder('p')
       .leftJoin('secretaire_parcours', 'sp', 'sp.parcours_id = p.id AND sp.actif = true')
       .leftJoin('utilisateur', 'u', 'u.id = sp.secretaire_id')
+      .leftJoin('utilisateur', 'rp', 'rp.id = p.responsable_id')
       .select([
         'p.*',
         'sp.secretaire_id as "secretaireAssigneId"',
         'u.nom as "secretaireNom"',
-        'u.prenom as "secretairePrenom"'
+        'u.prenom as "secretairePrenom"',
+        'rp.id as "responsableId"',
+        'rp.nom as "responsableNom"',
+        'rp.prenom as "responsablePrenom"',
+        'rp.email as "responsableEmail"'
       ])
       .where('p.actif = true');
     
@@ -120,13 +125,19 @@ export class AcademicService {
       .orderBy('p.nom', 'ASC')
       .getRawMany();
     
-    // Transformer les résultats pour inclure les infos du secrétaire
+    // Transformer les résultats pour inclure les infos du secrétaire ET du responsable
     return parcours.map(p => ({
       ...p,
       secretaireAssigne: p.secretaireAssigneId ? {
         id: p.secretaireAssigneId,
         nom: p.secretaireNom,
         prenom: p.secretairePrenom
+      } : null,
+      responsable: p.responsableId ? {
+        id: p.responsableId,
+        nom: p.responsableNom,
+        prenom: p.responsablePrenom,
+        email: p.responsableEmail
       } : null
     }));
   }
@@ -501,13 +512,13 @@ export class AcademicService {
     return { message: 'Année académique activée avec succès', annee: { ...annee, active: true } };
   }
 
-  // Enseignants (Utilisateurs avec rôle professeur)
+  // Enseignants (Utilisateurs avec rôle enseignant)
   async getEnseignants(tid: string) {
     await this.tenantConnection.setTenantSchema(tid);
     return this.dataSource.query(`
       SELECT id, nom, prenom, email, telephone, photo_url, actif, created_at
       FROM utilisateur
-      WHERE role = 'professeur' AND actif = true
+      WHERE role = 'enseignant' AND actif = true
       ORDER BY nom ASC, prenom ASC
     `);
   }

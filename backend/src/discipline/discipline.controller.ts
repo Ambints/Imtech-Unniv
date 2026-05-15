@@ -8,7 +8,7 @@ import { Roles } from '../auth/roles.decorator';
 @ApiTags('Discipline - Gestion des incidents et sanctions')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('discipline/:tid')
+@Controller('discipline')
 export class DisciplineController {
   constructor(private readonly svc: DisciplineService) {}
 
@@ -17,35 +17,35 @@ export class DisciplineController {
   @Roles('surveillant', 'admin', 'secretaire', 'surveillant_general')
   @ApiOperation({ summary: 'Déclarer un incident disciplinaire' })
   @ApiResponse({ status: 201, description: 'Incident créé' })
-  createIncident(@Param('tid') tid: string, @Body() dto: any) {
+  createIncident(@Body() dto: any) {
     return this.svc.createIncident(dto);
   }
 
   @Get('incidents')
   @Roles('surveillant', 'admin', 'secretaire', 'president', 'surveillant_general')
   @ApiOperation({ summary: 'Liste des incidents avec filtres' })
-  findAllIncidents(@Param('tid') tid: string, @Query() filters: any) {
+  findAllIncidents(@Query() filters: any) {
     return this.svc.findAllIncidents(filters);
   }
 
   @Get('incidents/:id')
   @Roles('surveillant', 'admin', 'secretaire', 'president', 'surveillant_general')
   @ApiOperation({ summary: 'Détail d\'un incident' })
-  findIncidentById(@Param('tid') tid: string, @Param('id') id: string) {
+  findIncidentById(@Param('id') id: string) {
     return this.svc.findIncidentById(id);
   }
 
   @Patch('incidents/:id')
   @Roles('surveillant', 'admin', 'secretaire', 'surveillant_general')
   @ApiOperation({ summary: 'Modifier un incident' })
-  updateIncident(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+  updateIncident(@Param('id') id: string, @Body() dto: any) {
     return this.svc.updateIncident(id, dto);
   }
 
   @Patch('incidents/:id/valider')
   @Roles('admin', 'surveillant_general', 'president')
   @ApiOperation({ summary: 'Valider un incident' })
-  validerIncident(@Param('tid') tid: string, @Param('id') id: string, @Body('validePar') validePar: string) {
+  validerIncident(@Param('id') id: string, @Body('validePar') validePar: string) {
     return this.svc.validerIncident(id, validePar);
   }
 

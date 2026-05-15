@@ -127,7 +127,7 @@ export const PVPage: React.FC = () => {
     try {
       const [anneesRes, parcoursRes] = await Promise.all([
         api.get(`/academic/${tid}/annees`),
-        api.get(`/rp-enhanced/${tid}/mes-parcours`)
+        api.get(`/rp-enhanced/mes-parcours`)
       ]);
       setAnneesAcademiques(anneesRes.data || []);
       setParcours(parcoursRes.data || []);

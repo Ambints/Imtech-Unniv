@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './tenant.entity';
 import { TenantCreationService } from './tenant-creation.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
@@ -16,6 +16,7 @@ export class TenantsService {
   constructor(
     @InjectRepository(Tenant) private repo: Repository<Tenant>,
     private tenantCreationService: TenantCreationService,
+    @InjectDataSource() private dataSource: DataSource,
   ) {}
 
   async create(dto: CreateTenantDto): Promise<Tenant> {
@@ -206,7 +207,7 @@ export class TenantsService {
   async getSubscriptions(): Promise<{ subscriptions: any[], stats: any }> {
     const tenants = await this.repo.find({
       order: { createdAt: 'DESC' },
-      select: ['id', 'nom', 'slug', 'actif', 'createdAt', 'planAbonnement', 
+      select: ['id', 'nom', 'slug', 'schemaName', 'actif', 'createdAt', 'planAbonnement',
                'statutAbonnement', 'dateDebutAbonnement', 'dateFinAbonnement',
                'prixMensuel', 'maxUtilisateurs']
     });
@@ -219,20 +220,49 @@ export class TenantsService {
       return new Date().toISOString();
     };
 
-    // Mapper vers le format attendu par le frontend
-    const subscriptions = tenants.map(tenant => ({
-      id: tenant.id,
-      tenantId: tenant.slug,
-      tenantName: tenant.nom,
-      plan: tenant.planAbonnement || 'basic',
-      status: tenant.statutAbonnement || 'active',
-      startDate: toISODate(tenant.dateDebutAbonnement),
-      endDate: toISODate(tenant.dateFinAbonnement) || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      monthlyPrice: Number(tenant.prixMensuel) || 50000,
-      maxUsers: tenant.maxUtilisateurs || 100,
-      currentUsers: 0, // À récupérer depuis le schéma tenant
-      features: this.getPlanFeatures(tenant.planAbonnement || 'basic'),
-    }));
+    // Récupérer les données réelles pour chaque tenant
+    const subscriptionsWithData = await Promise.all(
+      tenants.map(async (tenant) => {
+        let currentUsers = 0;
+        let currentStudents = 0;
+
+        // Récupérer les données réelles depuis le schéma du tenant
+        if (tenant.schemaName && tenant.actif) {
+          try {
+            // Compter les utilisateurs actifs
+            const usersResult = await this.dataSource.query(
+              `SELECT COUNT(*) as count FROM "${tenant.schemaName}".utilisateur WHERE actif = true`
+            );
+            currentUsers = parseInt(usersResult[0]?.count || '0');
+
+            // Compter les étudiants actifs
+            const studentsResult = await this.dataSource.query(
+              `SELECT COUNT(*) as count FROM "${tenant.schemaName}".etudiant WHERE actif = true`
+            );
+            currentStudents = parseInt(studentsResult[0]?.count || '0');
+          } catch (error) {
+            console.warn(`Impossible de récupérer les stats pour ${tenant.nom}:`, error instanceof Error ? error.message : String(error));
+          }
+        }
+
+        return {
+          id: tenant.id,
+          tenantId: tenant.slug,
+          tenantName: tenant.nom,
+          plan: tenant.planAbonnement || 'basic',
+          status: tenant.statutAbonnement || 'active',
+          startDate: toISODate(tenant.dateDebutAbonnement),
+          endDate: toISODate(tenant.dateFinAbonnement) || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          monthlyPrice: Number(tenant.prixMensuel) || 50000,
+          maxUsers: tenant.maxUtilisateurs || 100,
+          currentUsers,
+          currentStudents,
+          features: this.getPlanFeatures(tenant.planAbonnement || 'basic'),
+        };
+      })
+    );
+
+    const subscriptions = subscriptionsWithData;
 
     // Calculer les statistiques
     const now = new Date();
@@ -386,7 +416,7 @@ export class TenantsService {
       );
       
       const teachersCount = await connection.query(
-        `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'professeur' AND actif = true`
+        `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'enseignant' AND actif = true`
       );
       
       // 3. Statistiques financières
