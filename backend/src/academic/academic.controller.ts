@@ -221,4 +221,10 @@ export class AcademicController {
   activerAnneeAcademique(@Param('tid') tid: string, @Param('id') id: string) {
     return this.svc.activerAnneeAcademique(tid, id);
   }
+
+  @Delete(':tid/annees/:id')
+  @ApiOperation({ summary: 'Supprimer une année académique' })
+  deleteAnneeAcademique(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteAnneeAcademique(tid, id);
+  }
 }

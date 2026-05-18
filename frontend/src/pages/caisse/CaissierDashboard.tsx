@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { financeApi } from '../../api/client';
 import toast from 'react-hot-toast';
-import { 
-  Banknote, TrendingUp, Wallet, CreditCard, Receipt, 
+import {
+  Banknote, TrendingUp, Wallet, CreditCard, Receipt,
   Calendar, Users, FileText, Settings, DollarSign,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle,
   AlertCircle, Printer, Download, Filter, Search
@@ -39,8 +40,14 @@ interface FraisInscription {
   actif: boolean;
 }
 
+interface CacheData {
+  stats: DashboardStats | null;
+  transactions: TransactionRecent[];
+  fraisInscription: FraisInscription[];
+}
+
 export const CaissierDashboard: React.FC = () => {
-  const { user, tenant } = useAuthStore();
+  const { user, tenant, accessToken } = useAuthStore();
   const tenantId = tenant?.id || '';
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -49,66 +56,106 @@ export const CaissierDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('jour');
+  const [dataCache, setDataCache] = useState<{[key: string]: {data: CacheData, timestamp: number}}>({});
+
+  // Fonction de cache avec expiration (5 minutes)
+  const getCachedData = useCallback((key: string): CacheData | null => {
+    const cached = dataCache[key];
+    if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes
+      return cached.data;
+    }
+    return null;
+  }, [dataCache]);
+
+  const setCachedData = useCallback((key: string, data: CacheData) => {
+    setDataCache(prev => ({
+      ...prev,
+      [key]: { data, timestamp: Date.now() }
+    }));
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
+    if (!tenantId || !accessToken) return;
+    
+    setLoading(true);
+    try {
+      const cacheKey = `dashboard-${selectedPeriod}-${new Date().toISOString().split('T')[0]}`;
+      const cached = getCachedData(cacheKey);
+      
+      if (cached) {
+        setStats(cached.stats);
+        setTransactions(cached.transactions);
+        setFraisInscription(cached.fraisInscription);
+        setLoading(false);
+        return;
+      }
+
+      // Utiliser l'endpoint existant /finance/caisse qui retourne les données du jour
+      const caisseResponse = await financeApi.getCaisse(tenantId);
+      const caisseData = caisseResponse.data;
+
+      // Calculer les statistiques à partir des paiements
+      const paiements = caisseData.paiements || [];
+      const total = caisseData.total || 0;
+      const nombrePaiements = caisseData.nombrePaiements || 0;
+
+      // Calculer le nombre d'étudiants uniques (inscriptions uniques)
+      const inscriptionsUniques = new Set(paiements.map((p: any) => p.inscriptionId));
+      const etudiantsPayants = inscriptionsUniques.size;
+
+      // Calculer la moyenne des paiements
+      const moyennePaiement = nombrePaiements > 0 ? total / nombrePaiements : 0;
+
+      const newStats: DashboardStats = {
+        totalEncaisse: total,
+        totalDepense: 0,
+        solde: total,
+        transactionsJour: nombrePaiements,
+        etudiantsPayants,
+        impayes: 0,
+        moyennePaiement,
+        dernierPaiement: paiements.length > 0 ? paiements[0].datePaiement : new Date().toISOString()
+      };
+
+      // Formater les transactions pour l'affichage
+      const newTransactions: TransactionRecent[] = paiements.slice(0, 10).map((p: any) => ({
+        id: p.id,
+        etudiant: p.etudiantNomComplet || `${p.etudiantNom || ''} ${p.etudiantPrenom || ''}`.trim() || p.inscriptionId,
+        montant: Number(p.montant),
+        mode: p.modePaiement,
+        date: p.datePaiement,
+        statut: p.statut,
+        type: 'Paiement'
+      }));
+
+      setStats(newStats);
+      setTransactions(newTransactions);
+      setFraisInscription([]); // Pas de frais d'inscription pour l'instant
+
+      // Mettre en cache
+      setCachedData(cacheKey, {
+        stats: newStats,
+        transactions: newTransactions,
+        fraisInscription: []
+      });
+
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+      toast.error('Erreur de chargement des données de la caisse');
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId, accessToken, selectedPeriod, getCachedData, setCachedData]);
 
   useEffect(() => {
     if (!tenantId) return;
     loadDashboardData();
-  }, [tenantId, selectedPeriod]);
+  }, [tenantId, selectedPeriod, loadDashboardData]);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Charger les statistiques du jour
-      const statsResponse = await fetch(`/api/caissier/stats/journalieres?date=${new Date().toISOString().split('T')[0]}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats({
-          totalEncaisse: statsData.totaux?.total_encaisse || 0,
-          totalDepense: 0,
-          solde: statsData.totaux?.total_encaisse || 0,
-          transactionsJour: statsData.totaux?.nb_transactions || 0,
-          etudiantsPayants: statsData.totaux?.nb_etudiants || 0,
-          impayes: 0,
-          moyennePaiement: statsData.totaux?.montant_moyen || 0,
-          dernierPaiement: new Date().toISOString()
-        });
-      }
+  const fmt = useCallback((n: number) => Number(n || 0).toLocaleString('fr-FR') + ' Ar', []);
 
-      // Charger les transactions récentes
-      const transactionsResponse = await fetch(`/api/caissier/paiements`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (transactionsResponse.ok) {
-        const transactionsData = await transactionsResponse.json();
-        setTransactions(transactionsData.slice(0, 10));
-      }
-
-      // Charger les frais d'inscription
-      const fraisResponse = await fetch(`/api/caissier/frais-inscription`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (fraisResponse.ok) {
-        const fraisData = await fraisResponse.json();
-        setFraisInscription(fraisData.slice(0, 5));
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-      toast.error('Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR') + ' Ar';
-
-  const StatCard = ({ title, value, icon, color, trend, trendValue }: any) => (
+  // Mémoïser le composant StatCard pour éviter les re-renders
+  const StatCard = useMemo(() => React.memo(({ title, value, icon, color, trend, trendValue }: any) => (
     <div style={{ 
       background: '#fff', 
       borderRadius: 16, 
@@ -153,7 +200,7 @@ export const CaissierDashboard: React.FC = () => {
         )}
       </div>
     </div>
-  );
+  )), []);
 
   if (loading) {
     return (
@@ -282,7 +329,7 @@ export const CaissierDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction, index) => (
+                {transactions.map((transaction) => (
                   <tr key={transaction.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '12px 8px', fontSize: 14, fontWeight: 500 }}>
                       {transaction.etudiant}
@@ -510,3 +557,5 @@ export const CaissierDashboard: React.FC = () => {
     </div>
   );
 };
+
+// Made with Bob

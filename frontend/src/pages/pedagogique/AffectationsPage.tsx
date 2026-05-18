@@ -116,16 +116,31 @@ export const AffectationsPage: React.FC = () => {
     try {
       const [parcoursResponse, enseignantsResponse, anneesResponse] = await Promise.all([
         api.get(`/rp-enhanced/mes-parcours`),
-        api.get(`/academic/${tid}/enseignants`),
+        api.get(`/rp-enhanced/enseignants`),
         api.get(`/academic/${tid}/annees`)
       ]);
       
-      setParcours(parcoursResponse.data || []);
+      const parcoursData = parcoursResponse.data || [];
+      
+      // Charger les UE pour chaque parcours
+      const parcoursWithUEs = await Promise.all(
+        parcoursData.map(async (p: Parcours) => {
+          try {
+            const uesResponse = await api.get(`/rp-enhanced/parcours/${p.id}/unites`);
+            return { ...p, unites: uesResponse.data || [] };
+          } catch (error) {
+            console.error(`Erreur chargement UE pour parcours ${p.id}:`, error);
+            return { ...p, unites: [] };
+          }
+        })
+      );
+      
+      setParcours(parcoursWithUEs);
       setEnseignants(enseignantsResponse.data || []);
       setAnneesAcademiques(anneesResponse.data || []);
       
-      if (parcoursResponse.data?.length > 0) {
-        setSelectedParcours(parcoursResponse.data[0].id);
+      if (parcoursWithUEs.length > 0) {
+        setSelectedParcours(parcoursWithUEs[0].id);
       }
       if (anneesResponse.data?.length > 0) {
         const active = anneesResponse.data.find((a: AnneeAcademique) => a.active);
@@ -213,6 +228,20 @@ export const AffectationsPage: React.FC = () => {
       typeSeance: 'CM',
       volumePrevu: 30
     });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleNewAffectation = () => {
+    setFormData({
+      enseignantId: '',
+      ueId: '',
+      anneeAcademiqueId: selectedAnnee,
+      typeSeance: 'CM',
+      volumePrevu: 30
+    });
+    setEditingId(null);
+    setShowForm(true);
   };
 
   const getParcoursUEs = () => {
@@ -277,7 +306,7 @@ export const AffectationsPage: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
           <button
-            onClick={() => { setShowForm(true); setEditingId(null); resetForm(); }}
+            onClick={handleNewAffectation}
             style={{
               width: '100%',
               padding: '11px 20px',

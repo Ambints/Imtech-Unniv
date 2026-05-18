@@ -121,4 +121,7 @@ export declare class AcademicController {
             createdAt: Date;
         };
     }>;
+    deleteAnneeAcademique(tid: string, id: string): Promise<{
+        message: string;
+    }>;
 }

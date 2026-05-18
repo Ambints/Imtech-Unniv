@@ -1,35 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { financeApi } from '../../api/client';
 import toast from 'react-hot-toast';
 import { 
-  Calendar, Clock, DollarSign, AlertCircle, CheckCircle, Plus, Edit2, Trash2,
-  Search, Filter, User, FileText, Bell, Send, Eye, EyeOff, RefreshCw, X
+  Calendar, Clock, DollarSign, AlertCircle, CheckCircle, Plus, 
+  Search, User, FileText, Bell, RefreshCw, X
 } from 'lucide-react';
 
 interface Echeancier {
   id: string;
   inscription_id: string;
   etudiant_nom: string;
+  etudiant_prenom: string;
   etudiant_matricule: string;
   parcours_nom: string;
   num_tranche: number;
   montant_du: number;
   date_echeance: string;
-  statut: 'en_attente' | 'paye' | 'en_retard' | 'annule';
-  montant_paye?: number;
-  date_paiement?: string;
-  mode_paiement?: string;
-  observations?: string;
+  statut: string;
+  statut_calcule?: string;
+  annee_niveau?: number;
+  annee_academique?: string;
 }
 
-interface Relance {
+interface InscriptionActive {
   id: string;
-  echeancier_id: string;
-  date_envoi: string;
-  type_envoi: 'email' | 'sms';
-  message: string;
-  statut: 'envoyee' | 'en_attente' | 'echec';
-  destinataire: string;
+  etudiant_id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  parcours_nom: string;
+  annee_niveau: number;
+  annee_academique: string;
 }
 
 interface EcheancierForm {
@@ -41,18 +43,15 @@ interface EcheancierForm {
 }
 
 export const EcheanciersPage: React.FC = () => {
-  const { user, tenant } = useAuthStore();
+  const { tenant } = useAuthStore();
   const tenantId = tenant?.id || '';
   
   const [echeanciers, setEcheanciers] = useState<Echeancier[]>([]);
-  const [relances, setRelances] = useState<Relance[]>([]);
+  const [inscriptions, setInscriptions] = useState<InscriptionActive[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showRelanceModal, setShowRelanceModal] = useState(false);
-  const [selectedEcheancier, setSelectedEcheancier] = useState<Echeancier | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatut, setFilterStatut] = useState<'all' | 'en_attente' | 'paye' | 'en_retard' | 'annule'>('all');
-  const [filterRetard, setFilterRetard] = useState(false);
+  const [filterStatut, setFilterStatut] = useState<string>('all');
   
   const [form, setForm] = useState<EcheancierForm>({
     inscription_id: '',
@@ -62,37 +61,29 @@ export const EcheanciersPage: React.FC = () => {
     observations: ''
   });
 
-  const [relanceForm, setRelanceForm] = useState({
-    type_envoi: 'email' as 'email' | 'sms',
-    message: '',
-    destinataire: ''
-  });
-
-  useEffect(() => {
-    loadData();
-  }, [tenantId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!tenantId) return;
+    
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const [echeanciersRes, inscriptionsRes] = await Promise.all([
+        financeApi.getEcheanciers(tenantId),
+        financeApi.getInscriptionsActives(tenantId)
+      ]);
       
-      // Charger les échéanciers
-      const echeanciersResponse = await fetch(`/api/caissier/echeanciers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (echeanciersResponse.ok) {
-        const echeanciersData = await echeanciersResponse.json();
-        setEcheanciers(echeanciersData);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-      toast.error('Erreur de chargement');
+      setEcheanciers(echeanciersRes.data || []);
+      setInscriptions(inscriptionsRes.data || []);
+    } catch (error: any) {
+      console.error('Erreur chargement:', error);
+      toast.error(error.response?.data?.message || 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,120 +95,23 @@ export const EcheanciersPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/echeanciers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...form,
-          montant_du: parseFloat(form.montant_du)
-        })
+      await financeApi.creerEcheancier(tenantId, {
+        inscriptionId: form.inscription_id,
+        numTranche: form.num_tranche,
+        montantDu: parseFloat(form.montant_du),
+        dateEcheance: form.date_echeance,
+        observations: form.observations || null
       });
 
-      if (response.ok) {
-        toast.success('Échéancier créé avec succès!');
-        setShowForm(false);
-        resetForm();
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de la création');
-      }
-    } catch (error) {
+      toast.success('Échéancier créé avec succès!');
+      setShowForm(false);
+      resetForm();
+      loadData();
+    } catch (error: any) {
       console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
+      toast.error(error.response?.data?.message || 'Erreur lors de la création');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleModifierEcheance = async (id: string, nouvelleDate: string, motif: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/echeanciers/${id}/modifier`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nouvelleDate,
-          motif
-        })
-      });
-
-      if (response.ok) {
-        toast.success('Échéance modifiée avec succès!');
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de la modification');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
-    }
-  };
-
-  const handleRelance = async () => {
-    if (!selectedEcheancier || !relanceForm.message) {
-      toast.error('Veuillez sélectionner un échéancier et rédiger un message');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/relances`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          echeancier_id: selectedEcheancier.id,
-          type_envoi: relanceForm.type_envoi,
-          message: relanceForm.message,
-          destinataire: relanceForm.destinataire
-        })
-      });
-
-      if (response.ok) {
-        toast.success('Relance envoyée avec succès!');
-        setShowRelanceModal(false);
-        setSelectedEcheancier(null);
-        setRelanceForm({ type_envoi: 'email', message: '', destinataire: '' });
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de l\'envoi');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getImpayes = async (jours: number = 30) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/impayes?jours=${jours}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const impayesData = await response.json();
-        setEcheanciers(impayesData);
-        toast.success(`${impayesData.length} impayés trouvés`);
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de chargement');
     }
   };
 
@@ -234,24 +128,26 @@ export const EcheanciersPage: React.FC = () => {
   const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR') + ' Ar';
 
   const filteredEcheanciers = echeanciers.filter(e => {
-    const matchesSearch = e.etudiant_nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         e.etudiant_matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         e.parcours_nom.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatut = filterStatut === 'all' || e.statut === filterStatut;
-    const matchesRetard = !filterRetard || e.statut === 'en_retard';
-    return matchesSearch && matchesStatut && matchesRetard;
+    const matchesSearch = 
+      e.etudiant_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.etudiant_prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.etudiant_matricule?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.parcours_nom?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const statut = e.statut_calcule || e.statut;
+    const matchesStatut = filterStatut === 'all' || statut === filterStatut;
+    
+    return matchesSearch && matchesStatut;
   });
 
   const stats = {
     total: echeanciers.length,
-    en_attente: echeanciers.filter(e => e.statut === 'en_attente').length,
-    paye: echeanciers.filter(e => e.statut === 'paye').length,
-    en_retard: echeanciers.filter(e => e.statut === 'en_retard').length,
-    montant_total_du: echeanciers.reduce((sum, e) => sum + e.montant_du, 0),
-    montant_total_paye: echeanciers.reduce((sum, e) => sum + (e.montant_paye || 0), 0),
+    en_attente: echeanciers.filter(e => (e.statut_calcule || e.statut) === 'en_attente').length,
+    paye: echeanciers.filter(e => (e.statut_calcule || e.statut) === 'paye').length,
+    en_retard: echeanciers.filter(e => (e.statut_calcule || e.statut) === 'en_retard').length,
     montant_impaye: echeanciers
-      .filter(e => e.statut === 'en_retard' || e.statut === 'en_attente')
-      .reduce((sum, e) => sum + (e.montant_du - (e.montant_paye || 0)), 0)
+      .filter(e => ['en_retard', 'en_attente'].includes(e.statut_calcule || e.statut))
+      .reduce((sum, e) => sum + e.montant_du, 0)
   };
 
   const getStatutColor = (statut: string) => {
@@ -259,7 +155,6 @@ export const EcheanciersPage: React.FC = () => {
       case 'paye': return '#10b981';
       case 'en_attente': return '#f59e0b';
       case 'en_retard': return '#ef4444';
-      case 'annule': return '#64748b';
       default: return '#64748b';
     }
   };
@@ -269,7 +164,6 @@ export const EcheanciersPage: React.FC = () => {
       case 'paye': return <CheckCircle size={16} />;
       case 'en_attente': return <Clock size={16} />;
       case 'en_retard': return <AlertCircle size={16} />;
-      case 'annule': return <EyeOff size={16} />;
       default: return <Clock size={16} />;
     }
   };
@@ -288,46 +182,25 @@ export const EcheanciersPage: React.FC = () => {
               Gestion des échéances de paiement et relances automatiques
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button
-              onClick={() => getImpayes(30)}
-              style={{
-                padding: '10px 16px',
-                background: '#ef4444',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}
-            >
-              <AlertCircle size={18} />
-              Impayés (30j)
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              style={{
-                padding: '10px 20px',
-                background: '#1a5276',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}
-            >
-              <Plus size={18} />
-              Nouveau Échéancier
-            </button>
-          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              padding: '10px 20px',
+              background: '#1a5276',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <Plus size={18} />
+            Nouveau Échéancier
+          </button>
         </div>
 
         {/* Stats */}
@@ -365,7 +238,7 @@ export const EcheanciersPage: React.FC = () => {
               <DollarSign size={20} color="#8b5cf6" />
               <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Montant Impayé</span>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6' }}>{fmt(stats.montant_impaye)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#8b5cf6' }}>{fmt(stats.montant_impaye)}</div>
           </div>
         </div>
 
@@ -390,7 +263,7 @@ export const EcheanciersPage: React.FC = () => {
           </div>
           <select
             value={filterStatut}
-            onChange={(e) => setFilterStatut(e.target.value as any)}
+            onChange={(e) => setFilterStatut(e.target.value)}
             style={{
               padding: '12px 16px',
               border: '2px solid #e2e8f0',
@@ -404,145 +277,87 @@ export const EcheanciersPage: React.FC = () => {
             <option value="en_attente">En attente</option>
             <option value="paye">Payés</option>
             <option value="en_retard">En retard</option>
-            <option value="annule">Annulés</option>
           </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={filterRetard}
-              onChange={(e) => setFilterRetard(e.target.checked)}
-              style={{ cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 14, color: '#64748b' }}>Uniquement les retards</span>
-          </label>
         </div>
       </div>
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Étudiant</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Parcours</th>
-                <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tranche</th>
-                <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Montant Du</th>
-                <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Date Échéance</th>
-                <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Statut</th>
-                <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEcheanciers.map((echeancier) => (
-                <tr key={echeancier.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
-                        {echeancier.etudiant_nom}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>
-                        {echeancier.etudiant_matricule}
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 8px', fontSize: 14, color: '#1e293b' }}>
-                    {echeancier.parcours_nom}
-                  </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
-                    {echeancier.num_tranche}/{echeancier.num_tranche + 1}
-                  </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#f59e0b' }}>
-                    {fmt(echeancier.montant_du)}
-                    {echeancier.montant_paye && (
-                      <div style={{ fontSize: 11, color: '#10b981' }}>
-                        Payé: {fmt(echeancier.montant_paye)}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, color: '#1e293b' }}>
-                    {new Date(echeancier.date_echeance).toLocaleDateString('fr-FR')}
-                    {echeancier.date_paiement && (
-                      <div style={{ fontSize: 11, color: '#10b981' }}>
-                        Payé: {new Date(echeancier.date_paiement).toLocaleDateString('fr-FR')}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                    <span style={{ 
-                      padding: '6px 12px', 
-                      borderRadius: 20, 
-                      fontSize: 11, 
-                      fontWeight: 600,
-                      background: `${getStatutColor(echeancier.statut)}20`,
-                      color: getStatutColor(echeancier.statut),
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}>
-                      {getStatutIcon(echeancier.statut)}
-                      {echeancier.statut.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                      {echeancier.statut === 'en_retard' && (
-                        <button
-                          onClick={() => {
-                            setSelectedEcheancier(echeancier);
-                            setRelanceForm({
-                              type_envoi: 'email',
-                              message: `Rappel: Votre échéance de paiement de ${fmt(echeancier.montant_du)} est en retard depuis le ${new Date(echeancier.date_echeance).toLocaleDateString('fr-FR')}. Merci de régulariser votre situation.`,
-                              destinataire: ''
-                            });
-                            setShowRelanceModal(true);
-                          }}
-                          style={{
-                            padding: '6px',
-                            background: '#fee2e2',
-                            border: 'none',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}
-                          title="Envoyer une relance"
-                        >
-                          <Bell size={16} color="#ef4444" />
-                        </button>
-                      )}
-                      {echeancier.statut === 'en_attente' && (
-                        <button
-                          onClick={() => {
-                            const nouvelleDate = prompt('Nouvelle date d\'échéance (YYYY-MM-DD):');
-                            if (nouvelleDate) {
-                              const motif = prompt('Motif du report:');
-                              if (motif) {
-                                handleModifierEcheance(echeancier.id, nouvelleDate, motif);
-                              }
-                            }
-                          }}
-                          style={{
-                            padding: '6px',
-                            background: '#f1f5f9',
-                            border: 'none',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}
-                          title="Reporter l'échéance"
-                        >
-                          <RefreshCw size={16} color="#3b82f6" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Chargement...</span>
+            </div>
+          </div>
+        ) : filteredEcheanciers.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+            <Calendar size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+            <p style={{ fontSize: 16, fontWeight: 600 }}>Aucun échéancier trouvé</p>
+            <p style={{ fontSize: 14 }}>Créez un nouvel échéancier pour commencer</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Étudiant</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Parcours</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tranche</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Montant</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Échéance</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Statut</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredEcheanciers.map((ech) => {
+                  const statut = ech.statut_calcule || ech.statut;
+                  return (
+                    <tr key={ech.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '12px 8px' }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+                            {ech.etudiant_nom} {ech.etudiant_prenom}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                            {ech.etudiant_matricule}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 8px', fontSize: 14, color: '#1e293b' }}>
+                        {ech.parcours_nom}
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+                        {ech.num_tranche}
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#f59e0b' }}>
+                        {fmt(ech.montant_du)}
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center', fontSize: 14, color: '#1e293b' }}>
+                        {new Date(ech.date_echeance).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                        <span style={{ 
+                          padding: '6px 12px', 
+                          borderRadius: 20, 
+                          fontSize: 11, 
+                          fontWeight: 600,
+                          background: `${getStatutColor(statut)}20`,
+                          color: getStatutColor(statut),
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          {getStatutIcon(statut)}
+                          {statut.replace('_', ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal Formulaire */}
@@ -564,7 +379,9 @@ export const EcheanciersPage: React.FC = () => {
             borderRadius: 16,
             padding: 32,
             maxWidth: 500,
-            width: '90%'
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -585,13 +402,11 @@ export const EcheanciersPage: React.FC = () => {
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                  ID Inscription *
+                  Étudiant Inscrit *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={form.inscription_id}
                   onChange={(e) => setForm(prev => ({ ...prev, inscription_id: e.target.value }))}
-                  placeholder="UUID de l'inscription"
                   required
                   style={{
                     width: '100%',
@@ -599,9 +414,18 @@ export const EcheanciersPage: React.FC = () => {
                     border: '2px solid #e2e8f0',
                     borderRadius: 10,
                     fontSize: 14,
-                    outline: 'none'
+                    outline: 'none',
+                    background: '#fff',
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  <option value="">Sélectionner un étudiant</option>
+                  {inscriptions.map(ins => (
+                    <option key={ins.id} value={ins.id}>
+                      {ins.nom} {ins.prenom} ({ins.matricule}) - {ins.parcours_nom} - Niveau {ins.annee_niveau}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -743,178 +567,8 @@ export const EcheanciersPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Modal Relance */}
-      {showRelanceModal && selectedEcheancier && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 32,
-            maxWidth: 600,
-            width: '90%'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Bell size={24} color="#ef4444" />
-                Envoyer une Relance
-              </h3>
-              <button
-                onClick={() => {
-                  setShowRelanceModal(false);
-                  setSelectedEcheancier(null);
-                  setRelanceForm({ type_envoi: 'email', message: '', destinataire: '' });
-                }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                <X size={24} color="#64748b" />
-              </button>
-            </div>
-
-            <div style={{ padding: 16, background: '#fee2e2', borderRadius: 12, marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#991b1b', marginBottom: 8 }}>
-                Étudiant: {selectedEcheancier.etudiant_nom}
-              </div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>
-                Montant: {fmt(selectedEcheancier.montant_du)} | 
-                Échéance: {new Date(selectedEcheancier.date_echeance).toLocaleDateString('fr-FR')}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                Type d'envoi
-              </label>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="email"
-                    checked={relanceForm.type_envoi === 'email'}
-                    onChange={(e) => setRelanceForm(prev => ({ ...prev, type_envoi: 'email' }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: 14, color: '#374151' }}>Email</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="sms"
-                    checked={relanceForm.type_envoi === 'sms'}
-                    onChange={(e) => setRelanceForm(prev => ({ ...prev, type_envoi: 'sms' }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: 14, color: '#374151' }}>SMS</span>
-                </label>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                Destinataire
-              </label>
-              <input
-                type="text"
-                value={relanceForm.destinataire}
-                onChange={(e) => setRelanceForm(prev => ({ ...prev, destinataire: e.target.value }))}
-                placeholder={relanceForm.type_envoi === 'email' ? 'email@example.com' : '+261 34 00 000 00'}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  outline: 'none'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                Message de relance
-              </label>
-              <textarea
-                value={relanceForm.message}
-                onChange={(e) => setRelanceForm(prev => ({ ...prev, message: e.target.value }))}
-                rows={6}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  outline: 'none',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                onClick={() => {
-                  setShowRelanceModal(false);
-                  setSelectedEcheancier(null);
-                  setRelanceForm({ type_envoi: 'email', message: '', destinataire: '' });
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: '#fff',
-                  color: '#64748b',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleRelance}
-                disabled={loading}
-                style={{
-                  flex: 2,
-                  padding: '12px',
-                  background: loading ? '#94a3b8' : '#ef4444',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                {loading ? (
-                  <div className="spinner-border spinner-border-sm" role="status">
-                    <span className="visually-hidden">Chargement...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Send size={18} />
-                    Envoyer la Relance
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+// Made with Bob

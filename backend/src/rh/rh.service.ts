@@ -39,6 +39,40 @@ export class RHService {
     }
   }
 
+  // Helper pour convertir snake_case en camelCase
+  private toCamelCase(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.toCamelCase(item));
+    }
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    return Object.keys(obj).reduce((acc, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      acc[camelKey] = this.toCamelCase(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+
+  // ========== UTILISATEURS & DÉPARTEMENTS ==========
+  async getUtilisateurs(): Promise<any[]> {
+    const result = await this.query(`
+      SELECT id, nom, prenom, email, role, actif
+      FROM utilisateur
+      ORDER BY nom, prenom
+    `);
+    return this.toCamelCase(result);
+  }
+
+  async getDepartements(): Promise<any[]> {
+    const result = await this.query(`
+      SELECT id, nom, code, description
+      FROM departement
+      ORDER BY nom
+    `);
+    return this.toCamelCase(result);
+  }
+
   // ========== CONTRATS ==========
   async createContrat(data: any): Promise<any> {
     const result = await this.query(`
@@ -52,12 +86,16 @@ export class RHService {
       data.dateDebut, data.dateFin, data.salaireBrut, data.salaireNet,
       data.volumeHoraireHebdo, data.actif !== false, data.observations
     ]);
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   async findContrats(filters?: { typeContrat?: string; actif?: boolean; departementId?: string }): Promise<any[]> {
     let query = `
-      SELECT c.*, u.nom as utilisateur_nom, u.prenom as utilisateur_prenom, d.nom as departement_nom
+      SELECT
+        c.*,
+        u.nom as utilisateur_nom,
+        u.prenom as utilisateur_prenom,
+        d.nom as departement_nom
       FROM contrat_personnel c
       LEFT JOIN utilisateur u ON u.id = c.utilisateur_id
       LEFT JOIN departement d ON d.id = c.departement_id
@@ -80,7 +118,8 @@ export class RHService {
     }
 
     query += ` ORDER BY c.date_debut DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async renouvelerContrat(id: string, data: { nouvelleDateFin: Date; nouveauSalaire?: number }): Promise<any> {
@@ -104,7 +143,7 @@ export class RHService {
     }
 
     const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   async resilierContrat(id: string, motif: string): Promise<any> {
@@ -115,7 +154,7 @@ export class RHService {
     `, [motif, id]);
 
     const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   // ========== HEURES COMPLÉMENTAIRES ==========
@@ -128,7 +167,7 @@ export class RHService {
       RETURNING *
     `, [data.enseignantId, data.dateTravail, data.nbHeures, data.tauxHoraire, data.motif]);
     
-    return heuresComp[0];
+    return this.toCamelCase(heuresComp[0]);
   }
 
   async findHeuresComplementaires(filters?: { enseignantId?: string; statut?: string; mois?: number; annee?: number }): Promise<any[]> {
@@ -151,7 +190,8 @@ export class RHService {
     }
     
     query += ` ORDER BY hc.date_travail DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async validerHeuresComplementaires(id: string, validePar: string): Promise<any> {
@@ -161,7 +201,7 @@ export class RHService {
       WHERE id = $2
     `, [validePar, id]);
     const result = await this.query(`SELECT * FROM heure_complementaire WHERE id = $1`, [id]);
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   async getVolumeHoraireEnseignant(enseignantId: string, annee?: number): Promise<any> {
@@ -177,7 +217,7 @@ export class RHService {
       WHERE enseignant_id = $1 ${anneeFilter}
     `, [enseignantId]);
     
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   // ========== CONGÉS ==========
@@ -191,7 +231,7 @@ export class RHService {
       data.utilisateurId, data.typeConge, data.dateDebut, data.dateFin,
       data.nbJours, data.motif
     ]);
-    return result[0];
+    return this.toCamelCase(result[0]);
   }
 
   async findConges(filters?: { utilisateurId?: string; statut?: string; typeConge?: string }): Promise<any[]> {
@@ -218,7 +258,8 @@ export class RHService {
     }
 
     query += ` ORDER BY c.date_debut DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async approuverConge(id: string, data: { approuvePar: string; commentaire?: string }): Promise<any> {
@@ -303,7 +344,8 @@ export class RHService {
     }
 
     query += ` ORDER BY fp.annee DESC, fp.mois DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async validerFichePaie(id: string): Promise<any> {
@@ -359,8 +401,18 @@ export class RHService {
   }
 
   async findEvaluations(filters?: { utilisateurId?: string; annee?: number; statut?: string }): Promise<any[]> {
-    let query = `SELECT ep.*, u.nom, u.prenom FROM evaluation_personnel ep
-                 JOIN utilisateur u ON u.id = ep.utilisateur_id WHERE 1=1`;
+    let query = `
+      SELECT
+        ep.*,
+        u.nom as utilisateur_nom,
+        u.prenom as utilisateur_prenom,
+        ev.nom as evaluateur_nom,
+        ev.prenom as evaluateur_prenom
+      FROM evaluation_personnel ep
+      LEFT JOIN utilisateur u ON u.id = ep.utilisateur_id
+      LEFT JOIN utilisateur ev ON ev.id = ep.evaluateur_id
+      WHERE 1=1
+    `;
     const params: any[] = [];
     let paramCount = 0;
     
@@ -378,7 +430,8 @@ export class RHService {
     }
     
     query += ` ORDER BY ep.date_evaluation DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async submitAutoEvaluation(id: string, data: any): Promise<any> {
@@ -434,7 +487,8 @@ export class RHService {
     }
     
     query += ` ORDER BY periode_debut DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   async exportDeclarationSociale(id: string): Promise<any> {
@@ -487,7 +541,8 @@ export class RHService {
     }
     
     query += ` ORDER BY r.created_at DESC`;
-    return this.query(query, params);
+    const result = await this.query(query, params);
+    return this.toCamelCase(result);
   }
 
   // ========== STATISTIQUES ==========

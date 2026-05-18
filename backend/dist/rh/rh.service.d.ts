@@ -6,6 +6,9 @@ export declare class RHService {
     private tenantSchema;
     constructor(dataSource: DataSource, request: any);
     private query;
+    private toCamelCase;
+    getUtilisateurs(): Promise<any[]>;
+    getDepartements(): Promise<any[]>;
     createContrat(data: any): Promise<any>;
     findContrats(filters?: {
         typeContrat?: string;

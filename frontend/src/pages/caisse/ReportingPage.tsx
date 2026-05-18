@@ -85,7 +85,7 @@ export const ReportingPage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/rapports/annuel?annee=${selectedYear}`, {
+      const response = await fetch(`/api/v1/caissier/rapports/annuel?annee=${selectedYear}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -108,7 +108,7 @@ export const ReportingPage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/rapports/parcours?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}`, {
+      const response = await fetch(`/api/v1/caissier/rapports/parcours?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -131,7 +131,7 @@ export const ReportingPage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/rapports/modes-paiement?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}`, {
+      const response = await fetch(`/api/v1/caissier/rapports/modes-paiement?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -156,11 +156,11 @@ export const ReportingPage: React.FC = () => {
       let url = '';
       
       if (selectedReport === 'annuel') {
-        url = `/api/caissier/rapports/annuel/export?annee=${selectedYear}&format=${format}`;
+        url = `/api/v1/caissier/rapports/annuel/export?annee=${selectedYear}&format=${format}`;
       } else if (selectedReport === 'parcours') {
-        url = `/api/caissier/rapports/parcours/export?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}&format=${format}`;
+        url = `/api/v1/caissier/rapports/parcours/export?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}&format=${format}`;
       } else {
-        url = `/api/caissier/rapports/modes-paiement/export?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}&format=${format}`;
+        url = `/api/v1/caissier/rapports/modes-paiement/export?dateDebut=${dateRange.debut}&dateFin=${dateRange.fin}&format=${format}`;
       }
       
       const response = await fetch(url, {

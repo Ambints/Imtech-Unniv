@@ -267,6 +267,68 @@ let CaissierService = CaissierService_1 = class CaissierService {
             details: details,
         };
     }
+    async calculerTotaux(dateCloture, caissierId) {
+        const totaux = await this.dataSource.query(`
+      SELECT
+        COALESCE(SUM(montant), 0) as total_general,
+        COUNT(*) as nombre_paiements,
+        COALESCE(SUM(montant) FILTER (WHERE mode_paiement = 'especes'), 0) as total_especes,
+        COALESCE(SUM(montant) FILTER (WHERE mode_paiement = 'cheque'), 0) as total_cheques,
+        COALESCE(SUM(montant) FILTER (WHERE mode_paiement = 'virement'), 0) as total_virements,
+        COALESCE(SUM(montant) FILTER (WHERE mode_paiement = 'carte_bancaire'), 0) as total_carte_bancaire,
+        COALESCE(SUM(montant) FILTER (WHERE mode_paiement = 'mobile_money'), 0) as total_mobile_money,
+        COALESCE(SUM(montant) FILTER (WHERE type_paiement = 'inscription'), 0) as total_inscription,
+        COALESCE(SUM(montant) FILTER (WHERE type_paiement = 'scolarite'), 0) as total_scolarite,
+        COALESCE(SUM(montant) FILTER (WHERE type_paiement NOT IN ('inscription', 'scolarite')), 0) as total_autres,
+        COUNT(*) FILTER (WHERE type_paiement = 'inscription') as nb_inscription,
+        COUNT(*) FILTER (WHERE type_paiement = 'scolarite') as nb_scolarite,
+        COUNT(*) FILTER (WHERE type_paiement NOT IN ('inscription', 'scolarite')) as nb_autres
+      FROM paiement
+      WHERE DATE(date_paiement) = $1 AND statut = 'valide'
+    `, [dateCloture]);
+        const result = totaux[0];
+        await this.dataSource.query(`
+      INSERT INTO cloture_caisse (
+        date_cloture, caissier_id,
+        total_especes, total_cheques, total_virements, total_carte_bancaire, total_mobile_money,
+        total_general, nombre_paiements,
+        details_paiements, valide, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9,
+        jsonb_build_object(
+          'inscription', jsonb_build_object('montant', $10, 'nombre', $11),
+          'scolarite', jsonb_build_object('montant', $12, 'nombre', $13),
+          'autres', jsonb_build_object('montant', $14, 'nombre', $15)
+        ),
+        false, NOW()
+      )
+      ON CONFLICT (date_cloture) DO UPDATE SET
+        total_especes = $3,
+        total_cheques = $4,
+        total_virements = $5,
+        total_carte_bancaire = $6,
+        total_mobile_money = $7,
+        total_general = $8,
+        nombre_paiements = $9,
+        details_paiements = jsonb_build_object(
+          'inscription', jsonb_build_object('montant', $10, 'nombre', $11),
+          'scolarite', jsonb_build_object('montant', $12, 'nombre', $13),
+          'autres', jsonb_build_object('montant', $14, 'nombre', $15)
+        )
+    `, [
+            dateCloture, caissierId,
+            result.total_especes, result.total_cheques, result.total_virements,
+            result.total_carte_bancaire, result.total_mobile_money,
+            result.total_general, result.nombre_paiements,
+            result.total_inscription, result.nb_inscription,
+            result.total_scolarite, result.nb_scolarite,
+            result.total_autres, result.nb_autres
+        ]);
+        return {
+            message: 'Totaux calculés avec succès',
+            ...result
+        };
+    }
     async validerCloture(date, validePar) {
         const cloture = await this.dataSource.query(`
       INSERT INTO cloture_caisse (date_cloture, valide_par, date_validation, statut)
@@ -275,6 +337,35 @@ let CaissierService = CaissierService_1 = class CaissierService {
       RETURNING *
     `, [date, validePar]);
         return cloture[0];
+    }
+    async saveRapprochementBancaire(date, soldeReel, motifEcart) {
+        const soldeTheorique = await this.dataSource.query(`
+      SELECT COALESCE(SUM(montant), 0) as solde_theorique
+      FROM paiement
+      WHERE DATE(date_paiement) = $1
+        AND statut = 'valide'
+        AND mode_paiement IN ('virement', 'carte_bancaire')
+    `, [date]);
+        const theorique = parseFloat(soldeTheorique[0].solde_theorique);
+        const ecart = soldeReel - theorique;
+        await this.dataSource.query(`
+      INSERT INTO rapprochement_bancaire (
+        date, solde_theorique, solde_reel, ecart, motif_ecart, created_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())
+      ON CONFLICT (date) DO UPDATE SET
+        solde_reel = $3,
+        ecart = $4,
+        motif_ecart = $5,
+        updated_at = NOW()
+    `, [date, theorique, soldeReel, ecart, motifEcart]);
+        return {
+            date,
+            solde_theorique: theorique,
+            solde_reel: soldeReel,
+            ecart,
+            motif_ecart: motifEcart,
+            message: 'Rapprochement bancaire sauvegardé'
+        };
     }
     async getRapprochementBancaire(date) {
         const dateCible = date || new Date().toISOString().split('T')[0];

@@ -736,6 +736,124 @@ CREATE TABLE IF NOT EXISTS fiche_paie (
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (contrat_id, annee, mois)
 );
+-- Table pour gérer les heures complémentaires des enseignants
+CREATE TABLE IF NOT EXISTS heure_complementaire (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    enseignant_id       UUID        NOT NULL REFERENCES enseignant(id) ON DELETE CASCADE,
+    date_travail        DATE        NOT NULL,
+    nb_heures           DECIMAL(5,2) NOT NULL CHECK (nb_heures > 0),
+    taux_horaire        DECIMAL(10,2) NOT NULL CHECK (taux_horaire > 0),
+    motif               TEXT,
+    statut              VARCHAR(20) DEFAULT 'saisie'
+                        CHECK (statut IN ('saisie', 'valide', 'refuse', 'paye')),
+    valide_par          UUID        REFERENCES utilisateur(id),
+    date_validation     TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_heure_comp_enseignant ON heure_complementaire(enseignant_id);
+CREATE INDEX IF NOT EXISTS idx_heure_comp_date ON heure_complementaire(date_travail);
+CREATE INDEX IF NOT EXISTS idx_heure_comp_statut ON heure_complementaire(statut);
+
+-- Table pour les évaluations annuelles du personnel
+CREATE TABLE IF NOT EXISTS evaluation_personnel (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id      UUID        NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+    evaluateur_id       UUID        NOT NULL REFERENCES utilisateur(id),
+    annee_evaluation    SMALLINT    NOT NULL,
+    date_evaluation     TIMESTAMPTZ DEFAULT NOW(),
+    objectifs           JSONB,
+    competences         JSONB,
+    auto_evaluation     JSONB,
+    date_auto_evaluation TIMESTAMPTZ,
+    appreciation        TEXT,
+    points_forts        TEXT,
+    axes_amelioration   TEXT,
+    note_globale        DECIMAL(3,1) CHECK (note_globale >= 0 AND note_globale <= 5),
+    statut              VARCHAR(20) DEFAULT 'en_cours'
+                        CHECK (statut IN ('en_cours', 'auto_evalue', 'finalise', 'archive')),
+    date_finalisation   TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (utilisateur_id, annee_evaluation)
+);
+
+CREATE INDEX IF NOT EXISTS idx_eval_utilisateur ON evaluation_personnel(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_eval_annee ON evaluation_personnel(annee_evaluation);
+CREATE INDEX IF NOT EXISTS idx_eval_statut ON evaluation_personnel(statut);
+
+-- Table pour les déclarations sociales (URSSAF, MSA, etc.)
+CREATE TABLE IF NOT EXISTS declaration_sociale (
+    id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    type_declaration        VARCHAR(50) NOT NULL
+                            CHECK (type_declaration IN ('URSSAF', 'MSA', 'retraite', 'prevoyance', 'mutuelle', 'autre')),
+    periode_debut           DATE        NOT NULL,
+    periode_fin             DATE        NOT NULL,
+    organisme               VARCHAR(200) NOT NULL,
+    montant_total_cotisations DECIMAL(12,2) NOT NULL DEFAULT 0,
+    nb_salaries             SMALLINT    NOT NULL DEFAULT 0,
+    statut                  VARCHAR(20) DEFAULT 'preparation'
+                            CHECK (statut IN ('preparation', 'validee', 'transmise', 'payee')),
+    date_transmission       TIMESTAMPTZ,
+    date_paiement           TIMESTAMPTZ,
+    fichier_export_url      VARCHAR(500),
+    observations            TEXT,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_decl_sociale_type ON declaration_sociale(type_declaration);
+CREATE INDEX IF NOT EXISTS idx_decl_sociale_periode ON declaration_sociale(periode_debut, periode_fin);
+CREATE INDEX IF NOT EXISTS idx_decl_sociale_statut ON declaration_sociale(statut);
+
+-- Table pour gérer les processus de recrutement
+CREATE TABLE IF NOT EXISTS recrutement (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    poste               VARCHAR(200) NOT NULL,
+    type_contrat        VARCHAR(30) NOT NULL
+                        CHECK (type_contrat IN ('CDI', 'CDD', 'vacataire', 'stagiaire')),
+    departement_id      UUID        REFERENCES departement(id),
+    description         TEXT,
+    competences_requises TEXT,
+    nb_postes           SMALLINT    NOT NULL DEFAULT 1 CHECK (nb_postes > 0),
+    date_ouverture      DATE        DEFAULT CURRENT_DATE,
+    date_cloture        DATE,
+    salaire_min         DECIMAL(12,2),
+    salaire_max         DECIMAL(12,2),
+    statut              VARCHAR(20) DEFAULT 'ouvert'
+                        CHECK (statut IN ('ouvert', 'en_cours', 'cloture', 'pourvu', 'annule')),
+    responsable_id      UUID        REFERENCES utilisateur(id),
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recrutement_statut ON recrutement(statut);
+CREATE INDEX IF NOT EXISTS idx_recrutement_departement ON recrutement(departement_id);
+CREATE INDEX IF NOT EXISTS idx_recrutement_date_cloture ON recrutement(date_cloture);
+
+-- Table pour les candidatures aux recrutements
+CREATE TABLE IF NOT EXISTS candidature (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    recrutement_id      UUID        NOT NULL REFERENCES recrutement(id) ON DELETE CASCADE,
+    nom                 VARCHAR(100) NOT NULL,
+    prenom              VARCHAR(100) NOT NULL,
+    email               VARCHAR(254) NOT NULL,
+    telephone           VARCHAR(30),
+    cv_url              VARCHAR(500),
+    lettre_motivation_url VARCHAR(500),
+    statut              VARCHAR(20) DEFAULT 'recue'
+                        CHECK (statut IN ('recue', 'preselectionne', 'entretien', 'retenu', 'refuse')),
+    notes_evaluation    TEXT,
+    date_entretien      TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_candidature_recrutement ON candidature(recrutement_id);
+CREATE INDEX IF NOT EXISTS idx_candidature_statut ON candidature(statut);
+CREATE INDEX IF NOT EXISTS idx_candidature_email ON candidature(email);
+
 
 -- =============================================================================
 -- MODULE : LOGISTIQUE & MAINTENANCE
@@ -1850,6 +1968,68 @@ COMMENT ON COLUMN cloture_caisse.total_general IS 'Total général des encaissem
 COMMENT ON COLUMN cloture_caisse.details_paiements IS 'Répartition des encaissements par type de paiement';
 COMMENT ON COLUMN cloture_caisse.ecart IS 'Écart entre solde théorique et solde bancaire réel';
 COMMENT ON COLUMN cloture_caisse.valide IS 'Indique si la clôture a été validée par un superviseur';
+-- -----------------------------------------------------------------------------
+-- MESSAGERIE ENSEIGNANT - Tables pour communication enseignant-étudiants
+-- -----------------------------------------------------------------------------
+
+-- Table pour stocker les messages envoyés par les enseignants
+CREATE TABLE IF NOT EXISTS message_enseignant (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    enseignant_id UUID NOT NULL,
+    sujet VARCHAR(255) NOT NULL,
+    contenu TEXT NOT NULL,
+    type_message VARCHAR(50) NOT NULL CHECK (type_message IN ('direct', 'classe', 'parcours')),
+    
+    -- Pour message direct
+    etudiant_id UUID,
+    
+    -- Pour message classe
+    classe_id UUID,
+    
+    -- Pour message parcours
+    parcours_id UUID,
+    niveau_id UUID,
+    
+    -- Métadonnées
+    nombre_destinataires INTEGER DEFAULT 0,
+    date_envoi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    statut VARCHAR(50) DEFAULT 'envoye' CHECK (statut IN ('envoye', 'lu', 'archive')),
+    
+    -- Contraintes
+    CONSTRAINT fk_message_enseignant FOREIGN KEY (enseignant_id) REFERENCES utilisateur(id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_etudiant FOREIGN KEY (etudiant_id) REFERENCES etudiant(id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_parcours FOREIGN KEY (parcours_id) REFERENCES parcours(id) ON DELETE SET NULL,
+    CONSTRAINT fk_message_niveau FOREIGN KEY (niveau_id) REFERENCES niveau_etude(id) ON DELETE SET NULL
+);
+
+-- Table pour tracker les destinataires individuels et leur statut de lecture
+CREATE TABLE IF NOT EXISTS message_destinataire (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL,
+    etudiant_id UUID NOT NULL,
+    lu BOOLEAN DEFAULT FALSE,
+    date_lecture TIMESTAMP,
+    
+    CONSTRAINT fk_destinataire_message FOREIGN KEY (message_id) REFERENCES message_enseignant(id) ON DELETE CASCADE,
+    CONSTRAINT fk_destinataire_etudiant FOREIGN KEY (etudiant_id) REFERENCES etudiant(id) ON DELETE CASCADE,
+    CONSTRAINT unique_message_etudiant UNIQUE (message_id, etudiant_id)
+);
+
+-- Index pour améliorer les performances
+CREATE INDEX IF NOT EXISTS idx_message_enseignant_id ON message_enseignant(enseignant_id);
+CREATE INDEX IF NOT EXISTS idx_message_type ON message_enseignant(type_message);
+CREATE INDEX IF NOT EXISTS idx_message_date ON message_enseignant(date_envoi);
+CREATE INDEX IF NOT EXISTS idx_destinataire_message ON message_destinataire(message_id);
+CREATE INDEX IF NOT EXISTS idx_destinataire_etudiant ON message_destinataire(etudiant_id);
+CREATE INDEX IF NOT EXISTS idx_destinataire_lu ON message_destinataire(lu);
+
+-- Commentaires
+COMMENT ON TABLE message_enseignant IS 'Messages envoyés par les enseignants aux étudiants';
+COMMENT ON TABLE message_destinataire IS 'Destinataires individuels des messages avec statut de lecture';
+COMMENT ON COLUMN message_enseignant.type_message IS 'Type: direct (1 étudiant), classe (tous étudiants classe), parcours (filtré par parcours/niveau)';
+COMMENT ON COLUMN message_enseignant.nombre_destinataires IS 'Nombre total de destinataires du message';
+COMMENT ON COLUMN message_destinataire.lu IS 'Indique si le message a été lu par l''étudiant';
+
 
 -- Made with Bob - Surveillance & Encadrement Module Added
 -- Enhanced with Caisse Module - Frais d'inscription & Payment Management

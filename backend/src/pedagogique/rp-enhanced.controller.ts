@@ -60,6 +60,30 @@ export class RPEnhancedController {
     return this.rpService.getMesParcours(this.getTenantId(req), user.id);
   }
 
+  @Get('parcours/:parcoursId/unites')
+  @ApiOperation({
+    summary: 'Liste des UE d\'un parcours',
+    description: 'Retourne toutes les unités d\'enseignement d\'un parcours spécifique'
+  })
+  @ApiParam({ name: 'parcoursId', description: 'ID du parcours' })
+  @ApiResponse({ status: 200, description: 'Liste des UE récupérée avec succès' })
+  getUEsByParcours(
+    @Req() req: Request,
+    @Param('parcoursId', ParseUUIDPipe) parcoursId: string
+  ) {
+    return this.rpService.getUEsByParcours(this.getTenantId(req), parcoursId);
+  }
+
+  @Get('enseignants')
+  @ApiOperation({
+    summary: 'Liste des enseignants actifs',
+    description: 'Retourne tous les enseignants actifs du tenant'
+  })
+  @ApiResponse({ status: 200, description: 'Liste des enseignants' })
+  getEnseignants(@Req() req: Request) {
+    return this.rpService.getEnseignants(this.getTenantId(req));
+  }
+
   // ==================== GESTION DES MAQUETTES ====================
 
   @Post('maquettes')
@@ -359,6 +383,7 @@ export class RPEnhancedController {
 
   // ==================== GESTION DES AFFECTATIONS ====================
 
+  // Endpoint POST pour créer une affectation enseignant-UE
   @Post('affectations')
   @ApiOperation({
     summary: 'Créer une affectation',

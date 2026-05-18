@@ -32,8 +32,15 @@ const MENUS: Record<string, MenuItem[]> = {
   ],
   president: [
     { label: 'Tableau de Bord', icon: <Home size={18} />, path: '/president' },
-    { label: 'Vue d\'Ensemble', icon: <BarChart3 size={18} />, path: '/president' },
-    { label: 'Supervision', icon: <EyeIcon size={18} />, path: '/president' },
+    { label: 'Vue d\'Ensemble', icon: <EyeIcon size={18} />, path: '/president/supervision' },
+    { label: 'Recrutements', icon: <Users size={18} />, path: '/president/recrutements' },
+    { label: 'Investissements', icon: <Banknote size={18} />, path: '/president/investissements' },
+    { label: 'Diplômes', icon: <GraduationCap size={18} />, path: '/president/diplomes' },
+    { label: 'Conventions', icon: <FileText size={18} />, path: '/president/conventions' },
+    { label: 'Discipline', icon: <AlertTriangle size={18} />, path: '/president/discipline' },
+    { label: 'Parcours', icon: <BookOpen size={18} />, path: '/president/parcours' },
+    { label: 'Calendrier', icon: <Calendar size={18} />, path: '/president/calendrier' },
+    { label: 'Délégations', icon: <UserCog size={18} />, path: '/president/delegations' },
   ],
   communication: [
     { label: 'Actualités', icon: <MessageSquare size={18} />, path: '/communication' },
@@ -132,6 +139,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/enseignant/presences' },
     { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/enseignant/etudiants' },
     { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/enseignant/ressources' },
+    { label: 'Messagerie', icon: <MessageSquare size={18} />, path: '/portail/enseignant/messagerie' },
     { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/enseignant/demandes' },
   ],
 };

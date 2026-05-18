@@ -512,6 +512,24 @@ export class AcademicService {
     return { message: 'Année académique activée avec succès', annee: { ...annee, active: true } };
   }
 
+  async deleteAnneeAcademique(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const annee = await this.anneeRepo.findOne({ where: { id } });
+    if (!annee) throw new NotFoundException('Année académique non trouvée');
+    
+    // Vérifier si l'année est utilisée dans des inscriptions
+    const inscriptions = await this.dataSource.query(`
+      SELECT COUNT(*) as count FROM inscription WHERE annee_academique_id = $1
+    `, [id]);
+    
+    if (parseInt(inscriptions[0].count) > 0) {
+      throw new BadRequestException('Impossible de supprimer cette année car elle est utilisée par des inscriptions');
+    }
+    
+    await this.anneeRepo.delete(id);
+    return { message: 'Année académique supprimée avec succès' };
+  }
+
   // Enseignants (Utilisateurs avec rôle enseignant)
   async getEnseignants(tid: string) {
     await this.tenantConnection.setTenantSchema(tid);

@@ -45,6 +45,35 @@ let RHService = RHService_1 = class RHService {
             throw error;
         }
     }
+    toCamelCase(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(item => this.toCamelCase(item));
+        }
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        return Object.keys(obj).reduce((acc, key) => {
+            const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+            acc[camelKey] = this.toCamelCase(obj[key]);
+            return acc;
+        }, {});
+    }
+    async getUtilisateurs() {
+        const result = await this.query(`
+      SELECT id, nom, prenom, email, role, actif
+      FROM utilisateur
+      ORDER BY nom, prenom
+    `);
+        return this.toCamelCase(result);
+    }
+    async getDepartements() {
+        const result = await this.query(`
+      SELECT id, nom, code, description
+      FROM departement
+      ORDER BY nom
+    `);
+        return this.toCamelCase(result);
+    }
     async createContrat(data) {
         const result = await this.query(`
       INSERT INTO contrat_personnel (
@@ -57,11 +86,15 @@ let RHService = RHService_1 = class RHService {
             data.dateDebut, data.dateFin, data.salaireBrut, data.salaireNet,
             data.volumeHoraireHebdo, data.actif !== false, data.observations
         ]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async findContrats(filters) {
         let query = `
-      SELECT c.*, u.nom as utilisateur_nom, u.prenom as utilisateur_prenom, d.nom as departement_nom
+      SELECT
+        c.*,
+        u.nom as utilisateur_nom,
+        u.prenom as utilisateur_prenom,
+        d.nom as departement_nom
       FROM contrat_personnel c
       LEFT JOIN utilisateur u ON u.id = c.utilisateur_id
       LEFT JOIN departement d ON d.id = c.departement_id
@@ -82,7 +115,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.departementId);
         }
         query += ` ORDER BY c.date_debut DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async renouvelerContrat(id, data) {
         const contrats = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
@@ -104,7 +138,7 @@ let RHService = RHService_1 = class RHService {
       `, [data.nouvelleDateFin, id]);
         }
         const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async resilierContrat(id, motif) {
         await this.query(`
@@ -113,7 +147,7 @@ let RHService = RHService_1 = class RHService {
       WHERE id = $2
     `, [motif, id]);
         const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async createHeuresComplementaires(data) {
         const heuresComp = await this.query(`
@@ -121,7 +155,7 @@ let RHService = RHService_1 = class RHService {
       VALUES ($1, $2, $3, $4, $5, 'saisie', NOW())
       RETURNING *
     `, [data.enseignantId, data.dateTravail, data.nbHeures, data.tauxHoraire, data.motif]);
-        return heuresComp[0];
+        return this.toCamelCase(heuresComp[0]);
     }
     async findHeuresComplementaires(filters) {
         let query = `SELECT hc.*, e.nom, e.prenom FROM heure_complementaire hc
@@ -141,7 +175,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.mois, filters.annee);
         }
         query += ` ORDER BY hc.date_travail DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async validerHeuresComplementaires(id, validePar) {
         await this.query(`
@@ -150,7 +185,7 @@ let RHService = RHService_1 = class RHService {
       WHERE id = $2
     `, [validePar, id]);
         const result = await this.query(`SELECT * FROM heure_complementaire WHERE id = $1`, [id]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async getVolumeHoraireEnseignant(enseignantId, annee) {
         const anneeFilter = annee ? `AND EXTRACT(YEAR FROM date_travail) = ${annee}` : '';
@@ -163,7 +198,7 @@ let RHService = RHService_1 = class RHService {
       FROM heure_complementaire
       WHERE enseignant_id = $1 ${anneeFilter}
     `, [enseignantId]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async demanderConge(data) {
         const result = await this.query(`
@@ -175,7 +210,7 @@ let RHService = RHService_1 = class RHService {
             data.utilisateurId, data.typeConge, data.dateDebut, data.dateFin,
             data.nbJours, data.motif
         ]);
-        return result[0];
+        return this.toCamelCase(result[0]);
     }
     async findConges(filters) {
         let query = `
@@ -199,7 +234,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.typeConge);
         }
         query += ` ORDER BY c.date_debut DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async approuverConge(id, data) {
         await this.query(`
@@ -271,7 +307,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.mois);
         }
         query += ` ORDER BY fp.annee DESC, fp.mois DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async validerFichePaie(id) {
         await this.query(`
@@ -314,8 +351,18 @@ let RHService = RHService_1 = class RHService {
         return evalResult[0];
     }
     async findEvaluations(filters) {
-        let query = `SELECT ep.*, u.nom, u.prenom FROM evaluation_personnel ep
-                 JOIN utilisateur u ON u.id = ep.utilisateur_id WHERE 1=1`;
+        let query = `
+      SELECT
+        ep.*,
+        u.nom as utilisateur_nom,
+        u.prenom as utilisateur_prenom,
+        ev.nom as evaluateur_nom,
+        ev.prenom as evaluateur_prenom
+      FROM evaluation_personnel ep
+      LEFT JOIN utilisateur u ON u.id = ep.utilisateur_id
+      LEFT JOIN utilisateur ev ON ev.id = ep.evaluateur_id
+      WHERE 1=1
+    `;
         const params = [];
         let paramCount = 0;
         if (filters?.utilisateurId) {
@@ -331,7 +378,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.statut);
         }
         query += ` ORDER BY ep.date_evaluation DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async submitAutoEvaluation(id, data) {
         await this.query(`
@@ -379,7 +427,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.statut);
         }
         query += ` ORDER BY periode_debut DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async exportDeclarationSociale(id) {
         const declaration = await this.query(`
@@ -423,7 +472,8 @@ let RHService = RHService_1 = class RHService {
             params.push(filters.departementId);
         }
         query += ` ORDER BY r.created_at DESC`;
-        return this.query(query, params);
+        const result = await this.query(query, params);
+        return this.toCamelCase(result);
     }
     async getStatsRH() {
         const effectifsResult = await this.query(`

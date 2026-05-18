@@ -23,6 +23,12 @@ let RHController = class RHController {
     constructor(svc) {
         this.svc = svc;
     }
+    getUtilisateurs() {
+        return this.svc.getUtilisateurs();
+    }
+    getDepartements() {
+        return this.svc.getDepartements();
+    }
     createContrat(dto) {
         return this.svc.createContrat(dto);
     }
@@ -110,8 +116,24 @@ let RHController = class RHController {
 };
 exports.RHController = RHController;
 __decorate([
+    (0, common_1.Get)('utilisateurs'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des utilisateurs du tenant' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getUtilisateurs", null);
+__decorate([
+    (0, common_1.Get)('departements'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des départements du tenant' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getDepartements", null);
+__decorate([
     (0, common_1.Post)('contrats'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer un contrat personnel' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -120,7 +142,7 @@ __decorate([
 ], RHController.prototype, "createContrat", null);
 __decorate([
     (0, common_1.Get)('contrats'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des contrats avec filtres' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -129,7 +151,7 @@ __decorate([
 ], RHController.prototype, "findContrats", null);
 __decorate([
     (0, common_1.Patch)('contrats/:id/renouveler'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Renouveler un contrat' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -139,7 +161,7 @@ __decorate([
 ], RHController.prototype, "renouvelerContrat", null);
 __decorate([
     (0, common_1.Patch)('contrats/:id/resilier'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Résilier un contrat' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('motif')),
@@ -149,7 +171,7 @@ __decorate([
 ], RHController.prototype, "resilierContrat", null);
 __decorate([
     (0, common_1.Post)('heures-complementaires'),
-    (0, roles_decorator_1.Roles)('secretaire', 'responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'secretaire', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Saisir des heures complémentaires' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -158,7 +180,7 @@ __decorate([
 ], RHController.prototype, "createHeuresComp", null);
 __decorate([
     (0, common_1.Get)('heures-complementaires'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des heures complémentaires' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -167,7 +189,7 @@ __decorate([
 ], RHController.prototype, "findHeuresComp", null);
 __decorate([
     (0, common_1.Patch)('heures-complementaires/:id/valider'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Valider des heures complémentaires' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('validePar')),
@@ -177,7 +199,7 @@ __decorate([
 ], RHController.prototype, "validerHeuresComp", null);
 __decorate([
     (0, common_1.Get)('enseignants/:id/volume-horaire'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'responsable_pedagogique'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique'),
     (0, swagger_1.ApiOperation)({ summary: 'Volume horaire effectué par un enseignant' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Query)('annee')),
@@ -187,7 +209,7 @@ __decorate([
 ], RHController.prototype, "getVolumeHoraire", null);
 __decorate([
     (0, common_1.Post)('conges'),
-    (0, roles_decorator_1.Roles)('utilisateur', 'responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'utilisateur', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Demander un congé' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -196,7 +218,7 @@ __decorate([
 ], RHController.prototype, "demanderConge", null);
 __decorate([
     (0, common_1.Get)('conges'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des demandes de congé' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -205,7 +227,7 @@ __decorate([
 ], RHController.prototype, "findConges", null);
 __decorate([
     (0, common_1.Patch)('conges/:id/approuver'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Approuver une demande de congé' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -215,7 +237,7 @@ __decorate([
 ], RHController.prototype, "approuverConge", null);
 __decorate([
     (0, common_1.Patch)('conges/:id/refuser'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Refuser une demande de congé' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -225,7 +247,7 @@ __decorate([
 ], RHController.prototype, "refuserConge", null);
 __decorate([
     (0, common_1.Get)('soldes-conges/:utilisateurId'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire', 'utilisateur'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire', 'utilisateur'),
     (0, swagger_1.ApiOperation)({ summary: 'Solde de congés d\'un utilisateur' }),
     __param(0, (0, common_1.Param)('utilisateurId')),
     __metadata("design:type", Function),
@@ -234,7 +256,7 @@ __decorate([
 ], RHController.prototype, "getSoldeConges", null);
 __decorate([
     (0, common_1.Post)('fiches-paie'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Générer une fiche de paie' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -243,7 +265,7 @@ __decorate([
 ], RHController.prototype, "createFichePaie", null);
 __decorate([
     (0, common_1.Get)('fiches-paie'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des fiches de paie' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -252,7 +274,7 @@ __decorate([
 ], RHController.prototype, "findFichesPaie", null);
 __decorate([
     (0, common_1.Post)('fiches-paie/:id/valider'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Valider et envoyer la fiche de paie' }),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -261,7 +283,7 @@ __decorate([
 ], RHController.prototype, "validerFichePaie", null);
 __decorate([
     (0, common_1.Get)('fiches-paie/masse'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Génération de masse des fiches de paie' }),
     __param(0, (0, common_1.Query)('annee')),
     __param(1, (0, common_1.Query)('mois')),
@@ -271,7 +293,7 @@ __decorate([
 ], RHController.prototype, "genererFichesPaieMasse", null);
 __decorate([
     (0, common_1.Post)('evaluations'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'superieur'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'superieur'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer une évaluation annuelle' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -280,7 +302,7 @@ __decorate([
 ], RHController.prototype, "createEvaluation", null);
 __decorate([
     (0, common_1.Get)('evaluations'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des évaluations' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -299,7 +321,7 @@ __decorate([
 ], RHController.prototype, "submitAutoEvaluation", null);
 __decorate([
     (0, common_1.Patch)('evaluations/:id/finaliser'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'superieur'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'superieur'),
     (0, swagger_1.ApiOperation)({ summary: 'Finaliser l\'évaluation' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -309,7 +331,7 @@ __decorate([
 ], RHController.prototype, "finaliserEvaluation", null);
 __decorate([
     (0, common_1.Post)('declarations-sociales'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'comptable'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'comptable'),
     (0, swagger_1.ApiOperation)({ summary: 'Générer déclaration URSSAF/MSA' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -318,7 +340,7 @@ __decorate([
 ], RHController.prototype, "createDeclarationSociale", null);
 __decorate([
     (0, common_1.Get)('declarations-sociales'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'comptable'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'comptable'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des déclarations sociales' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -327,7 +349,7 @@ __decorate([
 ], RHController.prototype, "findDeclarationsSociales", null);
 __decorate([
     (0, common_1.Get)('declarations-sociales/:id/export'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'comptable'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'comptable'),
     (0, swagger_1.ApiOperation)({ summary: 'Export pour URSSAF/MSA' }),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -336,7 +358,7 @@ __decorate([
 ], RHController.prototype, "exportDeclaration", null);
 __decorate([
     (0, common_1.Post)('recrutements'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Lancer un processus de recrutement' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -345,7 +367,7 @@ __decorate([
 ], RHController.prototype, "createRecrutement", null);
 __decorate([
     (0, common_1.Get)('recrutements'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des recrutements en cours' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -354,7 +376,7 @@ __decorate([
 ], RHController.prototype, "findRecrutements", null);
 __decorate([
     (0, common_1.Get)('stats'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Statistiques RH (effectifs, masse salariale)' }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -362,7 +384,7 @@ __decorate([
 ], RHController.prototype, "getStatsRH", null);
 __decorate([
     (0, common_1.Get)('stats/heures-complementaires'),
-    (0, roles_decorator_1.Roles)('responsable_rh', 'admin', 'president'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Stats heures complémentaires' }),
     __param(0, (0, common_1.Query)('annee')),
     __param(1, (0, common_1.Query)('mois')),

@@ -22,20 +22,32 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
         this.dataSource = dataSource;
         this.logger = new common_1.Logger(PortailParentService_1.name);
     }
-    async verifierLienParentEnfant(parentUserId, etudiantId) {
+    async verifierLienParentEnfant(parentUserId, etudiantId, schemaName) {
         const parent = await this.dataSource.query(`
-      SELECT email FROM utilisateur WHERE id = $1
+      SELECT email, telephone FROM ${schemaName}.utilisateur WHERE id = $1 AND role = 'parent'
     `, [parentUserId]);
-        const lien = await this.dataSource.query(`
-      SELECT 1 FROM etudiant e
-      WHERE e.id = $1 AND (
-        e.email_parent = $2 
-        OR e.email_parent LIKE $3
-      )
-    `, [etudiantId, parent[0]?.email, `%${parent[0]?.email}%`]);
-        if (!lien.length) {
-            throw new common_1.ForbiddenException('Vous n\'êtes pas autorisé à consulter ces informations');
+        if (!parent.length) {
+            throw new common_1.ForbiddenException('Utilisateur parent non trouvé');
         }
+        const lien = await this.dataSource.query(`
+      SELECT 1 FROM ${schemaName}.etudiant e
+      WHERE e.id = $1 AND (
+        e.email_parent = $2
+        OR e.telephone_parent = $3
+        OR e.email_parent ILIKE $4
+      )
+    `, [etudiantId, parent[0].email, parent[0].telephone, `%${parent[0].email}%`]);
+        if (!lien.length) {
+            throw new common_1.ForbiddenException('Vous n\'êtes pas autorisé à consulter ces informations de cet étudiant');
+        }
+    }
+    async estMineur(etudiantId, schemaName) {
+        const result = await this.dataSource.query(`
+      SELECT EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_naissance)) < 18 as est_mineur
+      FROM ${schemaName}.etudiant
+      WHERE id = $1
+    `, [etudiantId]);
+        return result[0]?.est_mineur || false;
     }
     async getEnfants(parentUserId) {
         const parent = await this.dataSource.query(`
@@ -65,7 +77,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
     `, [parent[0].email, parent[0].telephone, `%${parent[0].email.split('@')[0]}%`]);
     }
     async getBulletin(parentUserId, etudiantId, sessionId) {
-        await this.verifierLienParentEnfant(parentUserId, etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
         let sessionFilter = '';
         if (sessionId) {
             sessionFilter = `AND n.session_id = '${sessionId}'`;
@@ -103,7 +116,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
         return { notes, moyennesUE };
     }
     async getAbsences(parentUserId, etudiantId) {
-        await this.verifierLienParentEnfant(parentUserId, etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
         const [absences, stats] = await Promise.all([
             this.dataSource.query(`
         SELECT 
@@ -134,7 +148,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
         return { absences, stats: stats[0] };
     }
     async getPaiements(parentUserId, etudiantId) {
-        await this.verifierLienParentEnfant(parentUserId, etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
         return this.dataSource.query(`
       SELECT 
         p.*,
@@ -148,7 +163,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
     `, [etudiantId]);
     }
     async getSolde(parentUserId, etudiantId) {
-        await this.verifierLienParentEnfant(parentUserId, etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
         const result = await this.dataSource.query(`
       SELECT 
         g.montant_total as montant_du,
@@ -167,7 +183,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
         return result[0] || { montant_du: 0, montant_paye: 0, solde: 0 };
     }
     async getEmploiDuTemps(parentUserId, etudiantId, dateDebut, dateFin) {
-        await this.verifierLienParentEnfant(parentUserId, etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
         const etudiant = await this.dataSource.query(`
       SELECT i.annee_academique_id 
       FROM etudiant e
@@ -201,7 +218,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
     `, [etudiant[0].annee_academique_id]);
     }
     async autoriserSortie(parentUserId, dto) {
-        await this.verifierLienParentEnfant(parentUserId, dto.etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, dto.etudiantId, schemaName);
         await this.dataSource.query(`
       INSERT INTO autorisation_parent (
         etudiant_id, 
@@ -224,7 +242,8 @@ let PortailParentService = PortailParentService_1 = class PortailParentService {
         return { message: 'Autorisation enregistrée' };
     }
     async justifierAbsenceParent(parentUserId, dto) {
-        await this.verifierLienParentEnfant(parentUserId, dto.etudiantId);
+        const schemaName = 'tenant_ispm';
+        await this.verifierLienParentEnfant(parentUserId, dto.etudiantId, schemaName);
         await this.dataSource.query(`
       UPDATE presence
       SET justifie = true,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../api/client';
 import toast from 'react-hot-toast';
-import { 
+import {
   Settings, Plus, Edit2, Trash2, Search, Filter, DollarSign,
   Calendar, Save, X, CheckCircle, AlertCircle, Clock,
   Building2, Users, FileText, Eye, EyeOff
@@ -102,43 +103,45 @@ export const FraisInscriptionPage: React.FC = () => {
     loadData();
   }, [tenantId]);
 
+  // Calcul automatique du total
+  useEffect(() => {
+    const inscription = parseFloat(form.montant_inscription) || 0;
+    const scolarite = parseFloat(form.montant_scolarite) || 0;
+    const total = inscription + scolarite;
+    
+    setForm(prev => ({
+      ...prev,
+      montant_total: total > 0 ? total.toString() : ''
+    }));
+  }, [form.montant_inscription, form.montant_scolarite]);
+
   const loadData = async () => {
+    if (!tenantId) {
+      toast.error('Tenant ID manquant');
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      
-      // Charger les frais d'inscription
-      const fraisResponse = await fetch(`/api/caissier/frais-inscription`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (fraisResponse.ok) {
-        const fraisData = await fraisResponse.json();
-        setFrais(fraisData);
-      }
+      // Charger les données en parallèle
+      const [fraisResponse, parcoursResponse, anneesResponse] = await Promise.all([
+        api.get(`/finance/${tenantId}/grille-tarifaire`).catch(() => ({ data: [] })),
+        api.get(`/academic/${tenantId}/parcours`).catch(() => ({ data: [] })),
+        api.get(`/academic/${tenantId}/annees`).catch(() => ({ data: [] }))
+      ]);
 
-      // Charger les parcours
-      const parcoursResponse = await fetch(`/api/academic/parcours`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (parcoursResponse.ok) {
-        const parcoursData = await parcoursResponse.json();
-        setParcours(parcoursData);
-      }
+      setFrais(fraisResponse.data || []);
+      setParcours(parcoursResponse.data || []);
+      setAnneesAcademiques(anneesResponse.data || []);
 
-      // Charger les années académiques
-      const anneesResponse = await fetch(`/api/academic/annees-academiques`, {
-        headers: { Authorization: `Bearer ${token}` }
+      console.log('✅ Données chargées:', {
+        frais: fraisResponse.data?.length || 0,
+        parcours: parcoursResponse.data?.length || 0,
+        annees: anneesResponse.data?.length || 0
       });
-      
-      if (anneesResponse.ok) {
-        const anneesData = await anneesResponse.json();
-        setAnneesAcademiques(anneesData);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-      toast.error('Erreur de chargement');
+    } catch (error: any) {
+      console.error('❌ Erreur lors du chargement des données:', error);
+      toast.error(error.response?.data?.message || 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
@@ -152,50 +155,38 @@ export const FraisInscriptionPage: React.FC = () => {
       return;
     }
 
+    if (!tenantId) {
+      toast.error('Tenant ID manquant');
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const payload = {
-        ...form,
-        montant_inscription: parseFloat(form.montant_inscription),
-        montant_scolarite: parseFloat(form.montant_scolarite) || 0,
-        montant_total: parseFloat(form.montant_total) || (parseFloat(form.montant_inscription) + parseFloat(form.montant_scolarite) || 0)
+        parcoursId: form.parcours_id,
+        anneeAcademiqueId: form.annee_academique_id,
+        montantInscription: parseFloat(form.montant_inscription),
+        montantScolarite: parseFloat(form.montant_scolarite) || 0,
+        description: form.description || null,
+        dateLimitePaiement: form.date_limite_paiement || null,
+        modalitesPaiement: form.modalites_paiement
       };
 
-      let response;
       if (editingFrais) {
-        response = await fetch(`/api/caissier/frais-inscription/${editingFrais.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
+        await api.put(`/finance/${tenantId}/grille-tarifaire/${editingFrais.id}`, payload);
+        toast.success('Frais mis à jour avec succès!');
       } else {
-        response = await fetch(`/api/caissier/frais-inscription`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
+        await api.post(`/finance/${tenantId}/grille-tarifaire`, payload);
+        toast.success('Frais créés avec succès!');
       }
 
-      if (response.ok) {
-        toast.success(editingFrais ? 'Frais mis à jour avec succès!' : 'Frais créés avec succès!');
-        setShowForm(false);
-        setEditingFrais(null);
-        resetForm();
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de l\'opération');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
+      setShowForm(false);
+      setEditingFrais(null);
+      resetForm();
+      loadData();
+    } catch (error: any) {
+      console.error('❌ Erreur:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'opération');
     } finally {
       setLoading(false);
     }
@@ -219,48 +210,34 @@ export const FraisInscriptionPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ces frais?')) return;
 
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/frais-inscription/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    if (!tenantId) {
+      toast.error('Tenant ID manquant');
+      return;
+    }
 
-      if (response.ok) {
-        toast.success('Frais supprimés avec succès!');
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de la suppression');
-      }
-    } catch (error) {
+    try {
+      await api.delete(`/finance/${tenantId}/grille-tarifaire/${id}`);
+      toast.success('Frais supprimés avec succès!');
+      loadData();
+    } catch (error: any) {
       console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
   const toggleActif = async (id: string, actif: boolean) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/frais-inscription/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ actif: !actif })
-      });
+    if (!tenantId) {
+      toast.error('Tenant ID manquant');
+      return;
+    }
 
-      if (response.ok) {
-        toast.success(`Frais ${!actif ? 'activés' : 'désactivés'} avec succès!`);
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erreur lors de la mise à jour');
-      }
-    } catch (error) {
+    try {
+      await api.patch(`/finance/${tenantId}/grille-tarifaire/${id}/toggle-actif`);
+      toast.success(`Frais ${!actif ? 'activés' : 'désactivés'} avec succès!`);
+      loadData();
+    } catch (error: any) {
       console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
+      toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour');
     }
   };
 

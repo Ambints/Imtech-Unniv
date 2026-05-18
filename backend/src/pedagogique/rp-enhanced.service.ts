@@ -203,6 +203,46 @@ export class RPEnhancedService {
       // Return empty array instead of throwing to prevent frontend hanging
       return [];
     }
+
+  }
+
+  /**
+   * Récupère les UE d'un parcours spécifique
+   */
+  async getUEsByParcours(tid: string, parcoursId: string): Promise<UniteEnseignement[]> {
+    try {
+      await this.tenantConnection.setTenantSchema(tid);
+
+      const unites = await this.ueRepo.find({
+        where: { parcoursId, actif: true },
+        order: { semestre: 'ASC', code: 'ASC' }
+      });
+      
+      return unites || [];
+    } catch (error) {
+      console.error('Error in getUEsByParcours:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupère tous les enseignants actifs
+   */
+  async getEnseignants(tid: string): Promise<Enseignant[]> {
+    try {
+      await this.tenantConnection.setTenantSchema(tid);
+      
+      const enseignants = await this.enseignantRepo.find({
+        where: { actif: true },
+        order: { nom: 'ASC', prenom: 'ASC' }
+      });
+      
+      console.log(`[getEnseignants] Trouvé ${enseignants.length} enseignants actifs dans le schema ${this.tenantConnection.getCurrentSchema()}`);
+      return enseignants || [];
+    } catch (error) {
+      console.error('Error in getEnseignants:', error);
+      return [];
+    }
   }
 
   // ==================== GESTION DES MAQUETTES ====================
@@ -574,12 +614,22 @@ export class RPEnhancedService {
   async createAffectation(tid: string, userId: string, dto: CreateAffectationDto): Promise<AffectationCours> {
     await this.tenantConnection.setTenantSchema(tid);
 
+    console.log('[CreateAffectation] Recherche enseignant:', dto.enseignantId);
+    console.log('[CreateAffectation] Schema actuel:', this.tenantConnection.getCurrentSchema());
+
     // Vérifier l'enseignant
     const enseignant = await this.enseignantRepo.findOne({
       where: { id: dto.enseignantId, actif: true }
     });
 
+    console.log('[CreateAffectation] Enseignant trouvé:', enseignant ? 'OUI' : 'NON');
+
     if (!enseignant) {
+      // Essayer sans le filtre actif pour voir si l'enseignant existe
+      const enseignantSansFiltre = await this.enseignantRepo.findOne({
+        where: { id: dto.enseignantId }
+      });
+      console.log('[CreateAffectation] Enseignant sans filtre actif:', enseignantSansFiltre ? `OUI (actif=${enseignantSansFiltre.actif})` : 'NON');
       throw new NotFoundException('Enseignant non trouvé');
     }
 

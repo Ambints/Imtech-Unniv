@@ -13,10 +13,14 @@ const etudiant_controller_1 = require("./etudiant.controller");
 const etudiant_service_1 = require("./etudiant.service");
 const parent_controller_1 = require("./parent.controller");
 const parent_service_1 = require("./parent.service");
+const parent_controller_enhanced_1 = require("./parent.controller.enhanced");
+const parent_service_enhanced_1 = require("./parent.service.enhanced");
 const enseignant_controller_1 = require("./enseignant.controller");
 const enseignant_service_1 = require("./enseignant.service");
 const portail_permissions_controller_1 = require("./portail-permissions.controller");
+const test_enseignant_controller_1 = require("./test-enseignant.controller");
 const tenant_entity_1 = require("../tenants/tenant.entity");
+const tenant_connection_service_1 = require("../tenants/tenant-connection.service");
 const entities_1 = require("../scolarite/entities");
 let PortailModule = class PortailModule {
 };
@@ -33,11 +37,24 @@ exports.PortailModule = PortailModule = __decorate([
         controllers: [
             etudiant_controller_1.PortailEtudiantController,
             parent_controller_1.PortailParentController,
+            parent_controller_enhanced_1.PortailParentControllerEnhanced,
             enseignant_controller_1.PortailEnseignantController,
-            portail_permissions_controller_1.PortailPermissionsController
+            portail_permissions_controller_1.PortailPermissionsController,
+            test_enseignant_controller_1.TestEnseignantController
         ],
-        providers: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, enseignant_service_1.PortailEnseignantService],
-        exports: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, enseignant_service_1.PortailEnseignantService],
+        providers: [
+            tenant_connection_service_1.TenantConnectionService,
+            etudiant_service_1.PortailEtudiantService,
+            parent_service_1.PortailParentService,
+            parent_service_enhanced_1.PortailParentServiceEnhanced,
+            enseignant_service_1.PortailEnseignantService
+        ],
+        exports: [
+            etudiant_service_1.PortailEtudiantService,
+            parent_service_1.PortailParentService,
+            parent_service_enhanced_1.PortailParentServiceEnhanced,
+            enseignant_service_1.PortailEnseignantService
+        ],
     })
 ], PortailModule);
 //# sourceMappingURL=portail.module.js.map

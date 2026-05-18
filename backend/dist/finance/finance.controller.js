@@ -71,11 +71,29 @@ let FinanceController = class FinanceController {
     updateContrat(req, id, dto) {
         return this.svc.updateContrat(this.getTenantId(req), id, dto);
     }
-    creerEcheancier(req, dto) {
-        return this.svc.creerEcheancier(this.getTenantId(req), dto);
+    creerEcheancier(tid, dto) {
+        return this.svc.creerEcheancier(tid, dto);
     }
-    getEcheanciers(req, eid) {
-        return this.svc.getEcheanciers(this.getTenantId(req), eid);
+    getEcheanciers(tid, inscriptionId) {
+        return this.svc.getEcheanciers(tid, inscriptionId);
+    }
+    getInscriptionsActives(tid) {
+        return this.svc.getInscriptionsActives(tid);
+    }
+    getGrilleTarifaire(tid) {
+        return this.svc.getGrilleTarifaire(tid);
+    }
+    creerFraisInscription(tid, dto) {
+        return this.svc.creerFraisInscription(tid, dto);
+    }
+    updateFraisInscription(tid, id, dto) {
+        return this.svc.updateFraisInscription(tid, id, dto);
+    }
+    deleteFraisInscription(tid, id) {
+        return this.svc.deleteFraisInscription(tid, id);
+    }
+    toggleActifFrais(tid, id) {
+        return this.svc.toggleActifFrais(tid, id);
     }
     getPaiementsEnAttente(req) {
         return this.svc.getPaiementsInscriptionEnAttente(this.getTenantId(req));
@@ -241,23 +259,76 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "updateContrat", null);
 __decorate([
-    (0, common_1.Post)('echeanciers'),
+    (0, common_1.Post)(':tid/echeanciers'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer un echeancier de paiement' }),
-    __param(0, (0, common_1.Req)()),
+    __param(0, (0, common_1.Param)('tid')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "creerEcheancier", null);
 __decorate([
-    (0, common_1.Get)('echeanciers'),
+    (0, common_1.Get)(':tid/echeanciers'),
     (0, swagger_1.ApiOperation)({ summary: 'Echeanciers' }),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Query)('etudiantId')),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Query)('inscriptionId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getEcheanciers", null);
+__decorate([
+    (0, common_1.Get)(':tid/inscriptions-actives'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des inscriptions actives pour créer des échéanciers' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getInscriptionsActives", null);
+__decorate([
+    (0, common_1.Get)(':tid/grille-tarifaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des frais d\'inscription par parcours et année' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getGrilleTarifaire", null);
+__decorate([
+    (0, common_1.Post)(':tid/grille-tarifaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "creerFraisInscription", null);
+__decorate([
+    (0, common_1.Patch)(':tid/grille-tarifaire/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "updateFraisInscription", null);
+__decorate([
+    (0, common_1.Delete)(':tid/grille-tarifaire/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "deleteFraisInscription", null);
+__decorate([
+    (0, common_1.Patch)(':tid/grille-tarifaire/:id/toggle-actif'),
+    (0, swagger_1.ApiOperation)({ summary: 'Activer/Désactiver des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "toggleActifFrais", null);
 __decorate([
     (0, common_1.Get)('paiements-inscription/en-attente'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des paiements d\'inscription en attente de validation (Caissier)' }),

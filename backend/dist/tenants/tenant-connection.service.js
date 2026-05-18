@@ -29,15 +29,15 @@ let TenantConnectionService = class TenantConnectionService {
         let schemaName = this.schemaCache.get(tenantId);
         if (!schemaName) {
             try {
-                const result = await this.defaultConnection.query(`SELECT id, nom FROM tenant WHERE id = $1`, [tenantId]);
+                const result = await this.defaultConnection.query(`SELECT id, nom, schema_name FROM public.tenant WHERE id = $1`, [tenantId]);
                 if (result && result.length > 0) {
-                    const tenantName = result[0].nom || tenantId;
-                    schemaName = `tenant_${tenantName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+                    schemaName = result[0].schema_name || `tenant_${result[0].nom.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
                 }
                 else {
                     schemaName = `tenant_${tenantId.replace(/-/g, '_')}`;
                 }
                 this.schemaCache.set(tenantId, schemaName);
+                console.log(`[TenantConnection] Resolved tenant ${tenantId} to schema: ${schemaName}`);
             }
             catch (error) {
                 console.error(`[TenantConnection] Failed to lookup tenant ${tenantId}:`, error);

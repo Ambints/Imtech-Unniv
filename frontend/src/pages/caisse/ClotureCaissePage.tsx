@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
-import { 
+import {
   Calendar, DollarSign, CheckCircle, AlertCircle, Clock, TrendingUp,
   CreditCard, Wallet, Smartphone, Building2, Download, Printer,
   Eye, EyeOff, RefreshCw, Save, X, FileText, Settings
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface ClotureCaisse {
   id: string;
@@ -83,10 +85,14 @@ export const ClotureCaissePage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'X-Tenant-ID': tenantId
+      };
       
       // Charger la clôture existante
-      const clotureResponse = await fetch(`/api/caissier/cloture/journaliere?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const clotureResponse = await fetch(`/api/v1/caissier/cloture/journaliere?date=${selectedDate}`, {
+        headers
       });
       
       if (clotureResponse.ok) {
@@ -97,8 +103,8 @@ export const ClotureCaissePage: React.FC = () => {
       }
 
       // Charger les paiements du jour
-      const paiementsResponse = await fetch(`/api/caissier/paiements?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const paiementsResponse = await fetch(`/api/v1/caissier/paiements?date=${selectedDate}`, {
+        headers
       });
       
       if (paiementsResponse.ok) {
@@ -107,8 +113,8 @@ export const ClotureCaissePage: React.FC = () => {
       }
 
       // Charger le rapprochement bancaire
-      const rapprochementResponse = await fetch(`/api/caissier/rapprochement-bancaire?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const rapprochementResponse = await fetch(`/api/v1/caissier/rapprochement-bancaire?date=${selectedDate}`, {
+        headers
       });
       
       if (rapprochementResponse.ok) {
@@ -131,11 +137,12 @@ export const ClotureCaissePage: React.FC = () => {
     setCalculating(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/calculer-totaux`, {
+      const response = await fetch(`/api/v1/caissier/calculer-totaux`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': tenantId
         },
         body: JSON.stringify({
           date_cloture: selectedDate,
@@ -167,11 +174,12 @@ export const ClotureCaissePage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/cloture/journaliere`, {
+      const response = await fetch(`/api/v1/caissier/cloture/journaliere`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': tenantId
         },
         body: JSON.stringify({
           date: selectedDate,
@@ -204,11 +212,12 @@ export const ClotureCaissePage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/rapprochement-bancaire`, {
+      const response = await fetch(`/api/v1/caissier/rapprochement-bancaire`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': tenantId
         },
         body: JSON.stringify({
           date: selectedDate,
@@ -230,6 +239,113 @@ export const ClotureCaissePage: React.FC = () => {
       toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // En-tête
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Clôture de Caisse', pageWidth / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${new Date(selectedDate).toLocaleDateString('fr-FR')}`, pageWidth / 2, 28, { align: 'center' });
+      doc.text(`Caissier: ${user?.firstName} ${user?.lastName}` || 'N/A', pageWidth / 2, 35, { align: 'center' });
+      
+      // Résumé des totaux
+      if (cloture) {
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Résumé des Encaissements', 14, 50);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const summaryData = [
+          ['Total Général', fmt(cloture.total_general)],
+          ['Espèces', fmt(cloture.total_especes)],
+          ['Chèques', fmt(cloture.total_cheques)],
+          ['Virements', fmt(cloture.total_virements)],
+          ['Carte Bancaire', fmt(cloture.total_carte_bancaire)],
+          ['Mobile Money', fmt(cloture.total_mobile_money)],
+          ['Nombre de Transactions', cloture.nombre_paiements.toString()]
+        ];
+        
+        (doc as any).autoTable({
+          startY: 55,
+          head: [['Type', 'Montant']],
+          body: summaryData,
+          theme: 'grid',
+          headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 9 },
+          columnStyles: {
+            0: { cellWidth: 80 },
+            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+          }
+        });
+      }
+      
+      // Détails des paiements
+      if (paiementsDuJour.length > 0) {
+        const finalY = (doc as any).lastAutoTable?.finalY || 120;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Détails des Paiements', 14, finalY + 15);
+        
+        const paiementsData = paiementsDuJour.map(p => [
+          p.etudiant_nom,
+          p.parcours_nom,
+          fmt(p.montant),
+          p.mode_paiement.replace('_', ' '),
+          p.type_paiement,
+          p.numero_recu,
+          new Date(p.date_paiement).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        ]);
+        
+        (doc as any).autoTable({
+          startY: finalY + 20,
+          head: [['Étudiant', 'Parcours', 'Montant', 'Mode', 'Type', 'Reçu', 'Heure']],
+          body: paiementsData,
+          theme: 'striped',
+          headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 25, halign: 'right' },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 25 },
+            6: { cellWidth: 20, halign: 'center' }
+          }
+        });
+      }
+      
+      // Pied de page
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text(
+          `Page ${i} sur ${pageCount} - Généré le ${new Date().toLocaleString('fr-FR')}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        );
+      }
+      
+      // Sauvegarder le PDF
+      doc.save(`cloture-caisse-${selectedDate}.pdf`);
+      toast.success('PDF exporté avec succès!');
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error);
+      toast.error('Erreur lors de l\'export PDF');
     }
   };
 
@@ -526,10 +642,7 @@ export const ClotureCaissePage: React.FC = () => {
           </h3>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
-              onClick={() => {
-                // Exporter en CSV
-                toast.success('Export CSV en cours...');
-              }}
+              onClick={() => exportToPDF()}
               style={{
                 padding: '8px 12px',
                 background: '#f1f5f9',
@@ -545,7 +658,7 @@ export const ClotureCaissePage: React.FC = () => {
               }}
             >
               <Download size={16} />
-              CSV
+              PDF
             </button>
             <button
               onClick={() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { 
@@ -39,8 +39,37 @@ interface Recu {
   caissier: string;
 }
 
+// Memoized StatCard component
+const StatCard = React.memo(({ icon, label, value, color }: any) => (
+  <div style={{
+    background: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12
+  }}>
+    <div style={{
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      background: `${color}15`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      {icon}
+    </div>
+    <div>
+      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b' }}>{value}</div>
+    </div>
+  </div>
+));
+
 export const EncaissementPage: React.FC = () => {
-  const { user, tenant } = useAuthStore();
+  const { user, tenant, accessToken } = useAuthStore();
   const tenantId = tenant?.id || '';
   
   const [etudiants, setEtudiants] = useState<Etudiant[]>([]);
@@ -53,6 +82,10 @@ export const EncaissementPage: React.FC = () => {
   const [multiEncaissement, setMultiEncaissement] = useState(false);
   const [selectedEtudiants, setSelectedEtudiants] = useState<string[]>([]);
   
+  // Cache pour les données avec expiration de 5 minutes
+  const [dataCache, setDataCache] = useState<{[key: string]: {data: any, timestamp: number}}>({});
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   const [form, setForm] = useState<PaiementForm>({
     etudiantId: '',
     inscriptionId: '',
@@ -63,42 +96,72 @@ export const EncaissementPage: React.FC = () => {
     observations: ''
   });
 
+  // Fonction pour récupérer les données du cache
+  const getCachedData = useCallback((key: string) => {
+    const cached = dataCache[key];
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+    return null;
+  }, [dataCache]);
+
+  // Fonction pour mettre en cache les données
+  const setCachedData = useCallback((key: string, data: any) => {
+    setDataCache(prev => ({
+      ...prev,
+      [key]: { data, timestamp: Date.now() }
+    }));
+  }, []);
+
   useEffect(() => {
     loadEtudiants();
   }, [tenantId]);
 
+  // Debouncing pour la recherche (300ms)
   useEffect(() => {
-    if (searchTerm) {
-      const filtered = etudiants.filter(etudiant => 
-        etudiant.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        etudiant.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        etudiant.prenom.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredEtudiants(filtered);
-    } else {
-      setFilteredEtudiants(etudiants);
-    }
+    const timer = setTimeout(() => {
+      if (searchTerm) {
+        const filtered = etudiants.filter(etudiant => 
+          etudiant.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          etudiant.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          etudiant.prenom.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setFilteredEtudiants(filtered);
+      } else {
+        setFilteredEtudiants(etudiants);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchTerm, etudiants]);
 
-  const loadEtudiants = async () => {
+  const loadEtudiants = useCallback(async () => {
+    // Vérifier le cache d'abord
+    const cachedData = getCachedData('etudiants');
+    if (cachedData) {
+      setEtudiants(cachedData);
+      setFilteredEtudiants(cachedData);
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/etudiants-valides`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch(`/api/v1/caissier/etudiants-valides`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       
       if (response.ok) {
         const data = await response.json();
         setEtudiants(data);
         setFilteredEtudiants(data);
+        setCachedData('etudiants', data);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des étudiants:', error);
       toast.error('Erreur de chargement des étudiants');
     }
-  };
+  }, [accessToken, getCachedData, setCachedData]);
 
-  const handleEtudiantSelect = (etudiant: Etudiant) => {
+  const handleEtudiantSelect = useCallback((etudiant: Etudiant) => {
     setSelectedEtudiant(etudiant);
     setForm(prev => ({
       ...prev,
@@ -107,9 +170,9 @@ export const EncaissementPage: React.FC = () => {
     }));
     setSearchTerm('');
     setFilteredEtudiants([]);
-  };
+  }, []);
 
-  const handlePaiement = async (e: React.FormEvent) => {
+  const handlePaiement = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedEtudiant || !form.montant) {
@@ -119,12 +182,11 @@ export const EncaissementPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/caissier/encaissement-direct`, {
+      const response = await fetch(`/api/v1/caissier/encaissement-direct`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           inscriptionId: form.inscriptionId,
@@ -164,6 +226,14 @@ export const EncaissementPage: React.FC = () => {
           observations: ''
         });
         setSelectedEtudiant(null);
+        
+        // Invalider le cache pour forcer le rechargement
+        setDataCache(prev => {
+          const newCache = { ...prev };
+          delete newCache['etudiants'];
+          return newCache;
+        });
+        loadEtudiants();
       } else {
         const error = await response.json();
         toast.error(error.message || 'Erreur lors du paiement');
@@ -174,9 +244,9 @@ export const EncaissementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedEtudiant, form, accessToken, user, loadEtudiants]);
 
-  const handleMultiEncaissement = async () => {
+  const handleMultiEncaissement = useCallback(async () => {
     if (selectedEtudiants.length === 0) {
       toast.error('Veuillez sélectionner au moins un étudiant');
       return;
@@ -184,7 +254,6 @@ export const EncaissementPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const paiements = selectedEtudiants.map(etudiantId => {
         const etudiant = etudiants.find(e => e.id === etudiantId);
         return {
@@ -195,11 +264,11 @@ export const EncaissementPage: React.FC = () => {
         };
       });
 
-      const response = await fetch(`/api/caissier/encaissement-multiple`, {
+      const response = await fetch(`/api/v1/caissier/encaissement-multiple`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({ paiements })
       });
@@ -209,6 +278,14 @@ export const EncaissementPage: React.FC = () => {
         toast.success(`${data.succes} paiements enregistrés sur ${data.total}`);
         setSelectedEtudiants([]);
         setMultiEncaissement(false);
+        
+        // Invalider le cache
+        setDataCache(prev => {
+          const newCache = { ...prev };
+          delete newCache['etudiants'];
+          return newCache;
+        });
+        loadEtudiants();
       } else {
         const error = await response.json();
         toast.error(error.message || 'Erreur lors de l\'encaissement multiple');
@@ -219,24 +296,26 @@ export const EncaissementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedEtudiants, etudiants, accessToken, loadEtudiants]);
 
-  const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR') + ' Ar';
+  // Memoize fmt function
+  const fmt = useCallback((n: number) => Number(n || 0).toLocaleString('fr-FR') + ' Ar', []);
 
-  const modePaiementOptions = [
+  // Memoize options
+  const modePaiementOptions = useMemo(() => [
     { value: 'especes', label: 'Espèces', icon: <Wallet size={20} /> },
     { value: 'cheque', label: 'Chèque', icon: <CreditCard size={20} /> },
     { value: 'virement', label: 'Virement', icon: <Building2 size={20} /> },
     { value: 'carte_bancaire', label: 'Carte Bancaire', icon: <CardIcon size={20} /> },
     { value: 'mobile_money', label: 'Mobile Money', icon: <Smartphone size={20} /> }
-  ];
+  ], []);
 
-  const typePaiementOptions = [
+  const typePaiementOptions = useMemo(() => [
     { value: 'inscription', label: 'Frais d\'inscription', color: '#3b82f6' },
     { value: 'scolarite', label: 'Frais de scolarité', color: '#8b5cf6' },
     { value: 'retard', label: 'Pénalités de retard', color: '#ef4444' },
     { value: 'autre', label: 'Autre', color: '#64748b' }
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 32, background: '#F8FAFC', minHeight: '100vh' }}>
@@ -632,106 +711,67 @@ export const EncaissementPage: React.FC = () => {
             padding: 32,
             maxWidth: 500,
             width: '90%',
-            maxHeight: '80vh',
-            overflowY: 'auto'
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Receipt size={24} color="#1a5276" />
-                Reçu de Paiement
-              </h3>
-              <button
-                onClick={() => setShowRecu(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                <X size={24} color="#64748b" />
-              </button>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: '#10b98115',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <CheckCircle size={32} color="#10b981" />
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1e293b', margin: '0 0 8px' }}>
+                Paiement Enregistré
+              </h2>
+              <p style={{ color: '#64748b', fontSize: 14 }}>
+                Reçu N° {recu.numero}
+              </p>
             </div>
 
-            <div style={{ padding: 20, background: '#f8fafc', borderRadius: 12, marginBottom: 20 }}>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 24, fontWeight: 900, color: '#1a5276', margin: '0 0 8px' }}>
-                  Reçu N° {recu.numero}
-                </h2>
-                <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
-                  Date: {recu.date}
-                </p>
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: 12,
+              padding: 20,
+              marginBottom: 24
+            }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Étudiant</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>{recu.etudiant}</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{recu.parcours}</div>
               </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>Étudiant:</p>
-                <p style={{ fontSize: 16, fontWeight: 600, color: '#1e293b', margin: 0 }}>
-                  {recu.etudiant}
-                </p>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>Parcours:</p>
-                <p style={{ fontSize: 14, color: '#1e293b', margin: 0 }}>
-                  {recu.parcours}
-                </p>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>Montant:</p>
-                <p style={{ fontSize: 20, fontWeight: 800, color: '#10b981', margin: 0 }}>
-                  {fmt(recu.montant)}
-                </p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
                 <div>
-                  <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>Mode:</p>
-                  <p style={{ fontSize: 14, color: '#1e293b', margin: 0, textTransform: 'capitalize' }}>
-                    {recu.mode.replace('_', ' ')}
-                  </p>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Montant</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{fmt(recu.montant)}</div>
                 </div>
                 <div>
-                  <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>Type:</p>
-                  <p style={{ fontSize: 14, color: '#1e293b', margin: 0 }}>
-                    {recu.type}
-                  </p>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Mode</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{recu.mode}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Type</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{recu.type}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Date</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{recu.date}</div>
                 </div>
               </div>
-
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-                <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>Enregistré par:</p>
-                <p style={{ fontSize: 14, color: '#1e293b', margin: 0 }}>
-                  {recu.caissier}
-                </p>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Caissier</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{recu.caissier}</div>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button
-                onClick={() => {
-                  // Imprimer le reçu
-                  window.print();
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: '#1a5276',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                <Printer size={18} />
-                Imprimer
-              </button>
-              <button
-                onClick={() => {
-                  // Télécharger le reçu en PDF
-                  toast.success('Téléchargement en cours...');
-                }}
+                onClick={() => window.print()}
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -748,8 +788,24 @@ export const EncaissementPage: React.FC = () => {
                   gap: 8
                 }}
               >
-                <Download size={18} />
-                Télécharger
+                <Printer size={18} />
+                Imprimer
+              </button>
+              <button
+                onClick={() => setShowRecu(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#1a5276',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Fermer
               </button>
             </div>
           </div>
@@ -758,3 +814,5 @@ export const EncaissementPage: React.FC = () => {
     </div>
   );
 };
+
+// Made with Bob

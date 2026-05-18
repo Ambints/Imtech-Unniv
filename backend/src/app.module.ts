@@ -20,6 +20,7 @@ import { RHModule } from './rh/rh.module';
 import { EconomatModule } from './economat/economat.module';
 import { CaissierModule } from './caissier/caissier.module';
 import { PedagogiqueModule } from './pedagogique/pedagogique.module';
+import { MessagerieModule } from './messagerie/messagerie.module';
 import { ImtechCacheModule } from './cache/cache.module';
 import { Tenant } from './tenants/tenant.entity';
 import { User } from './users/user.entity';
@@ -94,6 +95,7 @@ import { Plan } from './tenants/plan.entity';
 import { PlansModule } from './plans/plans.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ScolariteModule } from './scolarite/scolarite.module';
+import { PresidentModule } from './president/president.module';
 import { TenantMiddleware } from './tenants/tenant.middleware';
 import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
 
@@ -173,6 +175,8 @@ import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
     EconomatModule,
     PedagogiqueModule,
     ScolariteModule,
+    MessagerieModule,
+    PresidentModule,
     ImtechCacheModule,
   ],
   providers: [

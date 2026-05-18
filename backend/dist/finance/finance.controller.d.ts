@@ -17,13 +17,13 @@ export declare class FinanceController {
             message: string;
         };
     }>;
-    getTousPaiements(req: Request, date?: string): Promise<import("./finance.entities").Paiement[]>;
+    getTousPaiements(req: Request, date?: string): Promise<any>;
     getPaiements(req: Request, eid: string): Promise<import("./finance.entities").Paiement[]>;
     getCaisse(req: Request): Promise<{
         date: Date;
-        total: number;
-        nombrePaiements: number;
-        paiements: import("./finance.entities").Paiement[];
+        total: any;
+        nombrePaiements: any;
+        paiements: any;
     }>;
     cloturer(req: Request, body: any): Promise<{
         message: string;
@@ -52,8 +52,14 @@ export declare class FinanceController {
     creerContrat(req: Request, dto: any): Promise<import("./finance.entities").ContratPersonnel[]>;
     getContrats(req: Request, pid?: string): Promise<import("./finance.entities").ContratPersonnel[]>;
     updateContrat(req: Request, id: string, dto: any): Promise<any>;
-    creerEcheancier(req: Request, dto: any): Promise<import("./finance.entities").Echeancier[]>;
-    getEcheanciers(req: Request, eid?: string): Promise<import("./finance.entities").Echeancier[]>;
+    creerEcheancier(tid: string, dto: any): Promise<import("./finance.entities").Echeancier[]>;
+    getEcheanciers(tid: string, inscriptionId?: string): Promise<any>;
+    getInscriptionsActives(tid: string): Promise<any>;
+    getGrilleTarifaire(tid: string): Promise<any>;
+    creerFraisInscription(tid: string, dto: any): Promise<any>;
+    updateFraisInscription(tid: string, id: string, dto: any): Promise<any>;
+    deleteFraisInscription(tid: string, id: string): Promise<any>;
+    toggleActifFrais(tid: string, id: string): Promise<any>;
     getPaiementsEnAttente(req: Request): Promise<any>;
     getTousPaiementsInscription(req: Request, statut?: string): Promise<any>;
     validerPaiement(req: Request, paiementId: string, body: {

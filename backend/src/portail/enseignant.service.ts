@@ -1,12 +1,16 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { TenantConnectionService } from '../tenants/tenant-connection.service';
 
 @Injectable()
 export class PortailEnseignantService {
   private readonly logger = new Logger(PortailEnseignantService.name);
 
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private dataSource: DataSource,
+    private readonly tenantConnection: TenantConnectionService,
+  ) {}
 
   // ========== PROFIL & MES COURS ==========
   async getProfil(utilisateurId: string): Promise<any> {
@@ -38,8 +42,10 @@ export class PortailEnseignantService {
     return { ...profil[0], stats: stats[0] };
   }
 
-  async getMesCours(utilisateurId: string, anneeAcademiqueId?: string): Promise<any[]> {
-    const anneeFilter = anneeAcademiqueId 
+  async getMesCours(tenantId: string, utilisateurId: string, anneeAcademiqueId?: string): Promise<any[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
+    const anneeFilter = anneeAcademiqueId
       ? `AND ac.annee_academique_id = '${anneeAcademiqueId}'`
       : `AND aa.active = true`;
 
@@ -104,7 +110,9 @@ export class PortailEnseignantService {
     return support[0];
   }
 
-  async getSupportsCours(utilisateurId: string, ecId?: string): Promise<any[]> {
+  async getSupportsCours(tenantId: string, utilisateurId: string, ecId?: string): Promise<any[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
     let query = `
       SELECT sc.*, ec.intitule as ec_nom
       FROM support_cours sc
@@ -217,7 +225,9 @@ export class PortailEnseignantService {
   }
 
   // ========== NOTES ==========
-  async getSessionsEvaluation(utilisateurId: string): Promise<any[]> {
+  async getSessionsEvaluation(tenantId: string, utilisateurId: string): Promise<any[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
     return this.dataSource.query(`
       SELECT DISTINCT
         se.id,
@@ -463,6 +473,29 @@ export class PortailEnseignantService {
     return msg[0];
   }
 
+  async getMesMessages(tenantId: string, utilisateurId: string): Promise<any[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
+    return this.dataSource.query(`
+      SELECT 
+        m.*,
+        CASE 
+          WHEN m.expediteur_id = $1 THEN 'envoyé'
+          ELSE 'reçu'
+        END as direction,
+        e_dest.nom as destinataire_nom,
+        e_dest.prenom as destinataire_prenom,
+        e_exp.nom as expediteur_nom,
+        e_exp.prenom as expediteur_prenom
+      FROM message m
+      LEFT JOIN etudiant e_dest ON e_dest.id = m.destinataire_id
+      LEFT JOIN enseignant e_exp ON e_exp.utilisateur_id = m.expediteur_id
+      WHERE m.expediteur_id = $1 OR m.destinataire_id = $1
+      ORDER BY m.created_at DESC
+      LIMIT 50
+    `, [utilisateurId]);
+  }
+
   // ========== STAGES & MÉMOIRES ==========
   async getStagesSupervises(utilisateurId: string): Promise<any[]> {
     return this.dataSource.query(`
@@ -519,7 +552,9 @@ export class PortailEnseignantService {
     return demande[0];
   }
 
-  async getMesDemandesRessources(utilisateurId: string): Promise<any[]> {
+  async getMesDemandesRessources(tenantId: string, utilisateurId: string): Promise<any[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
     return this.dataSource.query(`
       SELECT * FROM demande_ressource WHERE demandeur_id = $1 ORDER BY created_at DESC
     `, [utilisateurId]);
@@ -558,8 +593,10 @@ export class PortailEnseignantService {
   }
 
   // ========== STATISTIQUES ==========
-  async getMesStats(utilisateurId: string, anneeAcademiqueId?: string): Promise<any> {
-    const anneeFilter = anneeAcademiqueId 
+  async getMesStats(tenantId: string, utilisateurId: string, anneeAcademiqueId?: string): Promise<any> {
+    await this.tenantConnection.setTenantSchema(tenantId);
+    
+    const anneeFilter = anneeAcademiqueId
       ? `AND ac.annee_academique_id = '${anneeAcademiqueId}'`
       : `AND aa.active = true`;
 

@@ -226,21 +226,54 @@ export const InscriptionEtudiantPage: React.FC = () => {
     }
   };
 
-  const getStatusColor = (statut: string) => {
+  const getStatusStyle = (statut: string) => {
     switch (statut) {
-      case 'validee': return 'text-green-600 bg-green-100';
-      case 'en_attente': return 'text-yellow-600 bg-yellow-100';
-      case 'annulee': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'validee':
+        return {
+          backgroundColor: '#d1fae5',
+          color: '#065f46',
+          padding: '4px 12px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: '600'
+        };
+      case 'en_attente':
+        return {
+          backgroundColor: '#fef3c7',
+          color: '#92400e',
+          padding: '4px 12px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: '600'
+        };
+      case 'annulee':
+        return {
+          backgroundColor: '#fee2e2',
+          color: '#991b1b',
+          padding: '4px 12px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: '600'
+        };
+      default:
+        return {
+          backgroundColor: '#f3f4f6',
+          color: '#374151',
+          padding: '4px 12px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: '600'
+        };
     }
   };
 
   const getStatusLabel = (statut: string) => {
     switch (statut) {
-      case 'validee': return 'Validée';
-      case 'en_attente': return 'En attente';
-      case 'annulee': return 'Annulée';
-      default: return statut;
+      case 'validee': return '✓ Validée';
+      case 'en_attente': return '⏳ En attente';
+      case 'annulee': return '✗ Annulée';
+      case 'active': return '✓ Active';
+      default: return statut || 'Non défini';
     }
   };
 
@@ -338,7 +371,7 @@ export const InscriptionEtudiantPage: React.FC = () => {
                             <td>{inscription.annee_academique}</td>
                             <td>{new Date(inscription.date_inscription).toLocaleDateString()}</td>
                             <td>
-                              <span className={`badge ${getStatusColor(inscription.statut)}`}>
+                              <span style={getStatusStyle(inscription.statut)}>
                                 {getStatusLabel(inscription.statut)}
                               </span>
                             </td>

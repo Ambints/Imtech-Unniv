@@ -109,16 +109,54 @@ export class FinanceController {
     return this.svc.updateContrat(this.getTenantId(req), id, dto);
   }
 
-  @Post('echeanciers')
+  @Post(':tid/echeanciers')
   @ApiOperation({ summary: 'Creer un echeancier de paiement' })
-  creerEcheancier(@Req() req: Request, @Body() dto: any) {
-    return this.svc.creerEcheancier(this.getTenantId(req), dto);
+  creerEcheancier(@Param('tid') tid: string, @Body() dto: any) {
+    return this.svc.creerEcheancier(tid, dto);
   }
 
-  @Get('echeanciers')
+  @Get(':tid/echeanciers')
   @ApiOperation({ summary: 'Echeanciers' })
-  getEcheanciers(@Req() req: Request, @Query('etudiantId') eid?: string) {
-    return this.svc.getEcheanciers(this.getTenantId(req), eid);
+  getEcheanciers(@Param('tid') tid: string, @Query('inscriptionId') inscriptionId?: string) {
+    return this.svc.getEcheanciers(tid, inscriptionId);
+  }
+
+  @Get(':tid/inscriptions-actives')
+  @ApiOperation({ summary: 'Liste des inscriptions actives pour créer des échéanciers' })
+  getInscriptionsActives(@Param('tid') tid: string) {
+    return this.svc.getInscriptionsActives(tid);
+  }
+
+  // ==================== ENDPOINTS GRILLE TARIFAIRE ====================
+
+  @Get(':tid/grille-tarifaire')
+  @ApiOperation({ summary: 'Liste des frais d\'inscription par parcours et année' })
+  getGrilleTarifaire(@Param('tid') tid: string) {
+    return this.svc.getGrilleTarifaire(tid);
+  }
+
+  @Post(':tid/grille-tarifaire')
+  @ApiOperation({ summary: 'Créer des frais d\'inscription' })
+  creerFraisInscription(@Param('tid') tid: string, @Body() dto: any) {
+    return this.svc.creerFraisInscription(tid, dto);
+  }
+
+  @Patch(':tid/grille-tarifaire/:id')
+  @ApiOperation({ summary: 'Modifier des frais d\'inscription' })
+  updateFraisInscription(@Param('tid') tid: string, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateFraisInscription(tid, id, dto);
+  }
+
+  @Delete(':tid/grille-tarifaire/:id')
+  @ApiOperation({ summary: 'Supprimer des frais d\'inscription' })
+  deleteFraisInscription(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.deleteFraisInscription(tid, id);
+  }
+
+  @Patch(':tid/grille-tarifaire/:id/toggle-actif')
+  @ApiOperation({ summary: 'Activer/Désactiver des frais d\'inscription' })
+  toggleActifFrais(@Param('tid') tid: string, @Param('id') id: string) {
+    return this.svc.toggleActifFrais(tid, id);
   }
 
   // ==================== ENDPOINTS VALIDATION PAIEMENTS INSCRIPTION ====================

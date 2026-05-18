@@ -102,10 +102,10 @@ api.interceptors.request.use((config) => {
   }
 
   // Mode mono-schéma: le backend peut ignorer les tenants (DEFAULT_TENANT_SCHEMA).
-  // On envoie X-Tenant-Id seulement si on l'a, sans bloquer la requête.
+  // On envoie X-Tenant-ID seulement si on l'a, sans bloquer la requête.
   if (tenantId) {
-    config.headers['X-Tenant-Id'] = tenantId;
-    console.log('✅ X-Tenant-Id header ajouté:', tenantId);
+    config.headers['X-Tenant-ID'] = tenantId;
+    console.log('✅ X-Tenant-ID header ajouté:', tenantId);
   }
 
   return config;
@@ -278,6 +278,12 @@ export const financeApi = {
   creerContrat: (tid: string, dto: any) => api.post(`/finance/contrats`, dto),
   getContrats: (tid: string) => api.get(`/finance/contrats`),
   updateContrat: (tid: string, id: string, dto: any) => api.patch(`/finance/contrats/${id}`, dto),
+  
+  // Échéanciers
+  getEcheanciers: (tid: string, inscriptionId?: string) =>
+    api.get(`/finance/${tid}/echeanciers${inscriptionId ? `?inscriptionId=${inscriptionId}` : ''}`),
+  creerEcheancier: (tid: string, dto: any) => api.post(`/finance/${tid}/echeanciers`, dto),
+  getInscriptionsActives: (tid: string) => api.get(`/finance/${tid}/inscriptions-actives`),
   
   // Rapports
   getRapport: (tid: string, annee: string) => api.get(`/finance/${tid}/rapport?annee=${annee}`),

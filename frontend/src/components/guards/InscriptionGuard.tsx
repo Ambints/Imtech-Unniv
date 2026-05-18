@@ -41,11 +41,31 @@ export const InscriptionGuard: React.FC<Props> = ({ children }) => {
         const validInscription = data.find((ins: any) => ins.statut === 'validee');
         setHasValidInscription(!!validInscription);
 
-        // Vérifier si les frais sont payés (simulation - à implémenter avec l'API paiement)
+        // Vérifier si les frais sont payés via l'API
         if (validInscription) {
-          // Pour l'instant, on considère que les frais ne sont pas payés
-          // Dans un vrai système, il faudrait vérifier via l'API de paiement
-          setHasPaidFees(false); // À modifier quand l'API paiement sera prête
+          try {
+            const paiementResponse = await fetch(`/api/portail/${tenantId}/etudiant/paiements`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (paiementResponse.ok) {
+              const paiements = await paiementResponse.json();
+              // Vérifier s'il y a au moins un paiement validé pour l'inscription
+              const hasPaid = paiements.some((p: any) =>
+                p.inscription_id === validInscription.id &&
+                p.statut === 'valide'
+              );
+              setHasPaidFees(hasPaid);
+            } else {
+              // Si l'API paiement n'est pas disponible, on autorise l'accès
+              // pour ne pas bloquer les étudiants avec inscription validée
+              setHasPaidFees(true);
+            }
+          } catch (paiementError) {
+            console.warn('API paiement non disponible, accès autorisé par défaut');
+            // En cas d'erreur API, on autorise l'accès si l'inscription est validée
+            setHasPaidFees(true);
+          }
         }
       }
     } catch (error) {

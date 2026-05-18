@@ -21,6 +21,15 @@ export declare class CaissierController {
     debloquerNotes(inscriptionId: string): Promise<any>;
     getClotureJournaliere(date: string): Promise<any>;
     validerCloture(date: string, user: any): Promise<any>;
+    calculerTotaux(dto: {
+        date_cloture: string;
+        caissier_id: string;
+    }): Promise<any>;
+    saveRapprochementBancaire(dto: {
+        date: string;
+        solde_reel: number;
+        motif_ecart?: string;
+    }): Promise<any>;
     getRapprochementBancaire(date: string): Promise<any>;
     getStatsJournalieres(date: string): Promise<any>;
     getStatsMensuelles(mois: number, annee: number): Promise<any>;

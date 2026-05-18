@@ -134,6 +134,20 @@ export class CaissierController {
     return this.svc.validerCloture(date, user.id);
   }
 
+  @Post('calculer-totaux')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Calculer les totaux pour la clôture' })
+  calculerTotaux(@Body() dto: { date_cloture: string; caissier_id: string }) {
+    return this.svc.calculerTotaux(dto.date_cloture, dto.caissier_id);
+  }
+
+  @Post('rapprochement-bancaire')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Sauvegarder le rapprochement bancaire' })
+  saveRapprochementBancaire(@Body() dto: { date: string; solde_reel: number; motif_ecart?: string }) {
+    return this.svc.saveRapprochementBancaire(dto.date, dto.solde_reel, dto.motif_ecart);
+  }
+
   @Get('rapprochement-bancaire')
   @Roles('caissier', 'economat', 'admin')
   @ApiOperation({ summary: 'Rapprochement bancaire quotidien' })

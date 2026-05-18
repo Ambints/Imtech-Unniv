@@ -445,6 +445,20 @@ let AcademicService = AcademicService_1 = class AcademicService {
         await this.anneeRepo.update(id, { active: true });
         return { message: 'Année académique activée avec succès', annee: { ...annee, active: true } };
     }
+    async deleteAnneeAcademique(tid, id) {
+        await this.tenantConnection.setTenantSchema(tid);
+        const annee = await this.anneeRepo.findOne({ where: { id } });
+        if (!annee)
+            throw new common_1.NotFoundException('Année académique non trouvée');
+        const inscriptions = await this.dataSource.query(`
+      SELECT COUNT(*) as count FROM inscription WHERE annee_academique_id = $1
+    `, [id]);
+        if (parseInt(inscriptions[0].count) > 0) {
+            throw new common_1.BadRequestException('Impossible de supprimer cette année car elle est utilisée par des inscriptions');
+        }
+        await this.anneeRepo.delete(id);
+        return { message: 'Année académique supprimée avec succès' };
+    }
     async getEnseignants(tid) {
         await this.tenantConnection.setTenantSchema(tid);
         return this.dataSource.query(`

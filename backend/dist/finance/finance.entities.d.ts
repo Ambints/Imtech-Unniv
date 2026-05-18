@@ -3,7 +3,11 @@ export declare class GrilleTarifaire {
     parcoursId: string;
     anneeAcademiqueId: string;
     anneeNiveau: number;
+    montantInscription: number;
+    montantScolarite: number;
     montantTotal: number;
+    dateLimitePaiement: Date;
+    modalitesPaiement: any;
     nbTranches: number;
     description: string;
     actif: boolean;

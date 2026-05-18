@@ -1,0 +1,220 @@
+/* Logistique Module Styles */
+
+.logistique-dashboard {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* KPI Cards */
+.logistique-kpi-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.logistique-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Badge Styles */
+.badge-priorite-urgente {
+  background-color: #dc3545;
+  animation: pulse-red 2s infinite;
+}
+
+.badge-priorite-haute {
+  background-color: #fd7e14;
+}
+
+.badge-priorite-normale {
+  background-color: #0d6efd;
+}
+
+.badge-priorite-basse {
+  background-color: #6c757d;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Stock Alert Badge */
+.stock-alerte-badge {
+  position: relative;
+  animation: pulse-danger 1.5s infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+}
+
+/* Ticket Status Badges */
+.badge-statut-ouvert {
+  background-color: #dc3545;
+}
+
+.badge-statut-en-cours {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.badge-statut-resolu {
+  background-color: #198754;
+}
+
+.badge-statut-ferme {
+  background-color: #6c757d;
+}
+
+/* Salle Card */
+.salle-card {
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.salle-card.disponible {
+  border-left-color: #198754;
+}
+
+.salle-card.indisponible {
+  border-left-color: #dc3545;
+  opacity: 0.7;
+}
+
+.salle-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Reservation Calendar */
+.calendrier-event {
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  font-size: 0.85rem;
+}
+
+.calendrier-event.reservation {
+  background-color: #d1e7dd;
+  border-left: 3px solid #198754;
+}
+
+.calendrier-event.cours {
+  background-color: #cfe2ff;
+  border-left: 3px solid #0d6efd;
+}
+
+.calendrier-event.en-attente {
+  background-color: #fff3cd;
+  border-left: 3px solid #ffc107;
+}
+
+/* Planning Grid */
+.planning-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.planning-cell {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 100px;
+  background-color: #fff;
+}
+
+.planning-cell.actif {
+  background-color: #d1e7dd;
+  border-color: #198754;
+}
+
+.planning-cell.inactif {
+  background-color: #f8f9fa;
+  opacity: 0.6;
+}
+
+/* Stock Table */
+.stock-row-alerte {
+  background-color: #f8d7da !important;
+}
+
+.stock-row-alerte:hover {
+  background-color: #f5c2c7 !important;
+}
+
+/* Ticket Priority Indicator */
+.ticket-priority-indicator {
+  width: 4px;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.ticket-priority-indicator.urgente {
+  background-color: #dc3545;
+}
+
+.ticket-priority-indicator.haute {
+  background-color: #fd7e14;
+}
+
+.ticket-priority-indicator.normale {
+  background-color: #0d6efd;
+}
+
+.ticket-priority-indicator.basse {
+  background-color: #6c757d;
+}
+
+/* Loading Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .planning-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .logistique-kpi-card {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .logistique-sidebar,
+  .btn,
+  .badge-statut-en-cours {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+  }
+}
+
+/* Made with Bob */

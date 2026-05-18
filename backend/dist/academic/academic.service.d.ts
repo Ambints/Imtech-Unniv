@@ -136,6 +136,9 @@ export declare class AcademicService {
             createdAt: Date;
         };
     }>;
+    deleteAnneeAcademique(tid: string, id: string): Promise<{
+        message: string;
+    }>;
     getEnseignants(tid: string): Promise<any>;
     getSessionsExamen(tid: string): Promise<SessionExamen[]>;
     getPresences(tid: string, statut?: string): Promise<Presence[]>;

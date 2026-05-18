@@ -1,279 +1,188 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, Req } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { TenantSchemaInterceptor } from '../tenants/tenant-schema.interceptor';
 import { EntretienService } from './entretien.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { CreateResponsableDto } from './dto/create-responsable.dto';
-import { UpdateResponsableDto } from './dto/update-responsable.dto';
+import {
+  CreatePlanningEntretienDto,
+  UpdatePlanningEntretienDto,
+  CreateRapportEntretienDto,
+  UpdateRapportEntretienDto,
+  CreateTicketMaintenanceDto,
+  UpdateTicketMaintenanceDto,
+  CreateStockEntretienDto,
+  MouvementStockEntretienDto,
+  TraiterReservationDto,
+  TraiterDemandeRessourceDto,
+} from './dto';
 
-@ApiTags('Entretien - Logistique et Maintenance')
-@ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('entretien')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('logistique')
+@UseInterceptors(TenantSchemaInterceptor)
 export class EntretienController {
-  constructor(private readonly svc: EntretienService) {}
+  constructor(private readonly entretienService: EntretienService) {}
 
-  // ========== RESPONSABLES LOGISTIQUE ==========
-
-  @Get('responsables')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister tous les responsables logistique' })
-  @ApiResponse({ status: 200, description: 'Liste des responsables' })
-  findAllResponsables() {
-    return this.svc.findAllResponsables();
+  @Get('dashboard')
+  getDashboard(@Req() req: any) {
+    return this.entretienService.getDashboard(req.tenantSchema);
   }
 
-  @Get('responsables/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'un responsable logistique' })
-  @ApiResponse({ status: 200, description: 'Détails du responsable' })
-  findOneResponsable(@Param('id') id: string) {
-    return this.svc.findOneResponsable(id);
+  @Get('planning')
+  getPlanning(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getPlanning(req.tenantSchema, filters);
   }
 
-  @Post('responsables')
-  @Roles('super_admin', 'admin')
-  @ApiOperation({ summary: 'Créer un nouveau responsable logistique' })
-  @ApiResponse({ status: 201, description: 'Responsable créé' })
-  createResponsable(@Body() createDto: CreateResponsableDto) {
-    return this.svc.createResponsable(createDto);
+  @Get('planning/hebdomadaire')
+  getPlanningHebdomadaire(@Req() req: any) {
+    return this.entretienService.getPlanningHebdomadaire(req.tenantSchema);
   }
 
-  @Patch('responsables/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour un responsable logistique' })
-  @ApiResponse({ status: 200, description: 'Responsable mis à jour' })
-  updateResponsable(@Param('id') id: string, @Body() updateDto: UpdateResponsableDto) {
-    return this.svc.updateResponsable(id, updateDto);
+  @Post('planning')
+  createPlanning(@Req() req: any, @Body() dto: CreatePlanningEntretienDto) {
+    return this.entretienService.createPlanning(req.tenantSchema, dto);
   }
 
-  @Delete('responsables/:id')
-  @Roles('super_admin', 'admin')
-  @ApiOperation({ summary: 'Supprimer un responsable logistique' })
-  @ApiResponse({ status: 200, description: 'Responsable supprimé' })
-  removeResponsable(@Param('id') id: string) {
-    return this.svc.removeResponsable(id);
+  @Put('planning/:id')
+  updatePlanning(@Req() req: any, @Param('id') id: string, @Body() dto: UpdatePlanningEntretienDto) {
+    return this.entretienService.updatePlanning(req.tenantSchema, id, dto);
   }
 
-  // ========== SERVICES ENTRETIEN ==========
-
-  @Get('services')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister tous les services d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Liste des services' })
-  findAllServices() {
-    return this.svc.findAllServices();
+  @Put('planning/:id/toggle')
+  togglePlanning(@Req() req: any, @Param('id') id: string) {
+    return this.entretienService.togglePlanning(req.tenantSchema, id);
   }
-
-  @Get('services/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'un service d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Détails du service' })
-  findOneService(@Param('id') id: string) {
-    return this.svc.findOneService(id);
-  }
-
-  @Post('services')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Créer un nouveau service d\'entretien' })
-  @ApiResponse({ status: 201, description: 'Service créé' })
-  createService(@Body() createDto: any, @CurrentUser() user: any) {
-    return this.svc.createService({ ...createDto, responsable_id: user.id });
-  }
-
-  @Patch('services/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour un service d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Service mis à jour' })
-  updateService(@Param('id') id: string, @Body() updateDto: any) {
-    return this.svc.updateService(id, updateDto);
-  }
-
-  @Delete('services/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Supprimer un service d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Service supprimé' })
-  removeService(@Param('id') id: string) {
-    return this.svc.removeService(id);
-  }
-
-  // ========== PLANNINGS NETTOYAGE ==========
-
-  @Get('plannings')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister tous les plannings de nettoyage' })
-  @ApiResponse({ status: 200, description: 'Liste des plannings' })
-  findAllPlannings() {
-    return this.svc.findAllPlannings();
-  }
-
-  @Get('plannings/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'un planning de nettoyage' })
-  @ApiResponse({ status: 200, description: 'Détails du planning' })
-  findOnePlanning(@Param('id') id: string) {
-    return this.svc.findOnePlanning(id);
-  }
-
-  @Post('plannings')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Créer un nouveau planning de nettoyage' })
-  @ApiResponse({ status: 201, description: 'Planning créé' })
-  createPlanning(@Body() createDto: any, @CurrentUser() user: any) {
-    return this.svc.createPlanning({ ...createDto, responsable_id: user.id });
-  }
-
-  @Patch('plannings/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour un planning de nettoyage' })
-  @ApiResponse({ status: 200, description: 'Planning mis à jour' })
-  updatePlanning(@Param('id') id: string, @Body() updateDto: any) {
-    return this.svc.updatePlanning(id, updateDto);
-  }
-
-  @Delete('plannings/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Supprimer un planning de nettoyage' })
-  @ApiResponse({ status: 200, description: 'Planning supprimé' })
-  removePlanning(@Param('id') id: string) {
-    return this.svc.removePlanning(id);
-  }
-
-  // ========== STOCKS PRODUITS MENAGE ==========
-
-  @Get('stocks')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister tous les stocks de produits de ménage' })
-  @ApiResponse({ status: 200, description: 'Liste des stocks' })
-  findAllStocks() {
-    return this.svc.findAllStocks();
-  }
-
-  @Get('stocks/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'un stock de produits' })
-  @ApiResponse({ status: 200, description: 'Détails du stock' })
-  findOneStock(@Param('id') id: string) {
-    return this.svc.findOneStock(id);
-  }
-
-  @Post('stocks')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Créer un nouveau stock de produits' })
-  @ApiResponse({ status: 201, description: 'Stock créé' })
-  createStock(@Body() createDto: any, @CurrentUser() user: any) {
-    return this.svc.createStock({ ...createDto, responsable_id: user.id });
-  }
-
-  @Patch('stocks/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour un stock de produits' })
-  @ApiResponse({ status: 200, description: 'Stock mis à jour' })
-  updateStock(@Param('id') id: string, @Body() updateDto: any) {
-    return this.svc.updateStock(id, updateDto);
-  }
-
-  @Delete('stocks/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Supprimer un stock de produits' })
-  @ApiResponse({ status: 200, description: 'Stock supprimé' })
-  removeStock(@Param('id') id: string) {
-    return this.svc.removeStock(id);
-  }
-
-  // ========== MAINTENANCES PREVENTIVES ==========
-
-  @Get('maintenances')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister toutes les maintenances préventives' })
-  @ApiResponse({ status: 200, description: 'Liste des maintenances' })
-  findAllMaintenances() {
-    return this.svc.findAllMaintenances();
-  }
-
-  @Get('maintenances/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'une maintenance préventive' })
-  @ApiResponse({ status: 200, description: 'Détails de la maintenance' })
-  findOneMaintenance(@Param('id') id: string) {
-    return this.svc.findOneMaintenance(id);
-  }
-
-  @Post('maintenances')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Planifier une nouvelle maintenance préventive' })
-  @ApiResponse({ status: 201, description: 'Maintenance créée' })
-  createMaintenance(@Body() createDto: any, @CurrentUser() user: any) {
-    return this.svc.createMaintenance({ ...createDto, responsable_id: user.id });
-  }
-
-  @Patch('maintenances/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour une maintenance préventive' })
-  @ApiResponse({ status: 200, description: 'Maintenance mise à jour' })
-  updateMaintenance(@Param('id') id: string, @Body() updateDto: any) {
-    return this.svc.updateMaintenance(id, updateDto);
-  }
-
-  @Delete('maintenances/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Supprimer une maintenance préventive' })
-  @ApiResponse({ status: 200, description: 'Maintenance supprimée' })
-  removeMaintenance(@Param('id') id: string) {
-    return this.svc.removeMaintenance(id);
-  }
-
-  // ========== RAPPORTS ENTRETIEN ==========
 
   @Get('rapports')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Lister tous les rapports d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Liste des rapports' })
-  findAllRapports() {
-    return this.svc.findAllRapports();
+  getRapports(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getRapports(req.tenantSchema, filters);
   }
 
-  @Get('rapports/:id')
-  @Roles('super_admin', 'admin', 'responsable_logistique')
-  @ApiOperation({ summary: 'Détails d\'un rapport d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Détails du rapport' })
-  findOneRapport(@Param('id') id: string) {
-    return this.svc.findOneRapport(id);
+  @Get('rapports/stats')
+  getRapportsStats(@Req() req: any, @Query('jours') jours?: number) {
+    return this.entretienService.getRapportsStats(req.tenantSchema, jours);
   }
 
   @Post('rapports')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Créer un nouveau rapport d\'entretien' })
-  @ApiResponse({ status: 201, description: 'Rapport créé' })
-  createRapport(@Body() createDto: any, @CurrentUser() user: any) {
-    return this.svc.createRapport({ ...createDto, responsable_id: user.id });
+  createRapport(@Req() req: any, @Body() dto: CreateRapportEntretienDto) {
+    return this.entretienService.createRapport(req.tenantSchema, dto);
   }
 
-  @Patch('rapports/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Mettre à jour un rapport d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Rapport mis à jour' })
-  updateRapport(@Param('id') id: string, @Body() updateDto: any) {
-    return this.svc.updateRapport(id, updateDto);
+  @Put('rapports/:id')
+  updateRapport(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateRapportEntretienDto) {
+    return this.entretienService.updateRapport(req.tenantSchema, id, dto);
   }
 
-  @Delete('rapports/:id')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Supprimer un rapport d\'entretien' })
-  @ApiResponse({ status: 200, description: 'Rapport supprimé' })
-  removeRapport(@Param('id') id: string) {
-    return this.svc.removeRapport(id);
+  @Get('tickets')
+  getTickets(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getTickets(req.tenantSchema, filters);
   }
 
-  // ========== DASHBOARD ==========
+  @Get('tickets/urgents')
+  getTicketsUrgents(@Req() req: any) {
+    return this.entretienService.getTicketsUrgents(req.tenantSchema);
+  }
 
-  @Get('dashboard')
-  @Roles('responsable_logistique')
-  @ApiOperation({ summary: 'Tableau de bord du responsable logistique' })
-  @ApiResponse({ status: 200, description: 'Statistiques du responsable logistique' })
-  getDashboard(@CurrentUser() user: any) {
-    return this.svc.getDashboard();
+  @Get('tickets/stats')
+  getTicketsStats(@Req() req: any, @Query('jours') jours?: number) {
+    return this.entretienService.getTicketsStats(req.tenantSchema, jours);
+  }
+
+  @Post('tickets')
+  createTicket(@Req() req: any, @Body() dto: CreateTicketMaintenanceDto) {
+    return this.entretienService.createTicket(req.tenantSchema, dto, req.user.id);
+  }
+
+  @Put('tickets/:id')
+  updateTicket(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateTicketMaintenanceDto) {
+    return this.entretienService.updateTicket(req.tenantSchema, id, dto);
+  }
+
+  @Get('stock')
+  getStock(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getStock(req.tenantSchema, filters);
+  }
+
+  @Get('stock/alertes')
+  getStockAlertes(@Req() req: any) {
+    return this.entretienService.getStockAlertes(req.tenantSchema);
+  }
+
+  @Get('stock/energie')
+  getStockEnergie(@Req() req: any) {
+    return this.entretienService.getStockEnergie(req.tenantSchema);
+  }
+
+  @Post('stock')
+  createStock(@Req() req: any, @Body() dto: CreateStockEntretienDto) {
+    return this.entretienService.createStock(req.tenantSchema, dto);
+  }
+
+  @Put('stock/:id')
+  updateStock(@Req() req: any, @Param('id') id: string, @Body() dto: Partial<CreateStockEntretienDto>) {
+    return this.entretienService.updateStock(req.tenantSchema, id, dto);
+  }
+
+  @Get('stock/:id/mouvements')
+  getMouvements(@Req() req: any, @Param('id') id: string, @Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.entretienService.getMouvements(req.tenantSchema, id, page, limit);
+  }
+
+  @Post('stock/:id/mouvement')
+  enregistrerMouvement(@Req() req: any, @Param('id') id: string, @Body() dto: MouvementStockEntretienDto) {
+    return this.entretienService.enregistrerMouvement(req.tenantSchema, id, dto, req.user.id);
+  }
+
+  @Get('reservations')
+  getReservations(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getReservations(req.tenantSchema, filters);
+  }
+
+  @Get('reservations/calendrier')
+  getCalendrier(@Req() req: any, @Query('dateDebut') dateDebut: string, @Query('dateFin') dateFin: string) {
+    return this.entretienService.getCalendrier(req.tenantSchema, dateDebut, dateFin);
+  }
+
+  @Put('reservations/:id/approuver')
+  approuverReservation(@Req() req: any, @Param('id') id: string) {
+    return this.entretienService.approuverReservation(req.tenantSchema, id, req.user.id);
+  }
+
+  @Put('reservations/:id/refuser')
+  refuserReservation(@Req() req: any, @Param('id') id: string, @Body() dto: TraiterReservationDto) {
+    return this.entretienService.refuserReservation(req.tenantSchema, id, dto);
+  }
+
+  @Delete('reservations/:id')
+  annulerReservation(@Req() req: any, @Param('id') id: string) {
+    return this.entretienService.annulerReservation(req.tenantSchema, id);
+  }
+
+  @Get('demandes-ressource')
+  getDemandesRessource(@Req() req: any, @Query() filters: any) {
+    return this.entretienService.getDemandesRessource(req.tenantSchema, filters);
+  }
+
+  @Put('demandes-ressource/:id/traiter')
+  traiterDemandeRessource(@Req() req: any, @Param('id') id: string, @Body() dto: TraiterDemandeRessourceDto) {
+    return this.entretienService.traiterDemandeRessource(req.tenantSchema, id, dto, req.user.id);
+  }
+
+  @Get('inventaire/batiments')
+  getInventaireBatiments(@Req() req: any) {
+    return this.entretienService.getInventaireBatiments(req.tenantSchema);
+  }
+
+  @Get('inventaire/salles-par-type')
+  getInventaireSallesParType(@Req() req: any) {
+    return this.entretienService.getInventaireSallesParType(req.tenantSchema);
+  }
+
+  @Get('inventaire/stocks-par-categorie')
+  getInventaireStocksParCategorie(@Req() req: any) {
+    return this.entretienService.getInventaireStocksParCategorie(req.tenantSchema);
   }
 }
+
+// Made with Bob

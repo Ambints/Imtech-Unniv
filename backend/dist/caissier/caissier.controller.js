@@ -72,6 +72,12 @@ let CaissierController = class CaissierController {
     validerCloture(date, user) {
         return this.svc.validerCloture(date, user.id);
     }
+    calculerTotaux(dto) {
+        return this.svc.calculerTotaux(dto.date_cloture, dto.caissier_id);
+    }
+    saveRapprochementBancaire(dto) {
+        return this.svc.saveRapprochementBancaire(dto.date, dto.solde_reel, dto.motif_ecart);
+    }
     getRapprochementBancaire(date) {
         return this.svc.getRapprochementBancaire(date);
     }
@@ -263,6 +269,24 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], CaissierController.prototype, "validerCloture", null);
+__decorate([
+    (0, common_1.Post)('calculer-totaux'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Calculer les totaux pour la clôture' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "calculerTotaux", null);
+__decorate([
+    (0, common_1.Post)('rapprochement-bancaire'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Sauvegarder le rapprochement bancaire' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "saveRapprochementBancaire", null);
 __decorate([
     (0, common_1.Get)('rapprochement-bancaire'),
     (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),

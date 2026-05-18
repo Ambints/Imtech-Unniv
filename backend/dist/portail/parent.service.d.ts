@@ -4,6 +4,7 @@ export declare class PortailParentService {
     private readonly logger;
     constructor(dataSource: DataSource);
     private verifierLienParentEnfant;
+    private estMineur;
     getEnfants(parentUserId: string): Promise<any>;
     getBulletin(parentUserId: string, etudiantId: string, sessionId?: string): Promise<any>;
     getAbsences(parentUserId: string, etudiantId: string): Promise<any>;

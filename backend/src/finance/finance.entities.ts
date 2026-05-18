@@ -6,7 +6,11 @@ export class GrilleTarifaire {
   @Column({ name: 'parcours_id' }) parcoursId: string;
   @Column({ name: 'annee_academique_id' }) anneeAcademiqueId: string;
   @Column({ name: 'annee_niveau', nullable: true }) anneeNiveau: number;
+  @Column({ name: 'montant_inscription', type: 'decimal', precision: 12, scale: 2, default: 0 }) montantInscription: number;
+  @Column({ name: 'montant_scolarite', type: 'decimal', precision: 12, scale: 2, default: 0 }) montantScolarite: number;
   @Column({ name: 'montant_total', type: 'decimal', precision: 12, scale: 2 }) montantTotal: number;
+  @Column({ name: 'date_limite_paiement', nullable: true }) dateLimitePaiement: Date;
+  @Column({ name: 'modalites_paiement', type: 'jsonb', nullable: true }) modalitesPaiement: any;
   @Column({ name: 'nb_tranches', default: 1 }) nbTranches: number;
   @Column({ nullable: true }) description: string;
   @Column({ default: true, name: 'actif' }) actif: boolean;

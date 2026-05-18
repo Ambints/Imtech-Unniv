@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../api/client';
 import { Plus, Edit2, Trash2, Check, X, AlertCircle } from 'lucide-react';
 
 interface NiveauEtude {
@@ -37,19 +38,17 @@ export const GestionNiveauxPage: React.FC = () => {
 
   const loadNiveaux = async () => {
     try {
-      const { accessToken } = useAuthStore.getState();
-      const tenantId = tenant?.id || 'default';
-
-      const response = await fetch(`/api/v1/admin/${tenantId}/niveaux-etude`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNiveaux(data);
+      const tenantId = tenant?.id;
+      if (!tenantId) {
+        setError('Tenant ID manquant');
+        return;
       }
-    } catch (err) {
-      setError('Erreur lors du chargement des niveaux');
+
+      const response = await api.get(`/admin/${tenantId}/niveaux-etude`);
+      setNiveaux(response.data);
+    } catch (err: any) {
+      console.error('Erreur chargement niveaux:', err);
+      setError(err.response?.data?.message || 'Erreur lors du chargement des niveaux');
     }
   };
 
@@ -60,33 +59,28 @@ export const GestionNiveauxPage: React.FC = () => {
     setSuccess('');
 
     try {
-      const { accessToken } = useAuthStore.getState();
-      const tenantId = tenant?.id || 'default';
-      const url = editingId
-        ? `/api/v1/admin/${tenantId}/niveaux-etude/${editingId}`
-        : `/api/v1/admin/${tenantId}/niveaux-etude`;
-
-      const response = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setSuccess(editingId ? 'Niveau modifié avec succès' : 'Niveau créé avec succès');
-        setShowForm(false);
-        setEditingId(null);
-        resetForm();
-        loadNiveaux();
-      } else {
-        const data = await response.json();
-        setError(data.message || 'Erreur lors de l\'enregistrement');
+      const tenantId = tenant?.id;
+      if (!tenantId) {
+        setError('Tenant ID manquant');
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      setError('Erreur de connexion au serveur');
+
+      if (editingId) {
+        await api.put(`/admin/${tenantId}/niveaux-etude/${editingId}`, formData);
+        setSuccess('Niveau modifié avec succès');
+      } else {
+        await api.post(`/admin/${tenantId}/niveaux-etude`, formData);
+        setSuccess('Niveau créé avec succès');
+      }
+
+      setShowForm(false);
+      setEditingId(null);
+      resetForm();
+      loadNiveaux();
+    } catch (err: any) {
+      console.error('Erreur enregistrement niveau:', err);
+      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
     } finally {
       setLoading(false);
     }
@@ -109,42 +103,35 @@ export const GestionNiveauxPage: React.FC = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce niveau ?')) return;
 
     try {
-      const { accessToken } = useAuthStore.getState();
-      const tenantId = tenant?.id || 'default';
-
-      const response = await fetch(`/api/v1/admin/${tenantId}/niveaux-etude/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
-      if (response.ok) {
-        setSuccess('Niveau supprimé avec succès');
-        loadNiveaux();
-      } else {
-        const data = await response.json();
-        setError(data.message || 'Erreur lors de la suppression');
+      const tenantId = tenant?.id;
+      if (!tenantId) {
+        setError('Tenant ID manquant');
+        return;
       }
-    } catch (err) {
-      setError('Erreur de connexion au serveur');
+
+      await api.delete(`/admin/${tenantId}/niveaux-etude/${id}`);
+      setSuccess('Niveau supprimé avec succès');
+      loadNiveaux();
+    } catch (err: any) {
+      console.error('Erreur suppression niveau:', err);
+      setError(err.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
   const handleToggleActif = async (id: string) => {
     try {
-      const { accessToken } = useAuthStore.getState();
-      const tenantId = tenant?.id || 'default';
-
-      const response = await fetch(`/api/v1/admin/${tenantId}/niveaux-etude/${id}/toggle-actif`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
-      if (response.ok) {
-        setSuccess('Statut modifié avec succès');
-        loadNiveaux();
+      const tenantId = tenant?.id;
+      if (!tenantId) {
+        setError('Tenant ID manquant');
+        return;
       }
-    } catch (err) {
-      setError('Erreur lors de la modification du statut');
+
+      await api.patch(`/admin/${tenantId}/niveaux-etude/${id}/toggle-actif`);
+      setSuccess('Statut modifié avec succès');
+      loadNiveaux();
+    } catch (err: any) {
+      console.error('Erreur toggle actif:', err);
+      setError(err.response?.data?.message || 'Erreur lors de la modification du statut');
     }
   };
 

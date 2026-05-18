@@ -20,23 +20,23 @@ export class TenantConnectionService {
     let schemaName = this.schemaCache.get(tenantId);
 
     if (!schemaName) {
-      // Try to find tenant name from public schema using default connection
+      // Try to find tenant schema_name from public.tenant table
       try {
         const result = await this.defaultConnection.query(
-          `SELECT id, nom FROM tenant WHERE id = $1`,
+          `SELECT id, nom, schema_name FROM public.tenant WHERE id = $1`,
           [tenantId]
         );
 
         if (result && result.length > 0) {
-          const tenantName = result[0].nom || tenantId;
-          // Clean tenant name for schema: lowercase, remove special chars
-          schemaName = `tenant_${tenantName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+          // Use schema_name if available, otherwise generate from nom
+          schemaName = result[0].schema_name || `tenant_${result[0].nom.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
         } else {
           // Fallback to UUID format
           schemaName = `tenant_${tenantId.replace(/-/g, '_')}`;
         }
 
         this.schemaCache.set(tenantId, schemaName);
+        console.log(`[TenantConnection] Resolved tenant ${tenantId} to schema: ${schemaName}`);
       } catch (error) {
         console.error(`[TenantConnection] Failed to lookup tenant ${tenantId}:`, error);
         schemaName = `tenant_${tenantId.replace(/-/g, '_')}`;

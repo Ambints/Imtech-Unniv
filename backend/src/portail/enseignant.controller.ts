@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, UploadedFile, UseInterceptors, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 import { PortailEnseignantService } from './enseignant.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -15,6 +16,10 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class PortailEnseignantController {
   constructor(private readonly svc: PortailEnseignantService) {}
 
+  private getTenantId(req: Request): string {
+    return req.headers['x-tenant-id'] as string;
+  }
+
   // ========== PROFIL & MES COURS ==========
   @Get('profil')
   @ApiOperation({ summary: 'Profil de l\'enseignant' })
@@ -26,9 +31,10 @@ export class PortailEnseignantController {
   @ApiOperation({ summary: 'Liste des cours assignés' })
   getMesCours(
     @CurrentUser() user: any,
-    @Query('anneeAcademiqueId') anneeAcademiqueId?: string,
+    @Query('anneeAcademiqueId') anneeAcademiqueId: string,
+    @Req() req: Request,
   ) {
-    return this.svc.getMesCours(user.id, anneeAcademiqueId);
+    return this.svc.getMesCours(this.getTenantId(req), user.id, anneeAcademiqueId);
   }
 
   @Get('mes-etudiants/:affectationId')
@@ -52,8 +58,8 @@ export class PortailEnseignantController {
 
   @Get('supports-cours')
   @ApiOperation({ summary: 'Mes supports de cours' })
-  getSupportsCours(@CurrentUser() user: any, @Query('ecId') ecId?: string) {
-    return this.svc.getSupportsCours(user.id, ecId);
+  getSupportsCours(@CurrentUser() user: any, @Query('ecId') ecId: string, @Req() req: Request) {
+    return this.svc.getSupportsCours(this.getTenantId(req), user.id, ecId);
   }
 
   @Post('supports-cours/:id/partager')
@@ -104,8 +110,8 @@ export class PortailEnseignantController {
   // ========== NOTES ==========
   @Get('sessions-evaluation')
   @ApiOperation({ summary: 'Sessions d\'évaluation disponibles' })
-  getSessionsEvaluation(@CurrentUser() user: any) {
-    return this.svc.getSessionsEvaluation(user.id);
+  getSessionsEvaluation(@CurrentUser() user: any, @Req() req: Request) {
+    return this.svc.getSessionsEvaluation(this.getTenantId(req), user.id);
   }
 
   @Get('notes/saisie/:sessionId/:affectationId')
@@ -201,6 +207,12 @@ export class PortailEnseignantController {
     return this.svc.envoyerMessageIndividuel(dto, user.id);
   }
 
+  @Get('mes-messages')
+  @ApiOperation({ summary: 'Mes messages reçus et envoyés' })
+  getMesMessages(@CurrentUser() user: any, @Req() req: Request) {
+    return this.svc.getMesMessages(this.getTenantId(req), user.id);
+  }
+
   // ========== STAGES & MÉMOIRES ==========
   @Get('stages/supervises')
   @ApiOperation({ summary: 'Stages/mémoires que je supervise' })
@@ -233,8 +245,8 @@ export class PortailEnseignantController {
 
   @Get('mes-demandes-ressources')
   @ApiOperation({ summary: 'Mes demandes de ressources' })
-  getMesDemandesRessources(@CurrentUser() user: any) {
-    return this.svc.getMesDemandesRessources(user.id);
+  getMesDemandesRessources(@CurrentUser() user: any, @Req() req: Request) {
+    return this.svc.getMesDemandesRessources(this.getTenantId(req), user.id);
   }
 
   @Get('salles-disponibles')
@@ -251,8 +263,12 @@ export class PortailEnseignantController {
   // ========== MES STATISTIQUES ==========
   @Get('mes-stats')
   @ApiOperation({ summary: 'Statistiques de mes cours' })
-  getMesStats(@CurrentUser() user: any, @Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
-    return this.svc.getMesStats(user.id, anneeAcademiqueId);
+  getMesStats(
+    @CurrentUser() user: any,
+    @Query('anneeAcademiqueId') anneeAcademiqueId: string,
+    @Req() req: Request,
+  ) {
+    return this.svc.getMesStats(this.getTenantId(req), user.id, anneeAcademiqueId);
   }
 
   @Get('mes-stats/taux-reussite/:affectationId')

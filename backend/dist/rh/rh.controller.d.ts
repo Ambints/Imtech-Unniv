@@ -2,6 +2,8 @@ import { RHService } from './rh.service';
 export declare class RHController {
     private readonly svc;
     constructor(svc: RHService);
+    getUtilisateurs(): Promise<any[]>;
+    getDepartements(): Promise<any[]>;
     createContrat(dto: any): Promise<any>;
     findContrats(filters: any): Promise<any[]>;
     renouvelerContrat(id: string, dto: any): Promise<any>;

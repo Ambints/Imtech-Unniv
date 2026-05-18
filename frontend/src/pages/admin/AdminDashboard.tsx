@@ -77,7 +77,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
 
   // === ÉTATS POUR LA GESTION ACADÉMIQUE ===
   // Sous-onglet actif dans la section académique
-  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'niveaux' | 'etudiants'>('departements');
+  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'niveaux' | 'annees' | 'etudiants'>('departements');
   const [loadingAcademic, setLoadingAcademic] = useState(false);
 
   // Données académiques
@@ -85,6 +85,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   const [parcours, setParcours] = useState<any[]>([]);
   const [ues, setUes] = useState<any[]>([]);
   const [niveauxEtude, setNiveauxEtude] = useState<any[]>([]);
+  const [anneesAcademiques, setAnneesAcademiques] = useState<any[]>([]);
   const [etudiants, setEtudiants] = useState<any[]>([]);
   const [rpUsers, setRpUsers] = useState<any[]>([]);
 
@@ -213,20 +214,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         }
       };
 
-      const [deptData, parcData, ueData, niveauxData, etuData, rpData] = await Promise.all([
+      const [deptData, parcData, ueData, niveauxData, anneesData, etuData, rpData] = await Promise.all([
         loadWithFallback(api.get(`/academic/${tid}/departements`)),
         loadWithFallback(api.get(`/academic/${tid}/parcours`)),
         loadWithFallback(api.get(`/academic/${tid}/ue${selectedParcoursForUE ? `?parcoursId=${selectedParcoursForUE}` : ''}`)),
         loadWithFallback(api.get(`/admin/${tid}/niveaux-etude`)),
+        loadWithFallback(api.get(`/academic/${tid}/annees`)),
         loadWithFallback(api.get(`/academic/${tid}/etudiants`)),
         loadWithFallback(api.get(`/users?role=resp_pedagogique&tenantId=${tid}`))
       ]);
 
       console.log('[DEBUG Frontend] Etudiants loaded:', etuData?.length || 0);
+      console.log('[DEBUG Frontend] Années académiques loaded:', anneesData?.length || 0);
       setDepartements(deptData || []);
       setParcours(parcData || []);
       setUes(ueData || []);
       setNiveauxEtude(niveauxData || []);
+      setAnneesAcademiques(anneesData || []);
       setEtudiants(etuData || []);
       setRpUsers(rpData || []);
     } catch (error) {
@@ -236,6 +240,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       setParcours([]);
       setUes([]);
       setNiveauxEtude([]);
+      setAnneesAcademiques([]);
       setEtudiants([]);
       setRpUsers([]);
     } finally {
@@ -1556,6 +1561,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       { key: 'parcours', label: 'Parcours', icon: GraduationCap, count: parcours.length, color: 'success' },
       { key: 'ue', label: 'UE', icon: BookOpen, count: ues.length, color: 'warning' },
       { key: 'niveaux', label: 'Niveaux', icon: Award, count: niveauxEtude.length, color: 'secondary' },
+      { key: 'annees', label: 'Années Académiques', icon: Calendar, count: anneesAcademiques.length, color: 'danger' },
       { key: 'etudiants', label: 'Étudiants', icon: Users, count: etudiants.length, color: 'info' }
     ];
 
@@ -1620,6 +1626,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
             {academicSubTab === 'parcours' && renderParcoursSection()}
             {academicSubTab === 'ue' && renderUESection()}
             {academicSubTab === 'niveaux' && renderNiveauxSection()}
+            {academicSubTab === 'annees' && renderAnneesAcademiquesSection()}
             {academicSubTab === 'etudiants' && renderEtudiantsSection()}
           </>
         )}
@@ -2730,6 +2737,337 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       </div>
     </div>
   );
+  // === SECTION ANNÉES ACADÉMIQUES ===
+  const [showAnneeForm, setShowAnneeForm] = useState(false);
+  const [editingAnnee, setEditingAnnee] = useState<any>(null);
+  const [anneeForm, setAnneeForm] = useState({
+    libelle: '',
+    annee_debut: new Date().getFullYear(),
+    annee_fin: new Date().getFullYear() + 1,
+    date_debut: '',
+    date_fin: '',
+    active: true
+  });
+
+  const handleCreateAnnee = async () => {
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      const payload = {
+        libelle: anneeForm.libelle,
+        anneeDebut: anneeForm.annee_debut,
+        anneeFin: anneeForm.annee_fin,
+        dateDebut: anneeForm.date_debut || null,
+        dateFin: anneeForm.date_fin || null,
+        active: anneeForm.active
+      };
+
+      if (editingAnnee) {
+        await api.patch(`/academic/${tid}/annees/${editingAnnee.id}`, payload);
+        toast.success('Année académique modifiée avec succès');
+      } else {
+        await api.post(`/academic/${tid}/annees`, payload);
+        toast.success('Année académique créée avec succès');
+      }
+
+      setShowAnneeForm(false);
+      setEditingAnnee(null);
+      setAnneeForm({
+        libelle: '',
+        annee_debut: new Date().getFullYear(),
+        annee_fin: new Date().getFullYear() + 1,
+        date_debut: '',
+        date_fin: '',
+        active: true
+      });
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur création année:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'opération');
+    }
+  };
+
+  const handleDeleteAnnee = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette année académique ?')) return;
+    
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.delete(`/academic/${tid}/annees/${id}`);
+      toast.success('Année académique supprimée');
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur suppression année:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleToggleAnneeActive = async (id: string) => {
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.post(`/academic/${tid}/annees/${id}/activer`);
+      toast.success('Statut modifié');
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur toggle active:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de la modification');
+    }
+  };
+
+  const renderAnneesAcademiquesSection = () => (
+    <div className="card border-0 shadow-sm">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex align-items-center gap-2">
+            <h6 className="card-title mb-0 text-danger">
+              <Calendar size={18} className="me-2" />
+              Années Académiques
+            </h6>
+            <span className="badge bg-danger bg-opacity-10 text-danger">
+              {anneesAcademiques.length}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={() => {
+              setEditingAnnee(null);
+              setAnneeForm({
+                libelle: '',
+                annee_debut: new Date().getFullYear(),
+                annee_fin: new Date().getFullYear() + 1,
+                date_debut: '',
+                date_fin: '',
+                active: true
+              });
+              setShowAnneeForm(true);
+            }}
+          >
+            <Plus size={16} className="me-2" />
+            Nouvelle Année
+          </button>
+        </div>
+
+        {anneesAcademiques.length === 0 ? (
+          <div className="text-center py-5">
+            <Calendar size={48} className="text-muted mb-3" />
+            <h6 className="text-muted">Aucune année académique configurée</h6>
+            <p className="text-muted small mb-3">
+              Créez des années académiques pour organiser les inscriptions et les cours
+            </p>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => setShowAnneeForm(true)}
+            >
+              <Plus size={16} className="me-2" />
+              Créer la première année
+            </button>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Libellé</th>
+                  <th style={{ width: '150px' }}>Période</th>
+                  <th style={{ width: '200px' }}>Dates</th>
+                  <th style={{ width: '100px' }} className="text-center">Statut</th>
+                  <th style={{ width: '150px' }} className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anneesAcademiques.map((annee) => (
+                  <tr key={annee.id}>
+                    <td>
+                      <div className="fw-medium">{annee.libelle}</div>
+                    </td>
+                    <td>
+                      <span className="badge bg-danger bg-opacity-10 text-danger">
+                        {annee.annee_debut} - {annee.annee_fin}
+                      </span>
+                    </td>
+                    <td>
+                      <small className="text-muted">
+                        {annee.date_debut && annee.date_fin ? (
+                          <>
+                            {new Date(annee.date_debut).toLocaleDateString('fr-FR')} - {new Date(annee.date_fin).toLocaleDateString('fr-FR')}
+                          </>
+                        ) : (
+                          'Non défini'
+                        )}
+                      </small>
+                    </td>
+                    <td className="text-center">
+                      <button
+                        className={`btn btn-sm ${annee.active ? 'btn-success' : 'btn-secondary'}`}
+                        onClick={() => handleToggleAnneeActive(annee.id)}
+                        title={annee.active ? 'Désactiver' : 'Activer'}
+                      >
+                        {annee.active ? <CheckCircle size={14} /> : <XIcon size={14} />}
+                      </button>
+                    </td>
+                    <td className="text-center">
+                      <div className="btn-group btn-group-sm">
+                        <button
+                          className="btn btn-outline-primary"
+                          onClick={() => {
+                            setEditingAnnee(annee);
+                            setAnneeForm({
+                              libelle: annee.libelle,
+                              annee_debut: annee.annee_debut,
+                              annee_fin: annee.annee_fin,
+                              date_debut: annee.date_debut || '',
+                              date_fin: annee.date_fin || '',
+                              active: annee.active
+                            });
+                            setShowAnneeForm(true);
+                          }}
+                          title="Modifier"
+                        >
+                          <EditIcon size={14} />
+                        </button>
+                        <button
+                          className="btn btn-outline-danger"
+                          onClick={() => handleDeleteAnnee(annee.id)}
+                          title="Supprimer"
+                        >
+                          <TrashIcon size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-top">
+          <small className="text-muted">
+            <Calendar size={14} className="me-1" />
+            Les années académiques sont utilisées pour organiser les inscriptions, les cours et les examens.
+            Une seule année peut être active à la fois.
+          </small>
+        </div>
+      </div>
+
+      {/* Modal Formulaire */}
+      {showAnneeForm && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {editingAnnee ? 'Modifier l\'année académique' : 'Nouvelle année académique'}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowAnneeForm(false);
+                    setEditingAnnee(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Libellé *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={anneeForm.libelle}
+                    onChange={(e) => setAnneeForm({ ...anneeForm, libelle: e.target.value })}
+                    placeholder="Ex: Année Académique 2024-2025"
+                  />
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Année Début *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={anneeForm.annee_debut}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_debut: parseInt(e.target.value) })}
+                      min="2000"
+                      max="2100"
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Année Fin *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={anneeForm.annee_fin}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_fin: parseInt(e.target.value) })}
+                      min="2000"
+                      max="2100"
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Date Début</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={anneeForm.date_debut}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, date_debut: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Date Fin</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={anneeForm.date_fin}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, date_fin: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="form-check">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id="anneeActive"
+                    checked={anneeForm.active}
+                    onChange={(e) => setAnneeForm({ ...anneeForm, active: e.target.checked })}
+                  />
+                  <label className="form-check-label" htmlFor="anneeActive">
+                    Année active
+                  </label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowAnneeForm(false);
+                    setEditingAnnee(null);
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleCreateAnnee}
+                  disabled={!anneeForm.libelle || !anneeForm.annee_debut || !anneeForm.annee_fin}
+                >
+                  <SaveIcon size={16} className="me-2" />
+                  {editingAnnee ? 'Modifier' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
 
   // === SECTION ÉTUDIANTS ===
   const renderEtudiantsSection = () => (

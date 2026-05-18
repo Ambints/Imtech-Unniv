@@ -25,7 +25,9 @@ export declare class CaissierService {
     debloquerNotes(inscriptionId: string): Promise<any>;
     private verifierEtDebloquerNotes;
     getClotureJournaliere(date?: string): Promise<any>;
+    calculerTotaux(dateCloture: string, caissierId: string): Promise<any>;
     validerCloture(date: string, validePar: string): Promise<any>;
+    saveRapprochementBancaire(date: string, soldeReel: number, motifEcart?: string): Promise<any>;
     getRapprochementBancaire(date?: string): Promise<any>;
     getStatsJournalieres(date?: string): Promise<any>;
     getStatsMensuelles(mois: number, annee: number): Promise<any>;

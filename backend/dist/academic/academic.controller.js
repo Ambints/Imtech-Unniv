@@ -117,6 +117,9 @@ let AcademicController = class AcademicController {
     activerAnneeAcademique(tid, id) {
         return this.svc.activerAnneeAcademique(tid, id);
     }
+    deleteAnneeAcademique(tid, id) {
+        return this.svc.deleteAnneeAcademique(tid, id);
+    }
 };
 exports.AcademicController = AcademicController;
 __decorate([
@@ -443,6 +446,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AcademicController.prototype, "activerAnneeAcademique", null);
+__decorate([
+    (0, common_1.Delete)(':tid/annees/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer une année académique' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AcademicController.prototype, "deleteAnneeAcademique", null);
 exports.AcademicController = AcademicController = __decorate([
     (0, swagger_1.ApiTags)('Academic'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),
