@@ -157,4 +157,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateTenantDto.prototype, "maxUtilisateurs", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Statut actif', example: true }),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateTenantDto.prototype, "actif", void 0);
 //# sourceMappingURL=create-tenant.dto.js.map

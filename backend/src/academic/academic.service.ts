@@ -1,11 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps, Departement, Etudiant } from './academic.entities';
+import { Repository, DataSource, In } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps, Departement, Etudiant, AnneeAcademique, SessionExamen } from './academic.entities';
 import { TenantConnectionService } from '../tenants/tenant-connection.service';
 
 @Injectable()
 export class AcademicService {
+  private readonly logger = new Logger(AcademicService.name);
+
   constructor(
     @InjectRepository(Parcours, 'tenant') private parcoursRepo: Repository<Parcours>,
     @InjectRepository(UniteEnseignement, 'tenant') private ueRepo: Repository<UniteEnseignement>,
@@ -16,10 +19,18 @@ export class AcademicService {
     @InjectRepository(EmploiDuTemps, 'tenant') private edtRepo: Repository<EmploiDuTemps>,
     @InjectRepository(Departement, 'tenant') private departementRepo: Repository<Departement>,
     @InjectRepository(Etudiant, 'tenant') private etudiantRepo: Repository<Etudiant>,
+    @InjectRepository(AnneeAcademique, 'tenant') private anneeRepo: Repository<AnneeAcademique>,
+    @InjectRepository(SessionExamen, 'tenant') private sessionRepo: Repository<SessionExamen>,
+    @InjectDataSource('tenant') private dataSource: DataSource,
     private readonly tenantConnection: TenantConnectionService,
   ) {}
 
   // Departements
+  async getDepartementsFromContext() {
+    // Tenant schema is already set by middleware/interceptor
+    return this.departementRepo.find({ where: { actif: true }, order: { nom: 'ASC' } });
+  }
+
   async getDepartements(tid: string) {
     await this.tenantConnection.setTenantSchema(tid);
     return this.departementRepo.find({ where: { actif: true }, order: { nom: 'ASC' } });
@@ -48,12 +59,87 @@ export class AcademicService {
   // Parcours
   async createParcours(tid: string, dto: any) {
     await this.tenantConnection.setTenantSchema(tid);
+    
+    // Validate required fields
+    if (!dto.code || dto.code.trim() === '') {
+      throw new BadRequestException('Le code du parcours est requis');
+    }
+    
+    if (!dto.nom || dto.nom.trim() === '') {
+      throw new BadRequestException('Le nom du parcours est requis');
+    }
+    
+    // Check if departementId is provided and not empty
+    if (!dto.departementId || dto.departementId.trim() === '') {
+      throw new BadRequestException('Le département est requis');
+    }
+    
+    // Check if code already exists
+    const existingParcours = await this.parcoursRepo.findOne({
+      where: { code: dto.code.trim() }
+    });
+    
+    if (existingParcours) {
+      throw new BadRequestException(`Un parcours avec le code "${dto.code}" existe déjà`);
+    }
+    
+    // Verify department exists
+    const departement = await this.departementRepo.findOne({
+      where: { id: dto.departementId }
+    });
+    
+    if (!departement) {
+      throw new NotFoundException('Département non trouvé');
+    }
+    
     return this.parcoursRepo.save(this.parcoursRepo.create(dto));
   }
 
-  async getParcours(tid?: string) {
+  async getParcours(tid?: string, userId?: string, userRole?: string) {
     if (tid) await this.tenantConnection.setTenantSchema(tid);
-    return this.parcoursRepo.find({ where: { actif: true }, order: { nom: 'ASC' } });
+    
+    // Construire la requête de base avec jointures pour secrétaire ET responsable pédagogique
+    let query = this.parcoursRepo
+      .createQueryBuilder('p')
+      .leftJoin('secretaire_parcours', 'sp', 'sp.parcours_id = p.id AND sp.actif = true')
+      .leftJoin('utilisateur', 'u', 'u.id = sp.secretaire_id')
+      .leftJoin('utilisateur', 'rp', 'rp.id = p.responsable_id')
+      .select([
+        'p.*',
+        'sp.secretaire_id as "secretaireAssigneId"',
+        'u.nom as "secretaireNom"',
+        'u.prenom as "secretairePrenom"',
+        'rp.id as "responsableId"',
+        'rp.nom as "responsableNom"',
+        'rp.prenom as "responsablePrenom"',
+        'rp.email as "responsableEmail"'
+      ])
+      .where('p.actif = true');
+    
+    // FILTRE: Si l'utilisateur est un secrétaire, ne montrer que ses parcours assignés
+    if (userId && userRole === 'secretaire_parcours') {
+      query = query.andWhere('sp.secretaire_id = :userId AND sp.actif = true', { userId });
+    }
+    
+    const parcours = await query
+      .orderBy('p.nom', 'ASC')
+      .getRawMany();
+    
+    // Transformer les résultats pour inclure les infos du secrétaire ET du responsable
+    return parcours.map(p => ({
+      ...p,
+      secretaireAssigne: p.secretaireAssigneId ? {
+        id: p.secretaireAssigneId,
+        nom: p.secretaireNom,
+        prenom: p.secretairePrenom
+      } : null,
+      responsable: p.responsableId ? {
+        id: p.responsableId,
+        nom: p.responsableNom,
+        prenom: p.responsablePrenom,
+        email: p.responsableEmail
+      } : null
+    }));
   }
 
   async updateParcours(tid: string, id: string, dto: any) {
@@ -99,8 +185,11 @@ export class AcademicService {
 
   // Etudiants
   async getEtudiants(tid: string, parcoursId?: string) {
+    this.logger.log(`[getEtudiants] Called with tenant: ${tid}, parcoursId: ${parcoursId}`);
     await this.tenantConnection.setTenantSchema(tid);
-    console.log('[DEBUG Backend] getEtudiants called, fetching from schema...');
+    const currentSchema = this.tenantConnection.getCurrentSchema();
+    this.logger.log(`[getEtudiants] Schema set to: ${currentSchema}`);
+
     if (parcoursId) {
       // Get students enrolled in a specific parcours
       const inscriptions = await this.inscriptionRepo.find({
@@ -108,28 +197,144 @@ export class AcademicService {
         order: { createdAt: 'DESC' }
       });
       const etudiantIds = inscriptions.map(i => i.etudiantId);
-      if (etudiantIds.length === 0) return [];
-      return this.etudiantRepo.findByIds(etudiantIds);
+      this.logger.log(`[getEtudiants] Found ${inscriptions.length} inscriptions for parcours ${parcoursId}`);
+      
+      if (etudiantIds.length === 0) {
+        this.logger.warn(`[getEtudiants] No inscriptions found for parcours ${parcoursId}`);
+        return [];
+      }
+      
+      // Use In operator instead of deprecated findByIds
+      const students = await this.etudiantRepo.find({
+        where: { id: In(etudiantIds), actif: true },
+        order: { nom: 'ASC', prenom: 'ASC' }
+      });
+      
+      this.logger.log(`[getEtudiants] Returning ${students.length} active students for parcours ${parcoursId}`);
+      return students;
     }
-    return this.etudiantRepo.find({ where: { actif: true }, order: { nom: 'ASC', prenom: 'ASC' } });
+
+    // Get all active students if no parcours specified
+    const allStudents = await this.etudiantRepo.find({
+      where: { actif: true },
+      order: { nom: 'ASC', prenom: 'ASC' }
+    });
+    this.logger.log(`[getEtudiants] Total active students in schema ${currentSchema}: ${allStudents.length}`);
+
+    return allStudents;
   }
 
   async createEtudiant(tid: string, dto: any) {
     await this.tenantConnection.setTenantSchema(tid);
-    console.log('[DEBUG] Service createEtudiant called with dto:', dto);
+    this.logger.log(`[createEtudiant] Creating student with data: ${JSON.stringify(dto)}`);
+    
     const data = { ...dto };
     if (data.dateNaissance) {
       data.dateNaissance = new Date(data.dateNaissance);
     }
-    console.log('[DEBUG] Prepared data:', data);
+    
     try {
+      // 1. Créer l'étudiant dans la table etudiant
       const entity = this.etudiantRepo.create(data);
-      console.log('[DEBUG] Entity created:', entity);
-      const result = await this.etudiantRepo.save(entity);
-      console.log('[DEBUG] Entity saved:', result);
-      return result;
+      const savedEtudiant = await this.etudiantRepo.save(entity);
+      // Ensure we have a single entity, not an array
+      const etudiant = Array.isArray(savedEtudiant) ? savedEtudiant[0] : savedEtudiant;
+      this.logger.log(`[createEtudiant] Student created with ID: ${etudiant.id}`);
+      
+      // 2. Créer automatiquement un compte utilisateur pour l'étudiant
+      try {
+        // Générer un email si non fourni
+        const email = etudiant.email || `${etudiant.matricule}@etudiant.local`;
+        this.logger.log(`[createEtudiant] Generated email for user account: ${email}`);
+        
+        // Vérifier si un utilisateur avec cet email existe déjà
+        this.logger.log(`[createEtudiant] Checking if user exists with email: ${email}`);
+        const existingUser = await this.dataSource.query(
+          `SELECT id FROM utilisateur WHERE email = $1`,
+          [email]
+        );
+        this.logger.log(`[createEtudiant] Existing user check result: ${existingUser.length} found`);
+        
+        if (existingUser.length === 0) {
+          // Créer l'utilisateur sans mot de passe (sera défini lors de la première connexion)
+          this.logger.log(`[createEtudiant] Creating new user account with data:`, {
+            nom: etudiant.nom,
+            prenom: etudiant.prenom,
+            email: email,
+            telephone: etudiant.telephone || null
+          });
+          
+          // Générer un hash temporaire pour le mot de passe (sera changé à la première connexion)
+          const tempPasswordHash = '$2b$10$TEMPORARY_HASH_TO_BE_CHANGED_ON_FIRST_LOGIN';
+          
+          const userResult = await this.dataSource.query(`
+            INSERT INTO utilisateur (nom, prenom, email, role, actif, telephone, password_hash)
+            VALUES ($1, $2, $3, 'etudiant', true, $4, $5)
+            RETURNING id
+          `, [
+            etudiant.nom,
+            etudiant.prenom,
+            email,
+            etudiant.telephone || null,
+            tempPasswordHash
+          ]);
+          
+          if (!userResult || userResult.length === 0) {
+            throw new Error('User insertion returned no data');
+          }
+          
+          const utilisateurId = userResult[0].id;
+          this.logger.log(`[createEtudiant] User account created with ID: ${utilisateurId}`);
+          
+          // Mettre à jour l'étudiant avec l'ID utilisateur (si la colonne existe)
+          try {
+            this.logger.log(`[createEtudiant] Linking student ${etudiant.id} to user ${utilisateurId}`);
+            await this.dataSource.query(`
+              UPDATE etudiant SET utilisateur_id = $1 WHERE id = $2
+            `, [utilisateurId, etudiant.id]);
+            this.logger.log(`[createEtudiant] Student linked to user account successfully`);
+          } catch (updateError) {
+            // La colonne utilisateur_id n'existe peut-être pas, ce n'est pas grave
+            const errMsg = updateError instanceof Error ? updateError.message : String(updateError);
+            this.logger.warn(`[createEtudiant] Could not link student to user: ${errMsg}`);
+          }
+          
+          return {
+            ...etudiant,
+            utilisateurId,
+            compteCreé: true,
+            message: 'Étudiant et compte utilisateur créés avec succès'
+          };
+        } else {
+          this.logger.log(`[createEtudiant] User account already exists for email: ${email}`);
+          return {
+            ...etudiant,
+            utilisateurId: existingUser[0].id,
+            compteCreé: false,
+            message: 'Étudiant créé, compte utilisateur existant'
+          };
+        }
+      } catch (userError) {
+        // Si la création du compte utilisateur échoue, on log mais on ne bloque pas
+        const errorMsg = userError instanceof Error ? userError.message : String(userError);
+        this.logger.error(`[createEtudiant] Error creating user account: ${errorMsg}`);
+        if (userError instanceof Error && userError.stack) {
+          this.logger.error(`[createEtudiant] Stack: ${userError.stack}`);
+        }
+        
+        return {
+          ...etudiant,
+          compteCreé: false,
+          message: 'Étudiant créé, mais erreur lors de la création du compte utilisateur',
+          error: errorMsg
+        };
+      }
     } catch (error) {
-      console.error('[DEBUG] Error saving etudiant:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[createEtudiant] Error saving student: ${errorMsg}`);
+      if (error instanceof Error && error.stack) {
+        this.logger.error(`[createEtudiant] Stack: ${error.stack}`);
+      }
       throw error;
     }
   }
@@ -146,11 +351,51 @@ export class AcademicService {
   }
 
   async deleteEtudiant(tid: string, id: string) {
-    await this.tenantConnection.setTenantSchema(tid);
-    const etudiant = await this.etudiantRepo.findOne({ where: { id } });
-    if (!etudiant) throw new NotFoundException('Etudiant non trouvé');
-    await this.etudiantRepo.update(id, { actif: false });
-    return { message: 'Etudiant supprimé avec succès' };
+    this.logger.log(`[deleteEtudiant] Starting deletion for student ID: ${id}, tenant: ${tid}`);
+
+    try {
+      await this.tenantConnection.setTenantSchema(tid);
+      this.logger.log(`[deleteEtudiant] Schema set for tenant: ${tid}`);
+
+      const etudiant = await this.etudiantRepo.findOne({ where: { id } });
+      this.logger.log(`[deleteEtudiant] Student lookup result: ${etudiant ? 'found' : 'not found'}`);
+
+      if (!etudiant) {
+        this.logger.warn(`[deleteEtudiant] Student not found with ID: ${id} in tenant: ${tid}`);
+        throw new NotFoundException('Etudiant non trouvé');
+      }
+
+      this.logger.log(`[deleteEtudiant] Found student: ${etudiant.matricule} - ${etudiant.nom} ${etudiant.prenom}`);
+
+      // Check for related records that might prevent soft delete
+      const inscriptions = await this.inscriptionRepo.count({ where: { etudiantId: id } });
+      const notes = await this.noteRepo.count({ where: { etudiantId: id } });
+      const presences = await this.presenceRepo.count({ where: { etudiantId: id } });
+
+      this.logger.log(`[deleteEtudiant] Related records - inscriptions: ${inscriptions}, notes: ${notes}, presences: ${presences}`);
+
+      // Perform soft delete
+      await this.etudiantRepo.update(id, { actif: false });
+      this.logger.log(`[deleteEtudiant] Soft delete completed for student ID: ${id}`);
+
+      return {
+        message: 'Etudiant supprimé avec succès',
+        student: {
+          id: etudiant.id,
+          matricule: etudiant.matricule,
+          nom: etudiant.nom,
+          prenom: etudiant.prenom
+        },
+        relatedRecords: { inscriptions, notes, presences }
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[deleteEtudiant] Error deleting student ${id}: ${errorMsg}`);
+      if (error instanceof Error && error.stack) {
+        this.logger.error(`[deleteEtudiant] Stack trace: ${error.stack}`);
+      }
+      throw error;
+    }
   }
 
   // Notes
@@ -227,5 +472,86 @@ export class AcademicService {
   }
   createEDT(tid: string, dto: any) {
     return this.edtRepo.save(this.edtRepo.create(dto));
+  }
+
+  // Annees Academiques
+  async getAnneesAcademiques(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.anneeRepo.find({ order: { dateDebut: 'DESC' } });
+  }
+
+  async createAnneeAcademique(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const data = { ...dto };
+    if (data.dateDebut) data.dateDebut = new Date(data.dateDebut);
+    if (data.dateFin) data.dateFin = new Date(data.dateFin);
+    return this.anneeRepo.save(this.anneeRepo.create(data));
+  }
+
+  async updateAnneeAcademique(tid: string, id: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const annee = await this.anneeRepo.findOne({ where: { id } });
+    if (!annee) throw new NotFoundException('Année académique non trouvée');
+    const data = { ...dto };
+    if (data.dateDebut) data.dateDebut = new Date(data.dateDebut);
+    if (data.dateFin) data.dateFin = new Date(data.dateFin);
+    return this.anneeRepo.save({ ...annee, ...data });
+  }
+
+  async activerAnneeAcademique(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const annee = await this.anneeRepo.findOne({ where: { id } });
+    if (!annee) throw new NotFoundException('Année académique non trouvée');
+    
+    // Désactiver toutes les autres années
+    await this.anneeRepo.update({}, { active: false });
+    
+    // Activer celle-ci
+    await this.anneeRepo.update(id, { active: true });
+    
+    return { message: 'Année académique activée avec succès', annee: { ...annee, active: true } };
+  }
+
+  async deleteAnneeAcademique(tid: string, id: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const annee = await this.anneeRepo.findOne({ where: { id } });
+    if (!annee) throw new NotFoundException('Année académique non trouvée');
+    
+    // Vérifier si l'année est utilisée dans des inscriptions
+    const inscriptions = await this.dataSource.query(`
+      SELECT COUNT(*) as count FROM inscription WHERE annee_academique_id = $1
+    `, [id]);
+    
+    if (parseInt(inscriptions[0].count) > 0) {
+      throw new BadRequestException('Impossible de supprimer cette année car elle est utilisée par des inscriptions');
+    }
+    
+    await this.anneeRepo.delete(id);
+    return { message: 'Année académique supprimée avec succès' };
+  }
+
+  // Enseignants (Utilisateurs avec rôle enseignant)
+  async getEnseignants(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.dataSource.query(`
+      SELECT id, nom, prenom, email, telephone, photo_url, actif, created_at
+      FROM utilisateur
+      WHERE role = 'enseignant' AND actif = true
+      ORDER BY nom ASC, prenom ASC
+    `);
+  }
+
+  // Sessions d'examens
+  async getSessionsExamen(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.sessionRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  // Presences
+  async getPresences(tid: string, statut?: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const where: any = {};
+    if (statut) where.statut = statut;
+    return this.presenceRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 }

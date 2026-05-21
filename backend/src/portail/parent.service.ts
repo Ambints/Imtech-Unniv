@@ -1,6 +1,17 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import {
+  AutorisationSortieDto,
+  JustifierAbsenceDto,
+  EnvoyerMessageDto,
+  RepondreMessageDto,
+  SoumettrePreuvePaiementDto,
+  GetBulletinQueryDto,
+  GetAbsencesQueryDto,
+  GetEmploiDuTempsQueryDto,
+  GetMessagesQueryDto
+} from './dto/parent.dto';
 
 @Injectable()
 export class PortailParentService {
@@ -8,22 +19,48 @@ export class PortailParentService {
 
   constructor(@InjectDataSource() private dataSource: DataSource) {}
 
-  private async verifierLienParentEnfant(parentUserId: string, etudiantId: string): Promise<void> {
+  /**
+   * Vérifie que le parent a bien accès aux informations de l'étudiant
+   * via email_parent ou telephone_parent dans la table etudiant
+   */
+  private async verifierLienParentEnfant(
+    parentUserId: string,
+    etudiantId: string,
+    schemaName: string
+  ): Promise<void> {
     const parent = await this.dataSource.query(`
-      SELECT email FROM utilisateur WHERE id = $1
+      SELECT email, telephone FROM ${schemaName}.utilisateur WHERE id = $1 AND role = 'parent'
     `, [parentUserId]);
 
+    if (!parent.length) {
+      throw new ForbiddenException('Utilisateur parent non trouvé');
+    }
+
     const lien = await this.dataSource.query(`
-      SELECT 1 FROM etudiant e
+      SELECT 1 FROM ${schemaName}.etudiant e
       WHERE e.id = $1 AND (
-        e.email_parent = $2 
-        OR e.email_parent LIKE $3
+        e.email_parent = $2
+        OR e.telephone_parent = $3
+        OR e.email_parent ILIKE $4
       )
-    `, [etudiantId, parent[0]?.email, `%${parent[0]?.email}%`]);
+    `, [etudiantId, parent[0].email, parent[0].telephone, `%${parent[0].email}%`]);
 
     if (!lien.length) {
-      throw new ForbiddenException('Vous n\'êtes pas autorisé à consulter ces informations');
+      throw new ForbiddenException('Vous n\'êtes pas autorisé à consulter ces informations de cet étudiant');
     }
+  }
+
+  /**
+   * Vérifie si l'étudiant est mineur (< 18 ans)
+   */
+  private async estMineur(etudiantId: string, schemaName: string): Promise<boolean> {
+    const result = await this.dataSource.query(`
+      SELECT EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_naissance)) < 18 as est_mineur
+      FROM ${schemaName}.etudiant
+      WHERE id = $1
+    `, [etudiantId]);
+
+    return result[0]?.est_mineur || false;
   }
 
   async getEnfants(parentUserId: string): Promise<any> {
@@ -57,7 +94,8 @@ export class PortailParentService {
   }
 
   async getBulletin(parentUserId: string, etudiantId: string, sessionId?: string): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
 
     let sessionFilter = '';
     if (sessionId) {
@@ -101,7 +139,8 @@ export class PortailParentService {
   }
 
   async getAbsences(parentUserId: string, etudiantId: string): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
 
     const [absences, stats] = await Promise.all([
       this.dataSource.query(`
@@ -135,7 +174,8 @@ export class PortailParentService {
   }
 
   async getPaiements(parentUserId: string, etudiantId: string): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
 
     return this.dataSource.query(`
       SELECT 
@@ -151,7 +191,8 @@ export class PortailParentService {
   }
 
   async getSolde(parentUserId: string, etudiantId: string): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
 
     const result = await this.dataSource.query(`
       SELECT 
@@ -173,12 +214,13 @@ export class PortailParentService {
   }
 
   async getEmploiDuTemps(
-    parentUserId: string, 
-    etudiantId: string, 
-    dateDebut?: string, 
+    parentUserId: string,
+    etudiantId: string,
+    dateDebut?: string,
     dateFin?: string
   ): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, etudiantId, schemaName);
 
     const etudiant = await this.dataSource.query(`
       SELECT i.annee_academique_id 
@@ -217,7 +259,8 @@ export class PortailParentService {
   }
 
   async autoriserSortie(parentUserId: string, dto: any): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, dto.etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, dto.etudiantId, schemaName);
 
     await this.dataSource.query(`
       INSERT INTO autorisation_parent (
@@ -243,7 +286,8 @@ export class PortailParentService {
   }
 
   async justifierAbsenceParent(parentUserId: string, dto: any): Promise<any> {
-    await this.verifierLienParentEnfant(parentUserId, dto.etudiantId);
+    const schemaName = 'tenant_ispm'; // TODO: Get from request context
+    await this.verifierLienParentEnfant(parentUserId, dto.etudiantId, schemaName);
 
     await this.dataSource.query(`
       UPDATE presence

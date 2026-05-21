@@ -66,7 +66,7 @@ const getRoleLabel = (role: string) => {
   const labels: Record<string, string> = {
     super_admin: 'Super Admin',
     president: 'Président',
-    responsable_pedagogique: 'Resp. Pédagogique',
+    resp_pedagogique: 'Resp. Pédagogique',
     secretaire_parcours: 'Secrétaire Parcours',
     surveillant_general: 'Surveillant Général',
     scolarite: 'Scolarité',
@@ -79,7 +79,7 @@ const getRoleLabel = (role: string) => {
     service_entretien: 'Service Entretien',
     etudiant: 'Étudiant',
     parent: 'Parent',
-    professeur: 'Professeur'
+    enseignant: 'Enseignant'
   };
   return labels[role] || role;
 };
@@ -310,7 +310,7 @@ export const UserManagement: React.FC = () => {
                 <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
                 <option value="president">Président</option>
-                <option value="responsable_pedagogique">Resp. Pédagogique</option>
+                <option value="resp_pedagogique">Resp. Pédagogique</option>
                 <option value="secretaire_parcours">Secrétaire Parcours</option>
                 <option value="surveillant_general">Surveillant Général</option>
                 <option value="scolarite">Scolarité</option>
@@ -320,7 +320,7 @@ export const UserManagement: React.FC = () => {
                 <option value="communication">Communication</option>
                 <option value="responsable_logistique">Resp. Logistique</option>
                 <option value="service_entretien">Service Entretien</option>
-                <option value="professeur">Professeur</option>
+                <option value="enseignant">Enseignant</option>
                 <option value="etudiant">Étudiant</option>
                 <option value="parent">Parent</option>
               </select>

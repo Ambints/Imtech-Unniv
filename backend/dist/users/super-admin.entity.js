@@ -46,6 +46,14 @@ __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], SuperAdmin.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'password_reset_required', default: false }),
+    __metadata("design:type", Boolean)
+], SuperAdmin.prototype, "passwordResetRequired", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'last_password_reset', nullable: true }),
+    __metadata("design:type", Date)
+], SuperAdmin.prototype, "lastPasswordReset", void 0);
 exports.SuperAdmin = SuperAdmin = __decorate([
     (0, typeorm_1.Entity)({ name: 'super_admin', schema: 'public' })
 ], SuperAdmin);

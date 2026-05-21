@@ -134,6 +134,20 @@ export class CaissierController {
     return this.svc.validerCloture(date, user.id);
   }
 
+  @Post('calculer-totaux')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Calculer les totaux pour la clôture' })
+  calculerTotaux(@Body() dto: { date_cloture: string; caissier_id: string }) {
+    return this.svc.calculerTotaux(dto.date_cloture, dto.caissier_id);
+  }
+
+  @Post('rapprochement-bancaire')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Sauvegarder le rapprochement bancaire' })
+  saveRapprochementBancaire(@Body() dto: { date: string; solde_reel: number; motif_ecart?: string }) {
+    return this.svc.saveRapprochementBancaire(dto.date, dto.solde_reel, dto.motif_ecart);
+  }
+
   @Get('rapprochement-bancaire')
   @Roles('caissier', 'economat', 'admin')
   @ApiOperation({ summary: 'Rapprochement bancaire quotidien' })
@@ -154,5 +168,71 @@ export class CaissierController {
   @ApiOperation({ summary: 'Statistiques mensuelles' })
   getStatsMensuelles(@Query('mois') mois: number, @Query('annee') annee: number) {
     return this.svc.getStatsMensuelles(mois, annee);
+  }
+
+  // ========== FRAIS D'INSCRIPTION ==========
+  @Get('frais-inscription')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Liste des frais d\'inscription par parcours' })
+  getFraisInscription(@Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
+    return this.svc.getFraisInscription(anneeAcademiqueId);
+  }
+
+  @Post('frais-inscription')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Définir les frais d\'inscription pour un parcours' })
+  createFraisInscription(@Body() dto: any, @CurrentUser() user: any) {
+    return this.svc.createFraisInscription({ ...dto, creePar: user.id });
+  }
+
+  @Patch('frais-inscription/:id')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Mettre à jour les frais d\'inscription' })
+  updateFraisInscription(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
+    return this.svc.updateFraisInscription(id, { ...dto, modifiePar: user.id });
+  }
+
+  @Get('frais-inscription/parcours/:parcoursId')
+  @Roles('caissier', 'economat', 'admin', 'etudiant', 'parent')
+  @ApiOperation({ summary: 'Frais d\'inscription pour un parcours spécifique' })
+  getFraisByParcours(@Param('parcoursId') parcoursId: string, @Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
+    return this.svc.getFraisByParcours(parcoursId, anneeAcademiqueId);
+  }
+
+  // ========== ENCAISSEMENT DIRECT ==========
+  @Post('encaissement-direct')
+  @Roles('caissier', 'economat', 'admin', 'secretaire')
+  @ApiOperation({ summary: 'Encaissement direct des frais d\'inscription' })
+  encaissementDirect(@Body() dto: any, @CurrentUser() user: any) {
+    return this.svc.encaissementDirect({ ...dto, caissierId: user.id });
+  }
+
+  @Post('encaissement-multiple')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Encaissement multiple pour plusieurs étudiants' })
+  encaissementMultiple(@Body() dto: { paiements: any[] }, @CurrentUser() user: any) {
+    return this.svc.encaissementMultiple({ ...dto, caissierId: user.id });
+  }
+
+  // ========== RAPPORTS AVANCÉS ==========
+  @Get('rapports/annuel')
+  @Roles('caissier', 'economat', 'admin', 'president')
+  @ApiOperation({ summary: 'Rapport annuel des encaissements' })
+  getRapportAnnuel(@Query('annee') annee: number) {
+    return this.svc.getRapportAnnuel(annee);
+  }
+
+  @Get('rapports/parcours')
+  @Roles('caissier', 'economat', 'admin', 'president')
+  @ApiOperation({ summary: 'Rapports par parcours' })
+  getRapportsParcours(@Query('dateDebut') dateDebut: string, @Query('dateFin') dateFin: string) {
+    return this.svc.getRapportsParcours(dateDebut, dateFin);
+  }
+
+  @Get('rapports/modes-paiement')
+  @Roles('caissier', 'economat', 'admin')
+  @ApiOperation({ summary: 'Statistiques par mode de paiement' })
+  getRapportModesPaiement(@Query('dateDebut') dateDebut?: string, @Query('dateFin') dateFin?: string) {
+    return this.svc.getRapportModesPaiement(dateDebut, dateFin);
   }
 }

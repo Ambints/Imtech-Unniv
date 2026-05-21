@@ -20,198 +20,242 @@ let FinanceController = class FinanceController {
     constructor(svc) {
         this.svc = svc;
     }
-    payer(tid, dto) {
-        return this.svc.enregistrerPaiement(tid, dto, 'caissier');
+    getTenantId(req) {
+        return req.tenantId || '';
     }
-    getTousPaiements(tid, date) {
-        return this.svc.getTousPaiements(tid, date);
+    payer(req, dto) {
+        return this.svc.enregistrerPaiement(this.getTenantId(req), dto, 'caissier');
     }
-    getPaiements(tid, eid) {
-        return this.svc.getPaiementsEtudiant(tid, eid);
+    getTousPaiements(req, date) {
+        return this.svc.getTousPaiements(this.getTenantId(req), date);
     }
-    getCaisse(tid) { return this.svc.getCaisseJournaliere(tid); }
-    cloturer(tid, body) {
-        return this.svc.cloturerCaisse(tid, body.userId);
+    getPaiements(req, eid) {
+        return this.svc.getPaiementsEtudiant(this.getTenantId(req), eid);
     }
-    creerBudget(tid, dto) { return this.svc.creerBudget(tid, dto); }
-    getBudgets(tid, annee) {
-        return this.svc.getBudgets(tid, annee);
+    getCaisse(req) {
+        return this.svc.getCaisseJournaliere(this.getTenantId(req));
     }
-    ajouterDepense(tid, dto) {
-        return this.svc.ajouterDepense(tid, dto, 'user');
+    cloturer(req, body) {
+        return this.svc.cloturerCaisse(this.getTenantId(req), body.userId);
     }
-    getDepenses(tid, annee) {
-        return this.svc.getDepenses(tid, annee);
+    creerBudget(req, dto) {
+        return this.svc.creerBudget(this.getTenantId(req), dto);
     }
-    updateDepense(tid, id, dto) {
-        return this.svc.updateDepense(tid, id, dto);
+    getBudgets(req, annee) {
+        return this.svc.getBudgets(this.getTenantId(req), annee);
     }
-    deleteDepense(tid, id) {
-        return this.svc.deleteDepense(tid, id);
+    ajouterDepense(req, dto) {
+        return this.svc.ajouterDepense(this.getTenantId(req), dto, 'user');
     }
-    updateBudget(tid, id, dto) {
-        return this.svc.updateBudget(tid, id, dto);
+    getDepenses(req, annee) {
+        return this.svc.getDepenses(this.getTenantId(req), annee);
     }
-    rapport(tid, annee) {
-        return this.svc.getRapportFinancier(tid, annee);
+    updateDepense(req, id, dto) {
+        return this.svc.updateDepense(this.getTenantId(req), id, dto);
     }
-    creerContrat(tid, dto) { return this.svc.creerContrat(tid, dto); }
-    getContrats(tid, pid) {
-        return this.svc.getContrats(tid, pid);
+    deleteDepense(req, id) {
+        return this.svc.deleteDepense(this.getTenantId(req), id);
     }
-    updateContrat(tid, id, dto) {
-        return this.svc.updateContrat(tid, id, dto);
+    updateBudget(req, id, dto) {
+        return this.svc.updateBudget(this.getTenantId(req), id, dto);
     }
-    creerEcheancier(tid, dto) { return this.svc.creerEcheancier(tid, dto); }
-    getEcheanciers(tid, eid) {
-        return this.svc.getEcheanciers(tid, eid);
+    rapport(req, annee) {
+        return this.svc.getRapportFinancier(this.getTenantId(req), annee);
+    }
+    creerContrat(req, dto) {
+        return this.svc.creerContrat(this.getTenantId(req), dto);
+    }
+    getContrats(req, pid) {
+        return this.svc.getContrats(this.getTenantId(req), pid);
+    }
+    updateContrat(req, id, dto) {
+        return this.svc.updateContrat(this.getTenantId(req), id, dto);
+    }
+    creerEcheancier(tid, dto) {
+        return this.svc.creerEcheancier(tid, dto);
+    }
+    getEcheanciers(tid, inscriptionId) {
+        return this.svc.getEcheanciers(tid, inscriptionId);
+    }
+    getInscriptionsActives(tid) {
+        return this.svc.getInscriptionsActives(tid);
+    }
+    getGrilleTarifaire(tid) {
+        return this.svc.getGrilleTarifaire(tid);
+    }
+    creerFraisInscription(tid, dto) {
+        return this.svc.creerFraisInscription(tid, dto);
+    }
+    updateFraisInscription(tid, id, dto) {
+        return this.svc.updateFraisInscription(tid, id, dto);
+    }
+    deleteFraisInscription(tid, id) {
+        return this.svc.deleteFraisInscription(tid, id);
+    }
+    toggleActifFrais(tid, id) {
+        return this.svc.toggleActifFrais(tid, id);
+    }
+    getPaiementsEnAttente(req) {
+        return this.svc.getPaiementsInscriptionEnAttente(this.getTenantId(req));
+    }
+    getTousPaiementsInscription(req, statut) {
+        return this.svc.getTousPaiementsInscription(this.getTenantId(req), statut);
+    }
+    validerPaiement(req, paiementId, body) {
+        return this.svc.validerPaiementInscription(this.getTenantId(req), paiementId, body.caissierId, body.noteValidation);
+    }
+    rejeterPaiement(req, paiementId, body) {
+        return this.svc.rejeterPaiementInscription(this.getTenantId(req), paiementId, body.caissierId, body.motifRejet);
+    }
+    getStatistiquesPaiements(req) {
+        return this.svc.getStatistiquesPaiementsInscription(this.getTenantId(req));
     }
 };
 exports.FinanceController = FinanceController;
 __decorate([
-    (0, common_1.Post)(':tid/paiements'),
+    (0, common_1.Post)('paiements'),
     (0, swagger_1.ApiOperation)({ summary: 'Enregistrer paiement + generer recu (Caissier)' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "payer", null);
 __decorate([
-    (0, common_1.Get)(':tid/paiements'),
+    (0, common_1.Get)('paiements'),
     (0, swagger_1.ApiOperation)({ summary: 'Tous les paiements (filtre par date)' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('date')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getTousPaiements", null);
 __decorate([
-    (0, common_1.Get)(':tid/paiements/:etudiantId'),
+    (0, common_1.Get)('paiements/:etudiantId'),
     (0, swagger_1.ApiOperation)({ summary: 'Paiements d un etudiant' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('etudiantId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getPaiements", null);
 __decorate([
-    (0, common_1.Get)(':tid/caisse'),
+    (0, common_1.Get)('caisse'),
     (0, swagger_1.ApiOperation)({ summary: 'Etat caisse journaliere (Caissier)' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getCaisse", null);
 __decorate([
-    (0, common_1.Post)(':tid/caisse/cloturer'),
+    (0, common_1.Post)('caisse/cloturer'),
     (0, swagger_1.ApiOperation)({ summary: 'Cloturer la caisse du jour' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "cloturer", null);
 __decorate([
-    (0, common_1.Post)(':tid/budgets'),
+    (0, common_1.Post)('budgets'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer un budget (Economat)' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "creerBudget", null);
 __decorate([
-    (0, common_1.Get)(':tid/budgets'),
+    (0, common_1.Get)('budgets'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des budgets' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('annee')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getBudgets", null);
 __decorate([
-    (0, common_1.Post)(':tid/depenses'),
+    (0, common_1.Post)('depenses'),
     (0, swagger_1.ApiOperation)({ summary: 'Ajouter une depense' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "ajouterDepense", null);
 __decorate([
-    (0, common_1.Get)(':tid/depenses'),
+    (0, common_1.Get)('depenses'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des depenses' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('annee')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getDepenses", null);
 __decorate([
-    (0, common_1.Patch)(':tid/depenses/:id'),
+    (0, common_1.Patch)('depenses/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Modifier une depense' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "updateDepense", null);
 __decorate([
-    (0, common_1.Delete)(':tid/depenses/:id'),
+    (0, common_1.Delete)('depenses/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Supprimer une depense' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "deleteDepense", null);
 __decorate([
-    (0, common_1.Patch)(':tid/budgets/:id'),
+    (0, common_1.Patch)('budgets/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Modifier un budget' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "updateBudget", null);
 __decorate([
-    (0, common_1.Get)(':tid/rapport'),
+    (0, common_1.Get)('rapport'),
     (0, swagger_1.ApiOperation)({ summary: 'Rapport financier annuel (President / Economat)' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('annee')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "rapport", null);
 __decorate([
-    (0, common_1.Post)(':tid/contrats'),
+    (0, common_1.Post)('contrats'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer contrat RH' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "creerContrat", null);
 __decorate([
-    (0, common_1.Get)(':tid/contrats'),
+    (0, common_1.Get)('contrats'),
     (0, swagger_1.ApiOperation)({ summary: 'Contrats RH' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('personnelId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getContrats", null);
 __decorate([
-    (0, common_1.Patch)(':tid/contrats/:id'),
+    (0, common_1.Patch)('contrats/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Modifier un contrat' }),
-    __param(0, (0, common_1.Param)('tid')),
+    __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "updateContrat", null);
 __decorate([
@@ -227,11 +271,109 @@ __decorate([
     (0, common_1.Get)(':tid/echeanciers'),
     (0, swagger_1.ApiOperation)({ summary: 'Echeanciers' }),
     __param(0, (0, common_1.Param)('tid')),
-    __param(1, (0, common_1.Query)('etudiantId')),
+    __param(1, (0, common_1.Query)('inscriptionId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "getEcheanciers", null);
+__decorate([
+    (0, common_1.Get)(':tid/inscriptions-actives'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des inscriptions actives pour créer des échéanciers' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getInscriptionsActives", null);
+__decorate([
+    (0, common_1.Get)(':tid/grille-tarifaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des frais d\'inscription par parcours et année' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getGrilleTarifaire", null);
+__decorate([
+    (0, common_1.Post)(':tid/grille-tarifaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "creerFraisInscription", null);
+__decorate([
+    (0, common_1.Patch)(':tid/grille-tarifaire/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "updateFraisInscription", null);
+__decorate([
+    (0, common_1.Delete)(':tid/grille-tarifaire/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "deleteFraisInscription", null);
+__decorate([
+    (0, common_1.Patch)(':tid/grille-tarifaire/:id/toggle-actif'),
+    (0, swagger_1.ApiOperation)({ summary: 'Activer/Désactiver des frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "toggleActifFrais", null);
+__decorate([
+    (0, common_1.Get)('paiements-inscription/en-attente'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des paiements d\'inscription en attente de validation (Caissier)' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getPaiementsEnAttente", null);
+__decorate([
+    (0, common_1.Get)('paiements-inscription'),
+    (0, swagger_1.ApiOperation)({ summary: 'Tous les paiements d\'inscription (Caissier)' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('statut')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getTousPaiementsInscription", null);
+__decorate([
+    (0, common_1.Post)('paiements-inscription/:id/valider'),
+    (0, swagger_1.ApiOperation)({ summary: 'Valider un paiement d\'inscription (Caissier)' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "validerPaiement", null);
+__decorate([
+    (0, common_1.Post)('paiements-inscription/:id/rejeter'),
+    (0, swagger_1.ApiOperation)({ summary: 'Rejeter un paiement d\'inscription (Caissier)' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "rejeterPaiement", null);
+__decorate([
+    (0, common_1.Get)('paiements-inscription/statistiques'),
+    (0, swagger_1.ApiOperation)({ summary: 'Statistiques des paiements d\'inscription (Caissier)' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], FinanceController.prototype, "getStatistiquesPaiements", null);
 exports.FinanceController = FinanceController = __decorate([
     (0, swagger_1.ApiTags)('Finance'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

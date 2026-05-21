@@ -10,4 +10,6 @@ export class SuperAdmin {
   @Column({ default: true }) actif: boolean;
   @Column({ name: 'derniere_connexion', nullable: true }) derniereConnexion: Date;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+  @Column({ name: 'password_reset_required', default: false }) passwordResetRequired: boolean;
+  @Column({ name: 'last_password_reset', nullable: true }) lastPasswordReset: Date;
 }

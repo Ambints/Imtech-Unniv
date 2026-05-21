@@ -24,7 +24,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Comptes Portails', icon: <Users size={18} />, path: '/admin/portals' },
     { label: 'Gestion Utilisateurs', icon: <UserCog size={18} />, path: '/admin/users' },
     { label: 'Académique', icon: <BookOpen size={18} />, path: '/admin/academic' },
-    { label: 'Finance', icon: <Banknote size={18} />, path: '/admin/finance' },
+    { label: 'Finance', icon: <Banknote size={18} />, path: '/finance/gestion' },
     { label: 'RH', icon: <Briefcase size={18} />, path: '/admin/rh' },
     { label: 'Communication', icon: <MessageSquare size={18} />, path: '/admin/communication' },
     { label: 'Discipline', icon: <Scale size={18} />, path: '/admin/discipline' },
@@ -32,8 +32,15 @@ const MENUS: Record<string, MenuItem[]> = {
   ],
   president: [
     { label: 'Tableau de Bord', icon: <Home size={18} />, path: '/president' },
-    { label: 'Vue d\'Ensemble', icon: <BarChart3 size={18} />, path: '/president' },
-    { label: 'Supervision', icon: <EyeIcon size={18} />, path: '/president' },
+    { label: 'Vue d\'Ensemble', icon: <EyeIcon size={18} />, path: '/president/supervision' },
+    { label: 'Recrutements', icon: <Users size={18} />, path: '/president/recrutements' },
+    { label: 'Investissements', icon: <Banknote size={18} />, path: '/president/investissements' },
+    { label: 'Diplômes', icon: <GraduationCap size={18} />, path: '/president/diplomes' },
+    { label: 'Conventions', icon: <FileText size={18} />, path: '/president/conventions' },
+    { label: 'Discipline', icon: <AlertTriangle size={18} />, path: '/president/discipline' },
+    { label: 'Parcours', icon: <BookOpen size={18} />, path: '/president/parcours' },
+    { label: 'Calendrier', icon: <Calendar size={18} />, path: '/president/calendrier' },
+    { label: 'Délégations', icon: <UserCog size={18} />, path: '/president/delegations' },
   ],
   communication: [
     { label: 'Actualités', icon: <MessageSquare size={18} />, path: '/communication' },
@@ -41,14 +48,13 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Campagnes', icon: <Send size={18} />, path: '/communication' },
     { label: 'Statistiques', icon: <BarChart3 size={18} />, path: '/communication' },
   ],
-  responsable_pedagogique: [
-    { label: 'Mes Parcours', icon: <BookOpen size={18} />, path: '/academic/parcours' },
-    { label: 'Maquettes LMD / ECTS', icon: <BookText size={18} />, path: '/academic/ue' },
-    { label: 'Affectation Enseignants', icon: <UserCog size={18} />, path: '/academic/enseignants' },
-    { label: 'Examens & Sujets', icon: <FileEdit size={18} />, path: '/academic/examens' },
-    { label: 'Jury & Délibérations', icon: <Trophy size={18} />, path: '/academic/deliberations' },
-    { label: 'Suivi Taux de Réussite', icon: <BarChart3 size={18} />, path: '/academic/stats' },
-    { label: 'Stages & Mémoires', icon: <ClipboardList size={18} />, path: '/academic/stages' },
+  resp_pedagogique: [
+    { label: 'Mes Parcours', icon: <BookOpen size={18} />, path: '/pedagogique' },
+    { label: 'Référentiels', icon: <BookText size={18} />, path: '/pedagogique/referentiels' },
+    { label: 'Maquettes', icon: <FileEdit size={18} />, path: '/pedagogique/maquettes' },
+    { label: 'Affectations', icon: <UserCog size={18} />, path: '/pedagogique/affectations' },
+    { label: 'Sujets d\'Examens', icon: <FileEdit size={18} />, path: '/pedagogique/sujets' },
+    { label: 'PV & Délibérations', icon: <Trophy size={18} />, path: '/pedagogique/pv' },
   ],
   secretaire_parcours: [
     { label: 'Inscriptions', icon: <CheckCircle size={18} />, path: '/secretariat/inscriptions' },
@@ -56,9 +62,11 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Suivi des Absences', icon: <ClipboardList size={18} />, path: '/secretariat/absences' },
     { label: 'Dossiers Étudiants', icon: <FolderOpen size={18} />, path: '/secretariat/dossiers' },
     { label: 'Convocations Examens', icon: <Send size={18} />, path: '/secretariat/convocations' },
-    { label: 'PV de Jury', icon: <Scroll size={18} />, path: '/secretariat/pv' },
+    { label: 'PV de Jury', icon: <Scroll size={18} />, path: '/secretariat/pv-jury' },
   ],
   surveillant_general: [
+    { label: 'Dashboard', icon: <Home size={18} />, path: '/surveillance' },
+    { label: 'Emploi du Temps', icon: <CalendarDays size={18} />, path: '/surveillance/edt' },
     { label: 'Présences Journalières', icon: <CheckCircle size={18} />, path: '/surveillance/presences' },
     { label: 'Absences & Retards', icon: <Clock size={18} />, path: '/surveillance/absences' },
     { label: 'Incidents Disciplinaires', icon: <AlertTriangle size={18} />, path: '/surveillance/incidents' },
@@ -83,6 +91,7 @@ const MENUS: Record<string, MenuItem[]> = {
   caissier: [
     { label: 'Encaissement', icon: <BanknoteIcon size={18} />, path: '/caisse/encaissement' },
     { label: 'Caisse du Jour', icon: <Receipt size={18} />, path: '/caisse' },
+    { label: 'Validation Paiements', icon: <CheckCircle size={18} />, path: '/caisse/validation-paiements' },
     { label: 'Échéanciers', icon: <Calendar size={18} />, path: '/caisse/echeanciers' },
     { label: 'Reçus & Quittances', icon: <Printer size={18} />, path: '/caisse/recus' },
     { label: 'Impayés', icon: <CircleDot size={18} />, path: '/caisse/impayes' },
@@ -108,6 +117,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Stock Produits', icon: <Droplets size={18} />, path: '/entretien/produits' },
   ],
   etudiant: [
+    { label: 'Inscription', icon: <CheckCircle size={18} />, path: '/portail/etudiant/inscription' },
     { label: 'Mon Tableau de Bord', icon: <Home size={18} />, path: '/portail/etudiant' },
     { label: 'Mes Notes', icon: <BarChart3 size={18} />, path: '/portail/etudiant/notes' },
     { label: 'Emploi du Temps', icon: <CalendarDays size={18} />, path: '/portail/etudiant/edt' },
@@ -123,23 +133,24 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Paiements', icon: <CreditCard size={18} />, path: '/portail/parent/paiements' },
     { label: 'Messagerie', icon: <MessageSquare size={18} />, path: '/portail/parent/messages' },
   ],
-  professeur: [
-    { label: 'Mes Cours', icon: <BookText size={18} />, path: '/portail/professeur' },
-    { label: 'Saisie des Notes', icon: <Pencil size={18} />, path: '/portail/professeur/notes' },
-    { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/professeur/presences' },
-    { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/professeur/etudiants' },
-    { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/professeur/ressources' },
-    { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/professeur/demandes' },
+  enseignant: [
+    { label: 'Mes Cours', icon: <BookText size={18} />, path: '/portail/enseignant' },
+    { label: 'Saisie des Notes', icon: <Pencil size={18} />, path: '/portail/enseignant/notes' },
+    { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/enseignant/presences' },
+    { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/enseignant/etudiants' },
+    { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/enseignant/ressources' },
+    { label: 'Messagerie', icon: <MessageSquare size={18} />, path: '/portail/enseignant/messagerie' },
+    { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/enseignant/demandes' },
   ],
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Administrateur', responsable_pedagogique: 'Resp. Pédagogique',
+  super_admin: 'Super Administrateur', resp_pedagogique: 'Resp. Pédagogique',
   secretaire_parcours: 'Secrétaire Parcours', surveillant_general: 'Surveillant Général',
   scolarite: 'Service Scolarité', economat: 'Économat (CFO)', caissier: 'Caissier',
-  rh: 'Ressources Humaines', responsable_logistique: 'Resp. Logistique',
-  service_entretien: 'Service Entretien', etudiant: 'Étudiant', parent: 'Parent', professeur: 'Professeur',
-  communication: 'Communication', admin: 'Administrateur',
+  rh: 'Ressources Humaines', logistique: 'Resp. Logistique',
+  entretien: 'Service Entretien', etudiant: 'Étudiant', parent: 'Parent', enseignant: 'Enseignant',
+  communication: 'Communication', admin: 'Administrateur', president: 'Président',
 };
 
 interface SidebarProps {
@@ -289,10 +300,24 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Navigation */}
       <nav className="flex-grow-1 p-2 overflow-auto">
         {menu.map((item) => {
-          // Check if current path matches exactly or starts with item.path for nested routes
-          // Special handling for /admin to avoid matching /admin/xxx routes
-          const isActive = active === item.path ||
-            (item.path !== '/' && item.path !== '/admin' && active.startsWith(item.path + '/'));
+          // Check if current path matches exactly
+          // For dashboard pages (ending with base path), only match exact path
+          // For other pages, match if current path starts with item path
+          const isDashboardPath = item.path === '/portail/etudiant' ||
+                                  item.path === '/portail/parent' ||
+                                  item.path === '/portail/enseignant' ||
+                                  item.path === '/admin' ||
+                                  item.path === '/pedagogique' ||
+                                  item.path === '/president' ||
+                                  item.path === '/surveillance' ||
+                                  item.path === '/caisse' ||
+                                  item.path === '/scolarite' ||
+                                  item.path === '/communication' ||
+                                  item.path === '/';
+          
+          const isActive = isDashboardPath
+            ? active === item.path
+            : (active === item.path || (item.path !== '/' && active.startsWith(item.path + '/')));
           return (
             <a
               key={`${item.path}-${item.label}`}

@@ -9,6 +9,7 @@ export class Parcours {
   @Column() niveau: string;
   @Column({ name: 'duree_annees', default: 3 }) dureeAnnees: number;
   @Column({ name: 'responsable_id', nullable: true }) responsableId: string;
+  @Column({ name: 'secretaire_id', nullable: true }) secretaireId: string;
   @Column({ nullable: true }) description: string;
   @Column({ default: true, name: 'actif' }) actif: boolean;
   @Column({ name: 'annee_ouverture', nullable: true }) anneeOuverture: number;
@@ -193,6 +194,8 @@ export class EmploiDuTemps {
   @Column({ name: 'type_seance', default: 'CM' }) typeSeance: string;
   @Column({ default: 'planifie' }) statut: string;
   @Column({ name: 'motif_annulation', nullable: true }) motifAnnulation: string;
+  // Colonne pour le tracking de l'ownership - qui a créé cette entrée
+  @Column({ name: 'created_by_id', nullable: true }) createdById: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 }

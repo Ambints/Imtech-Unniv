@@ -7,7 +7,7 @@ export declare class PortailPermissionsController {
     getPermissions(req: any): Promise<{
         etudiant: any[];
         parent: any[];
-        professeur: any[];
+        enseignant: any[];
     }>;
     getPermissionsByType(req: any, type: string): Promise<any>;
     updatePermission(req: any, type: string, key: string, body: {

@@ -2,18 +2,43 @@ import { PortailEtudiantService } from './etudiant.service';
 export declare class PortailEtudiantController {
     private readonly svc;
     constructor(svc: PortailEtudiantService);
-    getProfil(user: any): Promise<any>;
-    getEmploiDuTemps(user: any, dateDebut?: string, dateFin?: string): Promise<any>;
-    getNotes(user: any, sessionId?: string): Promise<any>;
-    getMoyennes(user: any): Promise<any>;
-    getPaiements(user: any): Promise<any>;
-    getSolde(user: any): Promise<any>;
-    getAbsences(user: any): Promise<any>;
-    justifierAbsence(user: any, dto: any): Promise<any>;
-    getDocuments(user: any): Promise<any>;
-    getCoursEnLigne(user: any): Promise<any>;
-    getInscriptionExamens(user: any): Promise<any>;
-    inscrireExamen(user: any, dto: {
+    searchEtudiants(tid: string, query: string): Promise<any[]>;
+    getProfil(tid: string, user: any): Promise<any>;
+    getEmploiDuTemps(tid: string, user: any, dateDebut?: string, dateFin?: string): Promise<any>;
+    getNotes(tid: string, user: any, sessionId?: string): Promise<any>;
+    getMoyennes(tid: string, user: any): Promise<any>;
+    getPaiements(tid: string, user: any): Promise<any>;
+    getSolde(tid: string, user: any): Promise<any>;
+    getAbsences(tid: string, user: any): Promise<any>;
+    justifierAbsence(tid: string, user: any, dto: any): Promise<any>;
+    getDocuments(tid: string, user: any): Promise<any>;
+    getCoursEnLigne(tid: string, user: any): Promise<any>;
+    getInscriptionExamens(tid: string, user: any): Promise<any>;
+    inscrireExamen(tid: string, user: any, dto: {
         sessionId: string;
     }): Promise<any>;
+    getInscriptions(tid: string, user: any): Promise<any>;
+    getDepartements(tid: string): Promise<any>;
+    getParcoursDisponibles(tid: string, user: any): Promise<any>;
+    getAnneesAcademiques(tid: string): Promise<any>;
+    getNiveauxEtude(tid: string): Promise<any>;
+    createInscription(tid: string, user: any, dto: {
+        parcoursId: string;
+        anneeAcademiqueId: string;
+        anneeNiveau: number;
+        typeInscription?: string;
+    }): Promise<any>;
+    updateInscription(tid: string, id: string, user: any, dto: any): Promise<any>;
+    cancelInscription(tid: string, id: string, user: any): Promise<any>;
+    getMontantInscription(tid: string, inscriptionId: string, user: any): Promise<any>;
+    submitPaiement(tid: string, user: any, dto: {
+        inscriptionId: string;
+        montant: number;
+        methodePaiement: 'virement_bancaire' | 'mobile_money';
+        referencePaiement: string;
+        datePaiement?: Date;
+        preuveUrl?: string;
+    }): Promise<any>;
+    getPaiementStatus(tid: string, inscriptionId: string, user: any): Promise<any>;
+    getPaiementsInscription(tid: string, user: any): Promise<any>;
 }

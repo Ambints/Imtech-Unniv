@@ -12,12 +12,27 @@ const typeorm_1 = require("@nestjs/typeorm");
 const caissier_controller_1 = require("./caissier.controller");
 const caissier_service_1 = require("./caissier.service");
 const finance_entities_1 = require("../finance/finance.entities");
+const frais_inscription_entity_1 = require("./frais-inscription.entity");
+const cloture_caisse_entity_1 = require("./cloture-caisse.entity");
+const entities_1 = require("../scolarite/entities");
 let CaissierModule = class CaissierModule {
 };
 exports.CaissierModule = CaissierModule;
 exports.CaissierModule = CaissierModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([finance_entities_1.Paiement, finance_entities_1.Echeancier])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
+                finance_entities_1.Paiement,
+                finance_entities_1.Echeancier,
+                frais_inscription_entity_1.FraisInscription,
+                cloture_caisse_entity_1.ClotureCaisse,
+                entities_1.Parcours,
+                entities_1.AnneeAcademique,
+                entities_1.Inscription,
+                entities_1.Etudiant,
+                entities_1.Utilisateur
+            ], 'tenant')
+        ],
         controllers: [caissier_controller_1.CaissierController],
         providers: [caissier_service_1.CaissierService],
         exports: [caissier_service_1.CaissierService],

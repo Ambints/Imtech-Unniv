@@ -61,7 +61,7 @@ let AuthService = class AuthService {
                     throw new common_1.UnauthorizedException('Identifiants invalides');
                 if (!superAdmin.actif)
                     throw new common_1.UnauthorizedException('Compte desactive');
-                const payload = { sub: superAdmin.id, email: superAdmin.email, role: 'super_admin' };
+                const payload = { sub: superAdmin.id, email: superAdmin.email, role: 'super_admin', tenantId: null };
                 const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
                 const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
                 await this.users.updateSuperAdminLastLogin(superAdmin.id);
@@ -75,7 +75,9 @@ let AuthService = class AuthService {
                         lastName: superAdmin.nom,
                         role: 'super_admin',
                         photoUrl: null,
+                        tenantId: null,
                     },
+                    tenant: null,
                 };
             }
             const user = await this.users.findByEmail(email);
@@ -86,11 +88,22 @@ let AuthService = class AuthService {
                 throw new common_1.UnauthorizedException('Identifiants invalides');
             if (!user.actif)
                 throw new common_1.UnauthorizedException('Compte desactive');
-            const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
+            const tenantId = user.tenantId;
+            const payload = { sub: user.id, email: user.email, role: user.role, tenantId };
             const accessToken = this.jwt.sign(payload, { expiresIn: '8h' });
             const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
-            await this.users.updateRefreshToken(user.id, refreshToken);
-            await this.users.update(user.id, { derniereConnexion: new Date() });
+            let tenantInfo = null;
+            if (tenantId) {
+                const tenant = await this.users.getTenantInfo(tenantId);
+                if (tenant) {
+                    tenantInfo = {
+                        id: tenant.id,
+                        name: tenant.nom,
+                        slug: tenant.slug,
+                        schema: tenant.schemaName,
+                    };
+                }
+            }
             return {
                 accessToken,
                 refreshToken,
@@ -101,8 +114,9 @@ let AuthService = class AuthService {
                     lastName: user.nom,
                     role: user.role,
                     photoUrl: user.photoUrl,
-                    tenantId: user.tenantId,
+                    tenantId,
                 },
+                tenant: tenantInfo,
             };
         }
         catch (error) {
@@ -116,12 +130,86 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Token invalide');
         if (user.tokenResetExpiry && user.tokenResetExpiry < new Date())
             throw new common_1.UnauthorizedException('Token expire');
-        const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
+        const tenantId = user.tenantId;
+        const payload = { sub: user.id, email: user.email, role: user.role, tenantId };
         return { accessToken: this.jwt.sign(payload, { expiresIn: '8h' }) };
     }
     async logout(userId) {
-        await this.users.updateRefreshToken(userId, null);
         return { message: 'Deconnecte avec succes' };
+    }
+    async changePassword(userId, currentPassword, newPassword) {
+        try {
+            const superAdmin = await this.users.findSuperAdminById(userId);
+            if (superAdmin) {
+                const valid = await bcrypt.compare(currentPassword, superAdmin.password);
+                if (!valid) {
+                    throw new common_1.UnauthorizedException('Mot de passe actuel incorrect');
+                }
+                const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+                await this.users.updateSuperAdminPassword(userId, hashedNewPassword);
+                return {
+                    success: true,
+                    message: 'Mot de passe changé avec succès',
+                    passwordResetRequired: false
+                };
+            }
+            const user = await this.users.findById(userId);
+            if (!user) {
+                throw new common_1.UnauthorizedException('Utilisateur non trouvé');
+            }
+            const valid = await bcrypt.compare(currentPassword, user.password);
+            if (!valid) {
+                throw new common_1.UnauthorizedException('Mot de passe actuel incorrect');
+            }
+            const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+            await this.users.updateUserPassword(userId, hashedNewPassword);
+            return {
+                success: true,
+                message: 'Mot de passe changé avec succès',
+                passwordResetRequired: false
+            };
+        }
+        catch (error) {
+            throw error;
+        }
+    }
+    async getUserInfo(userId) {
+        try {
+            const superAdmin = await this.users.findSuperAdminById(userId);
+            if (superAdmin) {
+                return {
+                    id: superAdmin.id,
+                    email: superAdmin.email,
+                    firstName: superAdmin.prenom,
+                    lastName: superAdmin.nom,
+                    role: 'super_admin',
+                    photoUrl: null,
+                    tenantId: null,
+                    passwordResetRequired: superAdmin.passwordResetRequired || false,
+                    lastPasswordReset: superAdmin.lastPasswordReset,
+                    actif: superAdmin.actif
+                };
+            }
+            const user = await this.users.findById(userId);
+            if (!user) {
+                throw new common_1.UnauthorizedException('Utilisateur non trouvé');
+            }
+            return {
+                id: user.id,
+                email: user.email,
+                firstName: user.prenom,
+                lastName: user.nom,
+                role: user.role,
+                photoUrl: user.photoUrl || null,
+                tenantId: user.tenantId,
+                passwordResetRequired: user.passwordResetRequired || false,
+                lastPasswordReset: user.lastPasswordReset,
+                actif: user.actif
+            };
+        }
+        catch (error) {
+            throw error;
+        }
     }
 };
 exports.AuthService = AuthService;

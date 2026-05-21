@@ -18,8 +18,51 @@ export class CommunicationController {
   @Roles('communication', 'admin', 'secretaire', 'president')
   @ApiOperation({ summary: 'Créer une annonce/actualité' })
   @ApiResponse({ status: 201, description: 'Annonce créée' })
-  createAnnonce(@Body() dto: any, @CurrentUser() user: any) {
-    return this.svc.createAnnonce({ ...dto, auteurId: user.id });
+  @ApiResponse({ status: 400, description: 'Données invalides' })
+  @ApiResponse({ status: 500, description: 'Erreur serveur' })
+  async createAnnonce(@Body() dto: any, @CurrentUser() user: any) {
+    try {
+      // Validation de l'utilisateur
+      if (!user || !user.id) {
+        console.error('[CONTROLLER] User not authenticated:', { user });
+        throw new Error('User not authenticated or user ID missing');
+      }
+
+      // Log des données reçues
+      console.log('[CONTROLLER] Creating annonce with data:', {
+        userId: user.id,
+        dto: dto,
+        timestamp: new Date().toISOString()
+      });
+
+      // Validation des champs requis
+      if (!dto.titre || dto.titre.trim() === '') {
+        console.error('[CONTROLLER] Missing titre field');
+        throw new Error('Le titre est requis');
+      }
+
+      if (!dto.contenu || dto.contenu.trim() === '') {
+        console.error('[CONTROLLER] Missing contenu field');
+        throw new Error('Le contenu est requis');
+      }
+
+      const result = await this.svc.createAnnonce({ ...dto, auteurId: user.id });
+      
+      console.log('[CONTROLLER] Annonce created successfully:', { id: result.id });
+      return result;
+    } catch (error) {
+      // Log détaillé de l'erreur
+      console.error('[CONTROLLER] Error creating annonce:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        dto: dto,
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      // Retourner une erreur structurée
+      throw error;
+    }
   }
 
   @Get('annonces')
@@ -222,7 +265,7 @@ export class CommunicationController {
 
   // ========== FORUMS & ESPACES COMMUNAUTAIRES ==========
   @Post('forums/sujets')
-  @Roles('communication', 'admin', 'professeur', 'etudiant')
+  @Roles('communication', 'admin', 'enseignant', 'etudiant')
   @ApiOperation({ summary: 'Créer un sujet de forum' })
   createSujetForum(@Body() dto: any, @CurrentUser() user: any) {
     return this.svc.createSujetForum({ ...dto, auteurId: user.id });
@@ -235,7 +278,7 @@ export class CommunicationController {
   }
 
   @Post('forums/sujets/:id/repondre')
-  @Roles('communication', 'admin', 'professeur', 'etudiant', 'parent')
+  @Roles('communication', 'admin', 'enseignant', 'etudiant', 'parent')
   @ApiOperation({ summary: 'Répondre à un sujet' })
   repondreForum(@Param('id') sujetId: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.svc.repondreForum(sujetId, { ...dto, auteurId: user.id });

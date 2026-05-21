@@ -16,11 +16,22 @@ exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const users_service_1 = require("./users.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../auth/roles.guard");
+const roles_decorator_1 = require("../auth/roles.decorator");
 let UsersController = class UsersController {
     constructor(svc) {
         this.svc = svc;
     }
-    create(dto) { return this.svc.create(dto); }
+    async create(dto, req) {
+        if (req.user?.role === 'admin' && !dto.tenantId) {
+            dto.tenantId = req.user.tenantId;
+        }
+        if (!dto.tenantId && req.user?.role !== 'super_admin') {
+            throw new common_1.BadRequestException('TenantId requis pour créer un utilisateur');
+        }
+        return this.svc.create(dto);
+    }
     findAll(tid, role, university) {
         return this.svc.findAll(tid, role, university);
     }
@@ -31,11 +42,14 @@ let UsersController = class UsersController {
 exports.UsersController = UsersController;
 __decorate([
     (0, common_1.Post)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin', 'super_admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Creer un utilisateur' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
 ], UsersController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),

@@ -15,7 +15,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     return {
-      userId: payload.sub,
+      id: payload.sub,           // ✅ Changed from userId to id
+      userId: payload.sub,       // Keep for backward compatibility
       email: payload.email,
       role: payload.role,
       tenantId: payload.tenantId || null  // tenantId is optional for super_admin

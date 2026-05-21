@@ -21,7 +21,27 @@ export declare class CaissierController {
     debloquerNotes(inscriptionId: string): Promise<any>;
     getClotureJournaliere(date: string): Promise<any>;
     validerCloture(date: string, user: any): Promise<any>;
+    calculerTotaux(dto: {
+        date_cloture: string;
+        caissier_id: string;
+    }): Promise<any>;
+    saveRapprochementBancaire(dto: {
+        date: string;
+        solde_reel: number;
+        motif_ecart?: string;
+    }): Promise<any>;
     getRapprochementBancaire(date: string): Promise<any>;
     getStatsJournalieres(date: string): Promise<any>;
     getStatsMensuelles(mois: number, annee: number): Promise<any>;
+    getFraisInscription(anneeAcademiqueId?: string): Promise<any>;
+    createFraisInscription(dto: any, user: any): Promise<any>;
+    updateFraisInscription(id: string, dto: any, user: any): Promise<any>;
+    getFraisByParcours(parcoursId: string, anneeAcademiqueId?: string): Promise<any>;
+    encaissementDirect(dto: any, user: any): Promise<any>;
+    encaissementMultiple(dto: {
+        paiements: any[];
+    }, user: any): Promise<any>;
+    getRapportAnnuel(annee: number): Promise<any>;
+    getRapportsParcours(dateDebut: string, dateFin: string): Promise<any>;
+    getRapportModesPaiement(dateDebut?: string, dateFin?: string): Promise<any>;
 }

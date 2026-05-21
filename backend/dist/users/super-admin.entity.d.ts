@@ -7,4 +7,6 @@ export declare class SuperAdmin {
     actif: boolean;
     derniereConnexion: Date;
     createdAt: Date;
+    passwordResetRequired: boolean;
+    lastPasswordReset: Date;
 }

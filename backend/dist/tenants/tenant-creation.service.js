@@ -30,17 +30,32 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
         this.logger = new common_1.Logger(TenantCreationService_1.name);
     }
     async createTenantSchema(schemaName) {
+        console.log(`🚀 Début de la création du schéma: ${schemaName}`);
+        console.log(`🔍 DataSource disponible: ${!!this.dataSource}`);
         const queryRunner = this.dataSource.createQueryRunner();
+        console.log(`🔍 QueryRunner créé: ${!!queryRunner}`);
         try {
+            console.log(`🔡 Connexion au QueryRunner...`);
             await queryRunner.connect();
+            console.log(`✅ QueryRunner connecté`);
             this.logger.log(`🔧 Création du schéma: ${schemaName}`);
+            console.log(`🔨 Exécution de CREATE SCHEMA pour: ${schemaName}`);
             const createSchemaResult = await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+            console.log(`📊 Résultat CREATE SCHEMA: ${JSON.stringify(createSchemaResult)}`);
             this.logger.log(`✅ Schéma ${schemaName} créé ou déjà existant`);
             const schemaCheck = await queryRunner.query(`
         SELECT schema_name
         FROM information_schema.schemata
         WHERE schema_name = $1
       `, [schemaName]);
+            const newSchemaCheck = await queryRunner.query(`
+        SELECT schema_name
+        FROM information_schema.schemata
+        WHERE schema_name = $1
+      `, [schemaName]);
+            if (newSchemaCheck.length === 0) {
+                throw new Error(`Le schéma ${schemaName} n'a pas été créé correctement`);
+            }
             if (schemaCheck.length === 0) {
                 throw new Error(`Le schéma ${schemaName} n'a pas été créé correctement`);
             }
@@ -52,9 +67,19 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
             const sqlPath = process.env.NODE_ENV === 'production'
                 ? (0, path_1.join)(__dirname, 'tenant-schema.sql')
                 : (0, path_1.join)(__dirname, '../../src/tenants/tenant-schema.sql');
-            this.logger.log(`📄 Lecture du script SQL: ${sqlPath}`);
-            let sqlScript = (0, fs_1.readFileSync)(sqlPath, 'utf-8');
-            this.logger.log(`🔧 Initialisation des tables dans ${schemaName}`);
+            console.log(`📄 Lecture du script SQL de base: ${sqlPath}`);
+            console.log(`🔍 NODE_ENV: ${process.env.NODE_ENV}`);
+            console.log(`🔍 __dirname: ${__dirname}`);
+            let sqlScript;
+            try {
+                sqlScript = (0, fs_1.readFileSync)(sqlPath, 'utf-8');
+                console.log(`✅ Script SQL lu avec succès (${sqlScript.length} caractères)`);
+            }
+            catch (error) {
+                console.error(`❌ Erreur de lecture du script SQL: ${error}`);
+                throw new Error(`Impossible de lire le script SQL: ${error}`);
+            }
+            this.logger.log(`🔧 Initialisation des tables de base dans ${schemaName}`);
             await queryRunner.query(`SET search_path TO "${schemaName}"`);
             this.logger.log(`✅ search_path défini sur ${schemaName}`);
             const statements = this.parseSqlStatements(sqlScript);
@@ -81,18 +106,59 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
                 }
             }
             this.logger.log(`✅ Exécution terminée: ${successCount} réussies, ${skipCount} ignorées`);
+            this.logger.log(`🔧 Application du module scolarité...`);
+            const scolariteSqlPath = process.env.NODE_ENV === 'production'
+                ? (0, path_1.join)(__dirname, '../scolarite/migrations/001_add_scolarite_tables.sql')
+                : (0, path_1.join)(__dirname, '../../src/scolarite/migrations/001_add_scolarite_tables.sql');
+            try {
+                this.logger.log(`📄 Lecture du script scolarité: ${scolariteSqlPath}`);
+                const scolariteSqlScript = (0, fs_1.readFileSync)(scolariteSqlPath, 'utf-8');
+                const scolariteStatements = this.parseSqlStatements(scolariteSqlScript);
+                this.logger.log(`📊 ${scolariteStatements.length} instructions SQL scolarité à exécuter`);
+                let scolariteSuccessCount = 0;
+                let scolariteSkipCount = 0;
+                for (let i = 0; i < scolariteStatements.length; i++) {
+                    const stmt = scolariteStatements[i];
+                    try {
+                        await queryRunner.query(stmt);
+                        scolariteSuccessCount++;
+                    }
+                    catch (error) {
+                        const msg = getErrorMessage(error);
+                        if (!msg.includes('already exists') && !msg.includes('n\'existe pas')) {
+                            this.logger.warn(`⚠️ Instruction scolarité ${i + 1} ignorée: ${msg.substring(0, 100)}`);
+                        }
+                        scolariteSkipCount++;
+                    }
+                }
+                this.logger.log(`✅ Module scolarité appliqué: ${scolariteSuccessCount} réussies, ${scolariteSkipCount} ignorées`);
+            }
+            catch (error) {
+                this.logger.warn(`⚠️ Impossible d'appliquer le module scolarité: ${getErrorMessage(error)}`);
+                this.logger.warn(`   Le module scolarité devra être appliqué manuellement`);
+            }
             await queryRunner.query(`SET search_path TO public`);
             const tableCheck = await queryRunner.query(`
+        SELECT COUNT(*) as count
+        FROM information_schema.tables
+        WHERE table_schema = $1
+      `, [schemaName]);
+            const tableCount = parseInt(tableCheck[0]?.count || '0');
+            this.logger.log(`📊 ${tableCount} tables créées dans ${schemaName}`);
+            if (tableCount < 50) {
+                this.logger.error(`❌ ERREUR: Seulement ${tableCount} tables créées (attendu: ~65)`);
+                throw new Error(`Création de schéma incomplète: ${tableCount} tables créées au lieu de ~65`);
+            }
+            const sampleTables = await queryRunner.query(`
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = $1
-        LIMIT 5
+        LIMIT 10
       `, [schemaName]);
-            this.logger.log(`✅ ${tableCheck.length} tables créées dans ${schemaName}`);
-            if (tableCheck.length > 0) {
-                this.logger.log(`   Tables: ${tableCheck.map((t) => t.table_name).join(', ')}`);
+            if (sampleTables.length > 0) {
+                this.logger.log(`   Exemples de tables: ${sampleTables.map((t) => t.table_name).join(', ')}`);
             }
-            this.logger.log(`🎉 Schéma ${schemaName} créé avec succès avec toutes ses tables`);
+            this.logger.log(`🎉 Schéma ${schemaName} créé avec succès avec ${tableCount} tables`);
         }
         catch (error) {
             this.logger.error(`❌ Erreur lors de la création du schéma ${schemaName}: ${getErrorMessage(error)}`);

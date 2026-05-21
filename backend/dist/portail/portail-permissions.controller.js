@@ -48,7 +48,7 @@ let PortailPermissionsController = class PortailPermissionsController {
         const grouped = {
             etudiant: [],
             parent: [],
-            professeur: []
+            enseignant: []
         };
         permissions.forEach((perm) => {
             grouped[perm.type_portail].push({
@@ -64,7 +64,7 @@ let PortailPermissionsController = class PortailPermissionsController {
         if (!req.user?.tenantId) {
             throw new common_1.BadRequestException('Tenant ID manquant');
         }
-        if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+        if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
             throw new common_1.BadRequestException('Type de portail invalide');
         }
         const tenant = await this.tenantRepo.findOne({ where: { id: req.user.tenantId } });
@@ -93,7 +93,7 @@ let PortailPermissionsController = class PortailPermissionsController {
         if (!req.user?.tenantId) {
             throw new common_1.BadRequestException('Tenant ID manquant');
         }
-        if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+        if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
             throw new common_1.BadRequestException('Type de portail invalide');
         }
         const tenant = await this.tenantRepo.findOne({ where: { id: req.user.tenantId } });
@@ -117,7 +117,7 @@ let PortailPermissionsController = class PortailPermissionsController {
         if (!req.user?.tenantId) {
             throw new common_1.BadRequestException('Tenant ID manquant');
         }
-        if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+        if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
             throw new common_1.BadRequestException('Type de portail invalide');
         }
         const tenant = await this.tenantRepo.findOne({ where: { id: req.user.tenantId } });

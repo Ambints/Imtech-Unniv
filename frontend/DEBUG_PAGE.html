@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMTECH - Debug Page</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        h2 {
+            color: #ffff00;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .error { color: #ff0000; }
+        .success { color: #00ff00; }
+        .warning { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <h1>🔍 IMTECH UNIVERSITY - Page de Diagnostic</h1>
+    
+    <div class="section">
+        <h2>1. État du LocalStorage</h2>
+        <button onclick="checkLocalStorage()">Vérifier LocalStorage</button>
+        <button onclick="clearLocalStorage()">Effacer LocalStorage</button>
+        <pre id="localStorage-output">Cliquez sur "Vérifier LocalStorage"</pre>
+    </div>
+
+    <div class="section">
+        <h2>2. Test de Navigation</h2>
+        <button onclick="goToLogin()">Aller à /login</button>
+        <button onclick="goToHome()">Aller à /</button>
+        <button onclick="goToAdmin()">Aller à /admin</button>
+    </div>
+
+    <div class="section">
+        <h2>3. Console Logs</h2>
+        <pre id="console-output">Les logs apparaîtront ici...</pre>
+    </div>
+
+    <script>
+        // Capture console logs
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(type, ...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            const className = type === 'error' ? 'error' : type === 'warn' ? 'warning' : 'success';
+            consoleOutput.innerHTML += `<div class="${className}">[${type.toUpperCase()}] ${message}</div>\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole('log', ...args);
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('error', ...args);
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole('warn', ...args);
+        };
+
+        function checkLocalStorage() {
+            const output = document.getElementById('localStorage-output');
+            try {
+                const authData = localStorage.getItem('imtech-auth-v1');
+                if (authData) {
+                    const parsed = JSON.parse(authData);
+                    output.innerHTML = '<span class="success">✅ Données trouvées:</span>\n' + 
+                        JSON.stringify(parsed, null, 2);
+                    console.log('LocalStorage data:', parsed);
+                } else {
+                    output.innerHTML = '<span class="warning">⚠️ Aucune donnée d\'authentification trouvée</span>';
+                    console.warn('No auth data in localStorage');
+                }
+            } catch (e) {
+                output.innerHTML = '<span class="error">❌ Erreur: ' + e.message + '</span>';
+                console.error('Error reading localStorage:', e);
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.clear();
+            document.getElementById('localStorage-output').innerHTML = 
+                '<span class="success">✅ LocalStorage effacé</span>';
+            console.log('LocalStorage cleared');
+        }
+
+        function goToLogin() {
+            console.log('Navigating to /login');
+            window.location.href = '/login';
+        }
+
+        function goToHome() {
+            console.log('Navigating to /');
+            window.location.href = '/';
+        }
+
+        function goToAdmin() {
+            console.log('Navigating to /admin');
+            window.location.href = '/admin';
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            console.log('🚀 Debug page loaded');
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>

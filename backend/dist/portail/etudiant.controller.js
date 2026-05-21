@@ -24,151 +24,324 @@ let PortailEtudiantController = class PortailEtudiantController {
     constructor(svc) {
         this.svc = svc;
     }
-    getProfil(user) {
+    async searchEtudiants(tid, query) {
+        return this.svc.searchEtudiants(query);
+    }
+    getProfil(tid, user) {
         return this.svc.getProfil(user.id);
     }
-    getEmploiDuTemps(user, dateDebut, dateFin) {
+    getEmploiDuTemps(tid, user, dateDebut, dateFin) {
         return this.svc.getEmploiDuTemps(user.id, dateDebut, dateFin);
     }
-    getNotes(user, sessionId) {
+    getNotes(tid, user, sessionId) {
         return this.svc.getNotes(user.id, sessionId);
     }
-    getMoyennes(user) {
+    getMoyennes(tid, user) {
         return this.svc.getMoyennes(user.id);
     }
-    getPaiements(user) {
+    getPaiements(tid, user) {
         return this.svc.getPaiements(user.id);
     }
-    getSolde(user) {
+    getSolde(tid, user) {
         return this.svc.getSolde(user.id);
     }
-    getAbsences(user) {
+    getAbsences(tid, user) {
         return this.svc.getAbsences(user.id);
     }
-    justifierAbsence(user, dto) {
+    justifierAbsence(tid, user, dto) {
         return this.svc.justifierAbsence(user.id, dto);
     }
-    getDocuments(user) {
+    getDocuments(tid, user) {
         return this.svc.getDocuments(user.id);
     }
-    getCoursEnLigne(user) {
+    getCoursEnLigne(tid, user) {
         return this.svc.getCoursEnLigne(user.id);
     }
-    getInscriptionExamens(user) {
+    getInscriptionExamens(tid, user) {
         return this.svc.getInscriptionsExamens(user.id);
     }
-    inscrireExamen(user, dto) {
+    inscrireExamen(tid, user, dto) {
         return this.svc.inscrireExamen(user.id, dto.sessionId);
+    }
+    getInscriptions(tid, user) {
+        return this.svc.getInscriptions(user.id);
+    }
+    getDepartements(tid) {
+        return this.svc.getDepartements();
+    }
+    getParcoursDisponibles(tid, user) {
+        return this.svc.getParcoursDisponibles(user.id);
+    }
+    getAnneesAcademiques(tid) {
+        return this.svc.getAnneesAcademiques();
+    }
+    getNiveauxEtude(tid) {
+        return this.svc.getNiveauxEtude();
+    }
+    createInscription(tid, user, dto) {
+        return this.svc.createInscription(user.id, dto);
+    }
+    updateInscription(tid, id, user, dto) {
+        return this.svc.updateInscription(user.id, id, dto);
+    }
+    cancelInscription(tid, id, user) {
+        return this.svc.cancelInscription(user.id, id);
+    }
+    getMontantInscription(tid, inscriptionId, user) {
+        return this.svc.getMontantInscription(user.id, inscriptionId);
+    }
+    submitPaiement(tid, user, dto) {
+        return this.svc.submitPaiement(user.id, dto);
+    }
+    getPaiementStatus(tid, inscriptionId, user) {
+        return this.svc.getPaiementStatus(user.id, inscriptionId);
+    }
+    getPaiementsInscription(tid, user) {
+        return this.svc.getPaiementsInscription(user.id);
     }
 };
 exports.PortailEtudiantController = PortailEtudiantController;
 __decorate([
-    (0, common_1.Get)('profil'),
-    (0, swagger_1.ApiOperation)({ summary: 'Profil de l\'étudiant connecté' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    (0, common_1.Get)('etudiants/search'),
+    (0, roles_decorator_1.Roles)('surveillant', 'surveillant_general', 'admin', 'secretaire', 'responsable_pedagogique'),
+    (0, swagger_1.ApiOperation)({ summary: 'Rechercher des étudiants par nom, prénom ou matricule' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Query)('q')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], PortailEtudiantController.prototype, "searchEtudiants", null);
+__decorate([
+    (0, roles_decorator_1.Roles)('etudiant'),
+    (0, common_1.Get)('etudiant/profil'),
+    (0, swagger_1.ApiOperation)({ summary: 'Profil de l\'étudiant connecté' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getProfil", null);
 __decorate([
-    (0, common_1.Get)('emploi-du-temps'),
+    (0, common_1.Get)('etudiant/emploi-du-temps'),
     (0, swagger_1.ApiOperation)({ summary: 'Emploi du temps de l\'étudiant' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Query)('dateDebut')),
-    __param(2, (0, common_1.Query)('dateFin')),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Query)('dateDebut')),
+    __param(3, (0, common_1.Query)('dateFin')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [String, Object, String, String]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getEmploiDuTemps", null);
 __decorate([
-    (0, common_1.Get)('notes'),
+    (0, common_1.Get)('etudiant/notes'),
     (0, swagger_1.ApiOperation)({ summary: 'Notes de l\'étudiant' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Query)('sessionId')),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Query)('sessionId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getNotes", null);
 __decorate([
-    (0, common_1.Get)('moyennes'),
+    (0, common_1.Get)('etudiant/moyennes'),
     (0, swagger_1.ApiOperation)({ summary: 'Moyennes par semestre/UE' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getMoyennes", null);
 __decorate([
-    (0, common_1.Get)('paiements'),
+    (0, common_1.Get)('etudiant/paiements'),
     (0, swagger_1.ApiOperation)({ summary: 'Historique des paiements' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getPaiements", null);
 __decorate([
-    (0, common_1.Get)('solde'),
+    (0, common_1.Get)('etudiant/solde'),
     (0, swagger_1.ApiOperation)({ summary: 'Solde des frais de scolarité' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getSolde", null);
 __decorate([
-    (0, common_1.Get)('absences'),
+    (0, common_1.Get)('etudiant/absences'),
     (0, swagger_1.ApiOperation)({ summary: 'Historique des absences' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getAbsences", null);
 __decorate([
-    (0, common_1.Post)('justifier-absence'),
+    (0, common_1.Post)('etudiant/justifier-absence'),
     (0, swagger_1.ApiOperation)({ summary: 'Déposer un justificatif d\'absence' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "justifierAbsence", null);
 __decorate([
-    (0, common_1.Get)('documents'),
+    (0, common_1.Get)('etudiant/documents'),
     (0, swagger_1.ApiOperation)({ summary: 'Documents disponibles' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getDocuments", null);
 __decorate([
-    (0, common_1.Get)('cours-en-ligne'),
+    (0, common_1.Get)('etudiant/cours-en-ligne'),
     (0, swagger_1.ApiOperation)({ summary: 'Supports de cours' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getCoursEnLigne", null);
 __decorate([
-    (0, common_1.Get)('inscription-examens'),
+    (0, common_1.Get)('etudiant/inscription-examens'),
     (0, swagger_1.ApiOperation)({ summary: 'Inscriptions aux examens' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "getInscriptionExamens", null);
 __decorate([
-    (0, common_1.Post)('inscription-examens'),
+    (0, common_1.Post)('etudiant/inscription-examens'),
     (0, swagger_1.ApiOperation)({ summary: 'S\'inscrire à une session d\'examen' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], PortailEtudiantController.prototype, "inscrireExamen", null);
+__decorate([
+    (0, common_1.Get)('etudiant/inscriptions'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des inscriptions de l\'étudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getInscriptions", null);
+__decorate([
+    (0, common_1.Get)('etudiant/departements'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des départements/filières disponibles' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getDepartements", null);
+__decorate([
+    (0, common_1.Get)('etudiant/parcours-disponibles'),
+    (0, swagger_1.ApiOperation)({ summary: 'Parcours disponibles pour inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getParcoursDisponibles", null);
+__decorate([
+    (0, common_1.Get)('etudiant/annees-academiques'),
+    (0, swagger_1.ApiOperation)({ summary: 'Années académiques disponibles' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getAnneesAcademiques", null);
+__decorate([
+    (0, common_1.Get)('etudiant/niveaux-etude'),
+    (0, swagger_1.ApiOperation)({ summary: 'Niveaux d\'études disponibles pour inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getNiveauxEtude", null);
+__decorate([
+    (0, common_1.Post)('etudiant/inscription'),
+    (0, swagger_1.ApiOperation)({ summary: 'S\'inscrire à un parcours pour une année académique' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "createInscription", null);
+__decorate([
+    (0, common_1.Patch)('etudiant/inscription/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "updateInscription", null);
+__decorate([
+    (0, common_1.Delete)('etudiant/inscription/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Annuler une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "cancelInscription", null);
+__decorate([
+    (0, common_1.Get)('etudiant/inscription/:id/montant'),
+    (0, swagger_1.ApiOperation)({ summary: 'Obtenir le montant à payer pour une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getMontantInscription", null);
+__decorate([
+    (0, common_1.Post)('etudiant/paiement-inscription'),
+    (0, swagger_1.ApiOperation)({ summary: 'Soumettre un paiement d\'inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "submitPaiement", null);
+__decorate([
+    (0, common_1.Get)('etudiant/paiement-inscription/:inscriptionId/status'),
+    (0, swagger_1.ApiOperation)({ summary: 'Vérifier le statut des paiements pour une inscription' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, common_1.Param)('inscriptionId')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getPaiementStatus", null);
+__decorate([
+    (0, common_1.Get)('etudiant/paiements-inscription'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste de tous les paiements d\'inscription de l\'étudiant' }),
+    __param(0, (0, common_1.Param)('tid')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PortailEtudiantController.prototype, "getPaiementsInscription", null);
 exports.PortailEtudiantController = PortailEtudiantController = __decorate([
     (0, swagger_1.ApiTags)('Portail Étudiant - Espace personnel'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('etudiant'),
-    (0, common_1.Controller)('portail/etudiant'),
+    (0, common_1.Controller)('portail/:tid'),
     __metadata("design:paramtypes", [etudiant_service_1.PortailEtudiantService])
 ], PortailEtudiantController);
 //# sourceMappingURL=etudiant.controller.js.map

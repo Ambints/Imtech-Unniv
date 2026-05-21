@@ -66,7 +66,7 @@ let ExamensController = class ExamensController {
 exports.ExamensController = ExamensController;
 __decorate([
     (0, common_1.Post)('sujets'),
-    (0, roles_decorator_1.Roles)('professeur', 'responsable_pedagogique'),
+    (0, roles_decorator_1.Roles)('enseignant', 'responsable_pedagogique'),
     (0, swagger_1.ApiOperation)({ summary: 'Déposer un sujet d\'examen' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -75,7 +75,7 @@ __decorate([
 ], ExamensController.prototype, "createSujet", null);
 __decorate([
     (0, common_1.Get)('sujets'),
-    (0, roles_decorator_1.Roles)('professeur', 'responsable_pedagogique', 'admin', 'secretaire'),
+    (0, roles_decorator_1.Roles)('enseignant', 'responsable_pedagogique', 'admin', 'secretaire'),
     (0, swagger_1.ApiOperation)({ summary: 'Liste des sujets' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),

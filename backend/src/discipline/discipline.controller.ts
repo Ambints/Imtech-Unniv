@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DisciplineService } from './discipline.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,7 +14,7 @@ export class DisciplineController {
 
   // ========== INCIDENTS ==========
   @Post('incidents')
-  @Roles('surveillant', 'admin', 'secretaire')
+  @Roles('surveillant', 'admin', 'secretaire', 'surveillant_general')
   @ApiOperation({ summary: 'Déclarer un incident disciplinaire' })
   @ApiResponse({ status: 201, description: 'Incident créé' })
   createIncident(@Body() dto: any) {
@@ -22,10 +22,24 @@ export class DisciplineController {
   }
 
   @Get('incidents')
-  @Roles('surveillant', 'admin', 'secretaire', 'president')
+  @Roles('surveillant', 'admin', 'secretaire', 'president', 'surveillant_general')
   @ApiOperation({ summary: 'Liste des incidents avec filtres' })
   findAllIncidents(@Query() filters: any) {
     return this.svc.findAllIncidents(filters);
+  }
+
+  @Get('incidents/:id')
+  @Roles('surveillant', 'admin', 'secretaire', 'president', 'surveillant_general')
+  @ApiOperation({ summary: 'Détail d\'un incident' })
+  findIncidentById(@Param('id') id: string) {
+    return this.svc.findIncidentById(id);
+  }
+
+  @Patch('incidents/:id')
+  @Roles('surveillant', 'admin', 'secretaire', 'surveillant_general')
+  @ApiOperation({ summary: 'Modifier un incident' })
+  updateIncident(@Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateIncident(id, dto);
   }
 
   @Patch('incidents/:id/valider')
@@ -35,41 +49,33 @@ export class DisciplineController {
     return this.svc.validerIncident(id, validePar);
   }
 
-  // ========== SANCTIONS ==========
-  @Post('sanctions')
-  @Roles('admin', 'surveillant_general', 'president')
-  @ApiOperation({ summary: 'Créer une sanction' })
-  createSanction(@Body() dto: any) {
-    return this.svc.createSanction(dto);
-  }
-
-  @Get('sanctions')
-  @Roles('admin', 'surveillant_general', 'secretaire')
-  @ApiOperation({ summary: 'Liste des sanctions' })
-  findAllSanctions(@Query() filters: any) {
-    return this.svc.findAllSanctions(filters);
-  }
-
-  @Get('etudiants/:etudiantId/sanctions')
-  @Roles('surveillant', 'admin', 'secretaire', 'parent')
-  @ApiOperation({ summary: 'Sanctions actives d\'un étudiant' })
-  findActiveSanctions(@Param('etudiantId') etudiantId: string) {
-    return this.svc.findActiveSanctionsByStudent(etudiantId);
-  }
-
-  // ========== AVERTISSEMENTS ==========
-  @Post('avertissements')
+  @Delete('incidents/:id')
   @Roles('surveillant', 'admin', 'secretaire')
-  @ApiOperation({ summary: 'Émettre un avertissement' })
-  createAvertissement(@Body() dto: any) {
-    return this.svc.createAvertissement(dto);
+  @ApiOperation({ summary: 'Supprimer un incident' })
+  deleteIncident(@Param('id') id: string) {
+    return this.svc.deleteIncident(id);
   }
 
-  @Get('etudiants/:etudiantId/avertissements')
-  @Roles('surveillant', 'admin', 'secretaire', 'parent', 'etudiant')
-  @ApiOperation({ summary: 'Avertissements d\'un étudiant' })
-  findAvertissements(@Param('etudiantId') etudiantId: string) {
-    return this.svc.findAvertissementsByStudent(etudiantId);
+  @Get('etudiants/:etudiantId/incidents')
+  @Roles('surveillant', 'admin', 'secretaire', 'parent')
+  @ApiOperation({ summary: 'Incidents d\'un étudiant' })
+  getIncidentsByStudent(@Param('etudiantId') etudiantId: string) {
+    return this.svc.getIncidentsByStudent(etudiantId);
+  }
+
+  // ========== RAPPORTS ==========
+  @Get('rapports/periode')
+  @Roles('admin', 'surveillant_general', 'president')
+  @ApiOperation({ summary: 'Incidents par période' })
+  getIncidentsByPeriod(@Query('dateDebut') dateDebut: string, @Query('dateFin') dateFin: string) {
+    return this.svc.getIncidentsByPeriod(dateDebut, dateFin);
+  }
+
+  @Get('rapports/types')
+  @Roles('admin', 'surveillant_general', 'president')
+  @ApiOperation({ summary: 'Incidents par type' })
+  getIncidentsByType() {
+    return this.svc.getIncidentsByType();
   }
 
   // ========== STATISTIQUES ==========

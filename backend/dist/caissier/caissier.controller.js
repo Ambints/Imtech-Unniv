@@ -72,6 +72,12 @@ let CaissierController = class CaissierController {
     validerCloture(date, user) {
         return this.svc.validerCloture(date, user.id);
     }
+    calculerTotaux(dto) {
+        return this.svc.calculerTotaux(dto.date_cloture, dto.caissier_id);
+    }
+    saveRapprochementBancaire(dto) {
+        return this.svc.saveRapprochementBancaire(dto.date, dto.solde_reel, dto.motif_ecart);
+    }
     getRapprochementBancaire(date) {
         return this.svc.getRapprochementBancaire(date);
     }
@@ -80,6 +86,33 @@ let CaissierController = class CaissierController {
     }
     getStatsMensuelles(mois, annee) {
         return this.svc.getStatsMensuelles(mois, annee);
+    }
+    getFraisInscription(anneeAcademiqueId) {
+        return this.svc.getFraisInscription(anneeAcademiqueId);
+    }
+    createFraisInscription(dto, user) {
+        return this.svc.createFraisInscription({ ...dto, creePar: user.id });
+    }
+    updateFraisInscription(id, dto, user) {
+        return this.svc.updateFraisInscription(id, { ...dto, modifiePar: user.id });
+    }
+    getFraisByParcours(parcoursId, anneeAcademiqueId) {
+        return this.svc.getFraisByParcours(parcoursId, anneeAcademiqueId);
+    }
+    encaissementDirect(dto, user) {
+        return this.svc.encaissementDirect({ ...dto, caissierId: user.id });
+    }
+    encaissementMultiple(dto, user) {
+        return this.svc.encaissementMultiple({ ...dto, caissierId: user.id });
+    }
+    getRapportAnnuel(annee) {
+        return this.svc.getRapportAnnuel(annee);
+    }
+    getRapportsParcours(dateDebut, dateFin) {
+        return this.svc.getRapportsParcours(dateDebut, dateFin);
+    }
+    getRapportModesPaiement(dateDebut, dateFin) {
+        return this.svc.getRapportModesPaiement(dateDebut, dateFin);
     }
 };
 exports.CaissierController = CaissierController;
@@ -237,6 +270,24 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], CaissierController.prototype, "validerCloture", null);
 __decorate([
+    (0, common_1.Post)('calculer-totaux'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Calculer les totaux pour la clôture' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "calculerTotaux", null);
+__decorate([
+    (0, common_1.Post)('rapprochement-bancaire'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Sauvegarder le rapprochement bancaire' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "saveRapprochementBancaire", null);
+__decorate([
     (0, common_1.Get)('rapprochement-bancaire'),
     (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Rapprochement bancaire quotidien' }),
@@ -264,6 +315,95 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", void 0)
 ], CaissierController.prototype, "getStatsMensuelles", null);
+__decorate([
+    (0, common_1.Get)('frais-inscription'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des frais d\'inscription par parcours' }),
+    __param(0, (0, common_1.Query)('anneeAcademiqueId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "getFraisInscription", null);
+__decorate([
+    (0, common_1.Post)('frais-inscription'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Définir les frais d\'inscription pour un parcours' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "createFraisInscription", null);
+__decorate([
+    (0, common_1.Patch)('frais-inscription/:id'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour les frais d\'inscription' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "updateFraisInscription", null);
+__decorate([
+    (0, common_1.Get)('frais-inscription/parcours/:parcoursId'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin', 'etudiant', 'parent'),
+    (0, swagger_1.ApiOperation)({ summary: 'Frais d\'inscription pour un parcours spécifique' }),
+    __param(0, (0, common_1.Param)('parcoursId')),
+    __param(1, (0, common_1.Query)('anneeAcademiqueId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "getFraisByParcours", null);
+__decorate([
+    (0, common_1.Post)('encaissement-direct'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Encaissement direct des frais d\'inscription' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "encaissementDirect", null);
+__decorate([
+    (0, common_1.Post)('encaissement-multiple'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Encaissement multiple pour plusieurs étudiants' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "encaissementMultiple", null);
+__decorate([
+    (0, common_1.Get)('rapports/annuel'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin', 'president'),
+    (0, swagger_1.ApiOperation)({ summary: 'Rapport annuel des encaissements' }),
+    __param(0, (0, common_1.Query)('annee')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "getRapportAnnuel", null);
+__decorate([
+    (0, common_1.Get)('rapports/parcours'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin', 'president'),
+    (0, swagger_1.ApiOperation)({ summary: 'Rapports par parcours' }),
+    __param(0, (0, common_1.Query)('dateDebut')),
+    __param(1, (0, common_1.Query)('dateFin')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "getRapportsParcours", null);
+__decorate([
+    (0, common_1.Get)('rapports/modes-paiement'),
+    (0, roles_decorator_1.Roles)('caissier', 'economat', 'admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Statistiques par mode de paiement' }),
+    __param(0, (0, common_1.Query)('dateDebut')),
+    __param(1, (0, common_1.Query)('dateFin')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CaissierController.prototype, "getRapportModesPaiement", null);
 exports.CaissierController = CaissierController = __decorate([
     (0, swagger_1.ApiTags)('Caissier - Encaissements et échéanciers'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

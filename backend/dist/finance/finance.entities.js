@@ -31,9 +31,25 @@ __decorate([
     __metadata("design:type", Number)
 ], GrilleTarifaire.prototype, "anneeNiveau", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'montant_inscription', type: 'decimal', precision: 12, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], GrilleTarifaire.prototype, "montantInscription", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'montant_scolarite', type: 'decimal', precision: 12, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], GrilleTarifaire.prototype, "montantScolarite", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'montant_total', type: 'decimal', precision: 12, scale: 2 }),
     __metadata("design:type", Number)
 ], GrilleTarifaire.prototype, "montantTotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'date_limite_paiement', nullable: true }),
+    __metadata("design:type", Date)
+], GrilleTarifaire.prototype, "dateLimitePaiement", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'modalites_paiement', type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], GrilleTarifaire.prototype, "modalitesPaiement", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'nb_tranches', default: 1 }),
     __metadata("design:type", Number)

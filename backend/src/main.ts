@@ -3,6 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { GlobalExceptionFilter } from './debug/global-exception.filter';
+import helmet from 'helmet';
+import compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -18,15 +21,55 @@ async function bootstrap() {
   // Configuration CORS pour le développement - très permissif
   const isDev = process.env.NODE_ENV !== 'production';
   
-  app.enableCors({
-    origin: isDev ? true : (process.env.FRONTEND_URL || 'http://localhost:3000'),
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  // Middleware CORS personnalisé pour gérer les requêtes OPTIONS
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = isDev ? ['http://localhost:3000', 'http://localhost:5173'] : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+    
+    // Gérer les requêtes OPTIONS (preflight)
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Origin', origin || '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With, X-Tenant-Id');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '3600');
+      return res.status(204).end();
+    }
+    
+    // Pour les autres requêtes, configurer CORS
+    if (allowedOrigins.includes(origin) || isDev) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
+    
+    next();
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.enableCors({
+    origin: isDev ? ['http://localhost:3000', 'http://localhost:5173'] : (process.env.FRONTEND_URL || 'http://localhost:3000'),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-Tenant-Id'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    preflightContinue: true,
+    optionsSuccessStatus: 204
+  });
+
+  app.use(helmet());
+  app.use(compression());
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle('IMTECH UNIVERSITY API')

@@ -1,5 +1,5 @@
-import { Repository } from 'typeorm';
-import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps, Departement, Etudiant } from './academic.entities';
+import { Repository, DataSource } from 'typeorm';
+import { Parcours, UniteEnseignement, Note, Inscription, Presence, Salle, EmploiDuTemps, Departement, Etudiant, AnneeAcademique, SessionExamen } from './academic.entities';
 import { TenantConnectionService } from '../tenants/tenant-connection.service';
 export declare class AcademicService {
     private parcoursRepo;
@@ -11,8 +11,13 @@ export declare class AcademicService {
     private edtRepo;
     private departementRepo;
     private etudiantRepo;
+    private anneeRepo;
+    private sessionRepo;
+    private dataSource;
     private readonly tenantConnection;
-    constructor(parcoursRepo: Repository<Parcours>, ueRepo: Repository<UniteEnseignement>, noteRepo: Repository<Note>, inscriptionRepo: Repository<Inscription>, presenceRepo: Repository<Presence>, salleRepo: Repository<Salle>, edtRepo: Repository<EmploiDuTemps>, departementRepo: Repository<Departement>, etudiantRepo: Repository<Etudiant>, tenantConnection: TenantConnectionService);
+    private readonly logger;
+    constructor(parcoursRepo: Repository<Parcours>, ueRepo: Repository<UniteEnseignement>, noteRepo: Repository<Note>, inscriptionRepo: Repository<Inscription>, presenceRepo: Repository<Presence>, salleRepo: Repository<Salle>, edtRepo: Repository<EmploiDuTemps>, departementRepo: Repository<Departement>, etudiantRepo: Repository<Etudiant>, anneeRepo: Repository<AnneeAcademique>, sessionRepo: Repository<SessionExamen>, dataSource: DataSource, tenantConnection: TenantConnectionService);
+    getDepartementsFromContext(): Promise<Departement[]>;
     getDepartements(tid: string): Promise<Departement[]>;
     createDepartement(tid: string, dto: any): Promise<Departement[]>;
     updateDepartement(tid: string, id: string, dto: any): Promise<any>;
@@ -20,7 +25,7 @@ export declare class AcademicService {
         message: string;
     }>;
     createParcours(tid: string, dto: any): Promise<Parcours[]>;
-    getParcours(tid?: string): Promise<Parcours[]>;
+    getParcours(tid?: string, userId?: string, userRole?: string): Promise<any[]>;
     updateParcours(tid: string, id: string, dto: any): Promise<any>;
     deleteParcours(tid: string, id: string): Promise<{
         message: string;
@@ -32,10 +37,72 @@ export declare class AcademicService {
         message: string;
     }>;
     getEtudiants(tid: string, parcoursId?: string): Promise<Etudiant[]>;
-    createEtudiant(tid: string, dto: any): Promise<Etudiant[]>;
+    createEtudiant(tid: string, dto: any): Promise<{
+        utilisateurId: any;
+        compteCreé: boolean;
+        message: string;
+        id: string;
+        matricule: string;
+        nom: string;
+        prenom: string;
+        dateNaissance: Date;
+        lieuNaissance: string;
+        sexe: string;
+        nationalite: string;
+        adresse: string;
+        telephone: string;
+        email: string;
+        nomParent: string;
+        telephoneParent: string;
+        emailParent: string;
+        religion: string;
+        situationFamiliale: string;
+        photoUrl: string;
+        dossierMedicalUrl: string;
+        actif: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    } | {
+        compteCreé: boolean;
+        message: string;
+        error: string;
+        id: string;
+        utilisateurId: string;
+        matricule: string;
+        nom: string;
+        prenom: string;
+        dateNaissance: Date;
+        lieuNaissance: string;
+        sexe: string;
+        nationalite: string;
+        adresse: string;
+        telephone: string;
+        email: string;
+        nomParent: string;
+        telephoneParent: string;
+        emailParent: string;
+        religion: string;
+        situationFamiliale: string;
+        photoUrl: string;
+        dossierMedicalUrl: string;
+        actif: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
     updateEtudiant(tid: string, id: string, dto: any): Promise<any>;
     deleteEtudiant(tid: string, id: string): Promise<{
         message: string;
+        student: {
+            id: string;
+            matricule: string;
+            nom: string;
+            prenom: string;
+        };
+        relatedRecords: {
+            inscriptions: number;
+            notes: number;
+            presences: number;
+        };
     }>;
     saisirNote(tid: string, dto: any, saisiPar: string): Promise<any>;
     private calcMoyenne;
@@ -55,4 +122,24 @@ export declare class AcademicService {
     createSalle(tid: string, dto: any): Promise<Salle[]>;
     getEDT(tid?: string, parcoursId?: string): Promise<EmploiDuTemps[]>;
     createEDT(tid: string, dto: any): Promise<EmploiDuTemps[]>;
+    getAnneesAcademiques(tid: string): Promise<AnneeAcademique[]>;
+    createAnneeAcademique(tid: string, dto: any): Promise<AnneeAcademique[]>;
+    updateAnneeAcademique(tid: string, id: string, dto: any): Promise<any>;
+    activerAnneeAcademique(tid: string, id: string): Promise<{
+        message: string;
+        annee: {
+            active: boolean;
+            id: string;
+            libelle: string;
+            dateDebut: Date;
+            dateFin: Date;
+            createdAt: Date;
+        };
+    }>;
+    deleteAnneeAcademique(tid: string, id: string): Promise<{
+        message: string;
+    }>;
+    getEnseignants(tid: string): Promise<any>;
+    getSessionsExamen(tid: string): Promise<SessionExamen[]>;
+    getPresences(tid: string, statut?: string): Promise<Presence[]>;
 }

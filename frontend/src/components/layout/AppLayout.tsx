@@ -62,10 +62,14 @@ export const AppLayout: React.FC<Props> = ({ children }) => {
       <main style={{
         flex: 1,
         overflow: 'auto',
-        position: 'relative'
+        position: 'relative',
+        background: '#F8FAFC',
+        minHeight: '100vh'
       }}>
         <div className="d-lg-none" style={{ height: '56px' }} /> {/* Spacer for mobile header */}
-        {children}
+        <div className="page-transition fade-in" style={{ minHeight: 'calc(100vh - 56px)' }}>
+          {children}
+        </div>
       </main>
     </div>
   );

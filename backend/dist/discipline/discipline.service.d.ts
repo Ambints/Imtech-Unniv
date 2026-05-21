@@ -1,26 +1,23 @@
-import { Repository } from 'typeorm';
-import { Incident, Sanction, Avertissement } from './discipline.entities';
+import { DataSource } from 'typeorm';
 export declare class DisciplineService {
-    private incidentRepo;
-    private sanctionRepo;
-    private avertissementRepo;
+    private dataSource;
+    private request;
     private readonly logger;
-    constructor(incidentRepo: Repository<Incident>, sanctionRepo: Repository<Sanction>, avertissementRepo: Repository<Avertissement>);
-    createIncident(data: Partial<Incident>): Promise<Incident>;
+    private tenantSchema;
+    constructor(dataSource: DataSource, request: any);
+    private query;
+    createIncident(data: any): Promise<any>;
     findAllIncidents(filters?: {
         etudiantId?: string;
         statut?: string;
-        gravite?: string;
-    }): Promise<Incident[]>;
-    findIncidentById(id: string): Promise<Incident>;
-    validerIncident(id: string, validePar: string): Promise<Incident>;
-    createSanction(data: Partial<Sanction>): Promise<Sanction>;
-    findAllSanctions(filters?: {
-        etudiantId?: string;
-        statut?: string;
-    }): Promise<Sanction[]>;
-    findActiveSanctionsByStudent(etudiantId: string): Promise<Sanction[]>;
-    createAvertissement(data: Partial<Avertissement>): Promise<Avertissement>;
-    findAvertissementsByStudent(etudiantId: string): Promise<Avertissement[]>;
+        typeIncident?: string;
+    }): Promise<any[]>;
+    findIncidentById(id: string): Promise<any>;
+    validerIncident(id: string, validePar: string): Promise<any>;
+    updateIncident(id: string, data: any): Promise<any>;
+    deleteIncident(id: string): Promise<void>;
+    getIncidentsByStudent(etudiantId: string): Promise<any>;
     getDisciplineStats(): Promise<any>;
+    getIncidentsByPeriod(dateDebut: string, dateFin: string): Promise<any[]>;
+    getIncidentsByType(): Promise<any[]>;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,6 +34,14 @@ export class AdminController {
       throw new BadRequestException('Vous devez être associé à une université');
     }
     return this.adminService.getDetailedStats(req.user.tenantId);
+  }
+
+  @Get('global-stats')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Statistiques globales de tous les tenants' })
+  @ApiResponse({ status: 200, description: 'Statistiques globales du système' })
+  async getGlobalStats() {
+    return this.adminService.getGlobalStats();
   }
 
   @Post('users/bulk-update-status')
@@ -82,6 +90,86 @@ export class AdminController {
       throw new BadRequestException('Vous devez être associé à une université');
     }
     return this.adminService.createBackup(req.user.tenantId);
+  }
+
+  @Get('backups')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Lister toutes les sauvegardes disponibles' })
+  @ApiResponse({ status: 200, description: 'Liste des sauvegardes' })
+  async listBackups(@Request() req) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.listBackups(req.user.tenantId);
+  }
+
+  @Post('backups/:backupId/restore')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Restaurer une sauvegarde' })
+  @ApiResponse({ status: 200, description: 'Sauvegarde restaurée' })
+  async restoreBackup(@Request() req, @Param('backupId') backupId: string) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.restoreBackup(req.user.tenantId, backupId);
+  }
+
+  @Post('backups/cleanup')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Nettoyer les anciennes sauvegardes' })
+  @ApiResponse({ status: 200, description: 'Anciennes sauvegardes supprimées' })
+  async cleanupBackups() {
+    return this.adminService.cleanupOldBackups();
+  }
+
+  // ==================== GESTION DES SÉCRÉTAIRES PAR PARCOURS ====================
+
+  @Post('secretaires-parcours/:parcoursId')
+  @Roles('admin', 'president')
+  @ApiOperation({ summary: 'Définir un secrétaire pour un parcours' })
+  @ApiResponse({ status: 200, description: 'Secrétaire défini avec succès' })
+  async defineSecretaireParcours(
+    @Request() req,
+    @Param('parcoursId') parcoursId: string,
+    @Body('secretaireId') secretaireId: string,
+  ) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.defineSecretaireParcours(req.user.tenantId, parcoursId, secretaireId);
+  }
+
+  @Get('secretaires-parcours')
+  @Roles('admin', 'president')
+  @ApiOperation({ summary: 'Récupérer les secrétaires par parcours' })
+  @ApiResponse({ status: 200, description: 'Liste des secrétaires par parcours' })
+  async getSecretairesParcours(@Request() req) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.getSecretairesParcours(req.user.tenantId);
+  }
+
+  @Get('secretaires-disponibles')
+  @Roles('admin', 'president')
+  @ApiOperation({ summary: 'Récupérer les utilisateurs disponibles pour être secrétaires' })
+  @ApiResponse({ status: 200, description: 'Liste des secrétaires disponibles' })
+  async getSecretairesDisponibles(@Request() req) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.getSecretairesDisponibles(req.user.tenantId);
+  }
+
+  @Delete('secretaires-parcours/:parcoursId')
+  @Roles('admin', 'president')
+  @ApiOperation({ summary: 'Supprimer un secrétaire d\'un parcours' })
+  @ApiResponse({ status: 200, description: 'Secrétaire supprimé avec succès' })
+  async removeSecretaireParcours(@Request() req, @Param('parcoursId') parcoursId: string) {
+    if (!req.user?.tenantId) {
+      throw new BadRequestException('Vous devez être associé à une université');
+    }
+    return this.adminService.removeSecretaireParcours(req.user.tenantId, parcoursId);
   }
 }
 

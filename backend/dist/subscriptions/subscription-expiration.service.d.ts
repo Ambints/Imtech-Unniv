@@ -5,6 +5,7 @@ export declare class SubscriptionExpirationService implements OnModuleInit {
     private readonly tenantRepo;
     private readonly logger;
     private intervalId;
+    private disabled;
     constructor(tenantRepo: Repository<Tenant>);
     onModuleInit(): void;
     onModuleDestroy(): void;

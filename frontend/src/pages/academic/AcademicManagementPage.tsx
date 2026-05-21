@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { academicApi } from '../../api/client';
+import { academicApi, secretaireApi } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { 
   GraduationCap, BookOpen, Users, Calendar, FileText, Award, 
   Plus, Edit2, Trash2, Save, X, Search, Filter, Download,
-  UserPlus, BookMarked, ClipboardList, TrendingUp, CheckCircle
+  UserPlus, BookMarked, ClipboardList, TrendingUp, CheckCircle,
+  UserCheck
 } from 'lucide-react';
 
 type Tab = 'parcours' | 'ue' | 'etudiants' | 'inscriptions' | 'notes' | 'stats';
@@ -25,6 +26,12 @@ export const AcademicManagementPage: React.FC = () => {
     id: '', departementId: '', code: '', nom: '', niveau: 'Licence', 
     dureeAnnees: 3, description: ''
   });
+
+  // États pour l'assignation de secrétaire
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedParcoursForAssign, setSelectedParcoursForAssign] = useState<any>(null);
+  const [secretaireIdToAssign, setSecretaireIdToAssign] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
 
   // États pour UE
   const [ues, setUes] = useState<any[]>([]);
@@ -125,6 +132,25 @@ export const AcademicManagementPage: React.FC = () => {
     });
   };
 
+  // Gestion de l'assignation de secrétaire
+  const handleAssignSecretaire = async (secretaireId: string) => {
+    if (!selectedParcoursForAssign || !secretaireId) return;
+    
+    setLoading(true);
+    try {
+      await secretaireApi.assignSecretaire(tid, selectedParcoursForAssign.id, secretaireId);
+      toast.success('Secrétaire assigné au parcours avec succès');
+      setShowAssignModal(false);
+      setSelectedParcoursForAssign(null);
+      setSecretaireIdToAssign('');
+      loadParcours(); // Recharger pour afficher le secrétaire assigné
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'assignation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Gestion UE
   const handleSaveUE = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,14 +190,38 @@ export const AcademicManagementPage: React.FC = () => {
         await academicApi.updateEtudiant(tid, etudiantForm.id, etudiantForm);
         toast.success('Étudiant mis à jour');
       } else {
-        await academicApi.createEtudiant(tid, etudiantForm);
-        toast.success('Étudiant créé');
+        const response = await academicApi.createEtudiant(tid, etudiantForm);
+        console.log('[Frontend] Student created:', response.data);
+        if (response.data.compteCreé) {
+          toast.success('Étudiant et compte utilisateur créés avec succès');
+        } else {
+          toast.success('Étudiant créé');
+        }
       }
       loadEtudiants();
       setShowEtudiantForm(false);
       resetEtudiantForm();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      console.error('[Frontend] Error creating student:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors de la création');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEtudiant = async (id: string, nom: string, prenom: string) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'étudiant ${nom} ${prenom} ?`)) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await academicApi.deleteEtudiant(tid, id);
+      toast.success('Étudiant supprimé avec succès');
+      loadEtudiants();
+    } catch (err: any) {
+      console.error('[Frontend] Error deleting student:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors de la suppression');
     } finally {
       setLoading(false);
     }
@@ -349,6 +399,7 @@ export const AcademicManagementPage: React.FC = () => {
             parcours={filteredParcours}
             departements={departements}
             onEdit={(p) => { setParcoursForm(p); setShowParcoursForm(true); }}
+            onAssignSecretaire={(p) => { setSelectedParcoursForAssign(p); setShowAssignModal(true); }}
           />
         </div>
       )}
@@ -384,6 +435,8 @@ export const AcademicManagementPage: React.FC = () => {
           <EtudiantListComponent
             etudiants={filteredEtudiants}
             onEdit={(e) => { setEtudiantForm(e); setShowEtudiantForm(true); }}
+            onDelete={handleDeleteEtudiant}
+            loading={loading}
           />
         </div>
       )}
@@ -405,6 +458,16 @@ export const AcademicManagementPage: React.FC = () => {
 
       {activeTab === 'stats' && (
         <StatsComponent parcours={parcours} etudiants={etudiants} ues={ues} />
+      )}
+
+      {/* Modal d'assignation de secrétaire */}
+      {showAssignModal && selectedParcoursForAssign && (
+        <AssignSecretaireModal
+          parcours={selectedParcoursForAssign}
+          onClose={() => { setShowAssignModal(false); setSelectedParcoursForAssign(null); setSecretaireIdToAssign(''); }}
+          onAssign={handleAssignSecretaire}
+          loading={loading}
+        />
       )}
     </div>
   );
@@ -511,7 +574,7 @@ const ParcoursFormComponent: React.FC<any> = ({ form, setForm, departements, onS
   </div>
 );
 
-const ParcoursListComponent: React.FC<any> = ({ parcours, departements, onEdit }) => (
+const ParcoursListComponent: React.FC<any> = ({ parcours, departements, onEdit, onAssignSecretaire }) => (
   <div style={{ background: '#fff', borderRadius: 14, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
     <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>
       Liste des Parcours ({parcours.length})
@@ -533,12 +596,31 @@ const ParcoursListComponent: React.FC<any> = ({ parcours, departements, onEdit }
                 {p.niveau} · {p.dureeAnnees} ans · {departements.find((d: any) => d.id === p.departementId)?.nom || 'N/A'}
               </div>
             </div>
-            <button
-              onClick={() => onEdit(p)}
-              style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, cursor: 'pointer' }}
-            >
-              <Edit2 size={16} color="#1a5276" />
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => onAssignSecretaire?.(p)}
+                style={{ 
+                  padding: '8px 12px', 
+                  background: p.secretaireId ? '#dcfce7' : '#fff', 
+                  border: '1px solid #e5e7eb', 
+                  borderRadius: 8, 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                title={p.secretaireId ? 'Secrétaire déjà assigné' : 'Assigner un secrétaire'}
+              >
+                <UserCheck size={16} color={p.secretaireId ? '#16a34a' : '#1a5276'} />
+                {p.secretaireId && <span style={{ fontSize: 12, color: '#16a34a' }}>Assigné</span>}
+              </button>
+              <button
+                onClick={() => onEdit(p)}
+                style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, cursor: 'pointer' }}
+              >
+                <Edit2 size={16} color="#1a5276" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -843,7 +925,7 @@ const EtudiantFormComponent: React.FC<any> = ({ form, setForm, onSubmit, onCance
   </div>
 );
 
-const EtudiantListComponent: React.FC<any> = ({ etudiants, onEdit }) => (
+const EtudiantListComponent: React.FC<any> = ({ etudiants, onEdit, onDelete, loading }) => (
   <div style={{ background: '#fff', borderRadius: 14, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
     <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>
       Liste des Étudiants ({etudiants.length})
@@ -857,20 +939,46 @@ const EtudiantListComponent: React.FC<any> = ({ etudiants, onEdit }) => (
       <div style={{ display: 'grid', gap: 12 }}>
         {etudiants.map((e: any) => (
           <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #e5e7eb' }}>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
                 {e.matricule} - {e.nom} {e.prenom}
               </div>
               <div style={{ fontSize: 12, color: '#64748b' }}>
-                {e.email} · {e.telephone}
+                {e.email || 'Pas d\'email'} · {e.telephone || 'Pas de téléphone'}
               </div>
             </div>
-            <button
-              onClick={() => onEdit(e)}
-              style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, cursor: 'pointer' }}
-            >
-              <Edit2 size={16} color="#1a5276" />
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => onEdit(e)}
+                disabled={loading}
+                style={{
+                  padding: '8px 12px',
+                  background: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 8,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1
+                }}
+                title="Modifier"
+              >
+                <Edit2 size={16} color="#1a5276" />
+              </button>
+              <button
+                onClick={() => onDelete(e.id, e.nom, e.prenom)}
+                disabled={loading}
+                style={{
+                  padding: '8px 12px',
+                  background: '#fff',
+                  border: '1px solid #fee2e2',
+                  borderRadius: 8,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1
+                }}
+                title="Supprimer"
+              >
+                <Trash2 size={16} color="#dc2626" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -897,5 +1005,154 @@ const StatsComponent: React.FC<any> = ({ parcours, etudiants, ues }) => (
     ))}
   </div>
 );
+
+// Composant Modal pour assigner un secrétaire
+const AssignSecretaireModal: React.FC<any> = ({ parcours, onClose, onAssign, loading }) => {
+  const [secretaireId, setSecretaireId] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const { user } = useAuthStore();
+  const tid = user?.tenantId || '';
+
+  useEffect(() => {
+    loadSecretaires();
+  }, []);
+
+  const loadSecretaires = async () => {
+    setLoadingUsers(true);
+    try {
+      // Récupérer tous les utilisateurs et filtrer ceux avec le rôle 'secretaire'
+      const { data } = await import('../../api/client').then(m => m.usersApi.getAll(tid));
+      const secretaires = data?.filter((u: any) => u.role === 'secretaire' || u.role === 'admin') || [];
+      setUsers(secretaires);
+    } catch (err) {
+      console.error('Erreur chargement secrétaires', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (secretaireId) {
+      onAssign(secretaireId);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        background: '#fff',
+        borderRadius: 14,
+        padding: 32,
+        width: '100%',
+        maxWidth: 480,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <UserCheck size={24} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
+            Assigner un Secrétaire
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <X size={24} color="#64748b" />
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 20, padding: 16, background: '#f8fafc', borderRadius: 10 }}>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 4 }}>Parcours sélectionné</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+            {parcours.code} - {parcours.nom}
+          </div>
+          {parcours.secretaireId && (
+            <div style={{ marginTop: 8, padding: 8, background: '#fef3c7', borderRadius: 6, fontSize: 13, color: '#92400e' }}>
+              ⚠️ Ce parcours a déjà un secrétaire assigné. L'assignation remplacera l'ancien.
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+              Sélectionner un secrétaire *
+            </label>
+            {loadingUsers ? (
+              <div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>Chargement...</div>
+            ) : users.length === 0 ? (
+              <div style={{ padding: 12, textAlign: 'center', color: '#ef4444', background: '#fef2f2', borderRadius: 8 }}>
+                Aucun secrétaire trouvé. Veuillez d'abord créer un compte secrétaire.
+              </div>
+            ) : (
+              <select
+                value={secretaireId}
+                onChange={e => setSecretaireId(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  background: '#fff'
+                }}
+              >
+                <option value="">— Choisir un secrétaire —</option>
+                {users.map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.prenom} {u.nom} ({u.email})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              type="submit"
+              disabled={loading || !secretaireId || loadingUsers || users.length === 0}
+              style={{
+                flex: 1,
+                padding: '14px',
+                background: loading ? '#94a3b8' : 'linear-gradient(135deg, #148f77, #1a5276)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: loading || !secretaireId ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? 'Assignation...' : 'Assigner'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '14px 24px',
+                background: '#fff',
+                color: '#64748b',
+                border: '2px solid #e5e7eb',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 // Made with Bob

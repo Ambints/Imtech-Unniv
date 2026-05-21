@@ -24,8 +24,39 @@ let CommunicationController = class CommunicationController {
     constructor(svc) {
         this.svc = svc;
     }
-    createAnnonce(dto, user) {
-        return this.svc.createAnnonce({ ...dto, auteurId: user.id });
+    async createAnnonce(dto, user) {
+        try {
+            if (!user || !user.id) {
+                console.error('[CONTROLLER] User not authenticated:', { user });
+                throw new Error('User not authenticated or user ID missing');
+            }
+            console.log('[CONTROLLER] Creating annonce with data:', {
+                userId: user.id,
+                dto: dto,
+                timestamp: new Date().toISOString()
+            });
+            if (!dto.titre || dto.titre.trim() === '') {
+                console.error('[CONTROLLER] Missing titre field');
+                throw new Error('Le titre est requis');
+            }
+            if (!dto.contenu || dto.contenu.trim() === '') {
+                console.error('[CONTROLLER] Missing contenu field');
+                throw new Error('Le contenu est requis');
+            }
+            const result = await this.svc.createAnnonce({ ...dto, auteurId: user.id });
+            console.log('[CONTROLLER] Annonce created successfully:', { id: result.id });
+            return result;
+        }
+        catch (error) {
+            console.error('[CONTROLLER] Error creating annonce:', {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                dto: dto,
+                userId: user?.id,
+                timestamp: new Date().toISOString()
+            });
+            throw error;
+        }
     }
     findAnnonces(cible, type) {
         return this.svc.findAnnoncesPubliees(cible, type);
@@ -139,11 +170,13 @@ __decorate([
     (0, roles_decorator_1.Roles)('communication', 'admin', 'secretaire', 'president'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer une annonce/actualité' }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'Annonce créée' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Données invalides' }),
+    (0, swagger_1.ApiResponse)({ status: 500, description: 'Erreur serveur' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], CommunicationController.prototype, "createAnnonce", null);
 __decorate([
     (0, common_1.Get)('annonces'),
@@ -399,7 +432,7 @@ __decorate([
 ], CommunicationController.prototype, "marquerLu", null);
 __decorate([
     (0, common_1.Post)('forums/sujets'),
-    (0, roles_decorator_1.Roles)('communication', 'admin', 'professeur', 'etudiant'),
+    (0, roles_decorator_1.Roles)('communication', 'admin', 'enseignant', 'etudiant'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer un sujet de forum' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
@@ -417,7 +450,7 @@ __decorate([
 ], CommunicationController.prototype, "findSujetsForum", null);
 __decorate([
     (0, common_1.Post)('forums/sujets/:id/repondre'),
-    (0, roles_decorator_1.Roles)('communication', 'admin', 'professeur', 'etudiant', 'parent'),
+    (0, roles_decorator_1.Roles)('communication', 'admin', 'enseignant', 'etudiant', 'parent'),
     (0, swagger_1.ApiOperation)({ summary: 'Répondre à un sujet' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),

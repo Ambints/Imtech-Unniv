@@ -13,24 +13,48 @@ const etudiant_controller_1 = require("./etudiant.controller");
 const etudiant_service_1 = require("./etudiant.service");
 const parent_controller_1 = require("./parent.controller");
 const parent_service_1 = require("./parent.service");
-const professeur_controller_1 = require("./professeur.controller");
-const professeur_service_1 = require("./professeur.service");
+const parent_controller_enhanced_1 = require("./parent.controller.enhanced");
+const parent_service_enhanced_1 = require("./parent.service.enhanced");
+const enseignant_controller_1 = require("./enseignant.controller");
+const enseignant_service_1 = require("./enseignant.service");
 const portail_permissions_controller_1 = require("./portail-permissions.controller");
+const test_enseignant_controller_1 = require("./test-enseignant.controller");
 const tenant_entity_1 = require("../tenants/tenant.entity");
+const tenant_connection_service_1 = require("../tenants/tenant-connection.service");
+const entities_1 = require("../scolarite/entities");
 let PortailModule = class PortailModule {
 };
 exports.PortailModule = PortailModule;
 exports.PortailModule = PortailModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([tenant_entity_1.Tenant])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([tenant_entity_1.Tenant]),
+            typeorm_1.TypeOrmModule.forFeature([
+                entities_1.Inscription, entities_1.Etudiant, entities_1.Parcours, entities_1.AnneeAcademique, entities_1.UniteEnseignement,
+                entities_1.ElementConstitutif, entities_1.SessionExamen, entities_1.Note
+            ], 'tenant')
+        ],
         controllers: [
             etudiant_controller_1.PortailEtudiantController,
             parent_controller_1.PortailParentController,
-            professeur_controller_1.PortailProfesseurController,
-            portail_permissions_controller_1.PortailPermissionsController
+            parent_controller_enhanced_1.PortailParentControllerEnhanced,
+            enseignant_controller_1.PortailEnseignantController,
+            portail_permissions_controller_1.PortailPermissionsController,
+            test_enseignant_controller_1.TestEnseignantController
         ],
-        providers: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, professeur_service_1.PortailProfesseurService],
-        exports: [etudiant_service_1.PortailEtudiantService, parent_service_1.PortailParentService, professeur_service_1.PortailProfesseurService],
+        providers: [
+            tenant_connection_service_1.TenantConnectionService,
+            etudiant_service_1.PortailEtudiantService,
+            parent_service_1.PortailParentService,
+            parent_service_enhanced_1.PortailParentServiceEnhanced,
+            enseignant_service_1.PortailEnseignantService
+        ],
+        exports: [
+            etudiant_service_1.PortailEtudiantService,
+            parent_service_1.PortailParentService,
+            parent_service_enhanced_1.PortailParentServiceEnhanced,
+            enseignant_service_1.PortailEnseignantService
+        ],
     })
 ], PortailModule);
 //# sourceMappingURL=portail.module.js.map

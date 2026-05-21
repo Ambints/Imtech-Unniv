@@ -1,64 +1,133 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { LogisticsService } from './logistics.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
-@ApiTags('Logistics')
+@ApiTags('Logistics - Gestion logistique et maintenance')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('logistics')
 export class LogisticsController {
   constructor(private readonly svc: LogisticsService) {}
 
-  @Post(':tid/tickets')
-  @ApiOperation({ summary: 'Creer ticket de maintenance (Prof / Secretaire)' })
-  createTicket(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createTicket(tid, dto); }
-
-  @Get(':tid/tickets')
-  @ApiOperation({ summary: 'Liste des tickets (filtre par status)' })
-  getTickets(@Param('tid') tid: string, @Query('status') status?: string) {
-    return this.svc.getTickets(tid, status);
+  // ========== TICKETS DE MAINTENANCE ==========
+  @Post('tickets')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
+  @ApiOperation({ summary: 'Créer ticket de maintenance' })
+  createTicket(@Body() dto: any) {
+    return this.svc.createTicket('', dto);
   }
 
-  @Patch(':tid/tickets/:id')
-  @ApiOperation({ summary: 'Mettre a jour ticket (Responsable Logistique)' })
-  updateTicket(@Param('id') id: string, @Body() dto: any) { return this.svc.updateTicket(id, dto); }
+  @Get('tickets')
+  @Roles('logistique', 'admin', 'secretaire')
+  @ApiOperation({ summary: 'Liste des tickets (filtre par statut)' })
+  getTickets(@Query('statut') statut?: string) {
+    return this.svc.getTickets('', statut);
+  }
 
-  @Post(':tid/planning-nettoyage')
-  @ApiOperation({ summary: 'Creer planning de nettoyage (Service Entretien)' })
-  createPlanning(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createPlanning(tid, dto); }
+  @Patch('tickets/:id')
+  @Roles('logistique', 'admin')
+  @ApiOperation({ summary: 'Mettre à jour ticket' })
+  updateTicket(@Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateTicket(id, dto);
+  }
 
-  @Get(':tid/planning-nettoyage')
+  // ========== PLANNING ENTRETIEN ==========
+  @Post('planning-entretien')
+  @Roles('logistique', 'admin')
+  @ApiOperation({ summary: 'Créer planning de nettoyage' })
+  createPlanning(@Body() dto: any) {
+    return this.svc.createPlanning('', dto);
+  }
+
+  @Get('planning-entretien')
+  @Roles('logistique', 'admin', 'secretaire')
   @ApiOperation({ summary: 'Planning de nettoyage' })
-  getPlanning(@Param('tid') tid: string) { return this.svc.getPlanning(tid); }
-
-  @Post(':tid/stocks')
-  @ApiOperation({ summary: 'Ajouter un article en stock' })
-  createStock(@Param('tid') tid: string, @Body() dto: any) { return this.svc.createStock(tid, dto); }
-
-  @Get(':tid/stocks')
-  @ApiOperation({ summary: 'Inventaire complet des stocks' })
-  getStocks(@Param('tid') tid: string) { return this.svc.getStocks(tid); }
-
-  @Get(':tid/stocks/alertes')
-  @ApiOperation({ summary: 'Articles sous seuil d alerte' })
-  getAlertes(@Param('tid') tid: string) { return this.svc.getStocksEnAlerte(tid); }
-
-  @Patch(':tid/stocks/:id')
-  @ApiOperation({ summary: 'Mettre a jour quantite en stock' })
-  updateStock(@Param('id') id: string, @Body() body: any) { return this.svc.updateStock(id, body.quantite); }
-
-  @Post(':tid/reservations')
-  @ApiOperation({ summary: 'Reserver une salle (Prof / Secretaire)' })
-  reserver(@Param('tid') tid: string, @Body() dto: any) { return this.svc.reserver(tid, dto); }
-
-  @Get(':tid/reservations')
-  @ApiOperation({ summary: 'Liste des reservations' })
-  getReservations(@Param('tid') tid: string, @Query('salleId') sid?: string) {
-    return this.svc.getReservations(tid, sid);
+  getPlanning() {
+    return this.svc.getPlanning();
   }
 
-  @Patch(':tid/reservations/:id/approuver')
-  @ApiOperation({ summary: 'Approuver une reservation de salle' })
+  // ========== STOCKS ==========
+  @Post('stocks')
+  @Roles('logistique', 'admin', 'economat')
+  @ApiOperation({ summary: 'Ajouter un article en stock' })
+  createStock(@Body() dto: any) {
+    return this.svc.createStock('', dto);
+  }
+
+  @Get('stocks')
+  @Roles('logistique', 'admin', 'economat', 'secretaire')
+  @ApiOperation({ summary: 'Inventaire complet des stocks' })
+  getStocks() {
+    return this.svc.getStocks();
+  }
+
+  @Get('stocks/alertes')
+  @Roles('logistique', 'admin', 'economat')
+  @ApiOperation({ summary: 'Articles sous seuil d\'alerte' })
+  getAlertes() {
+    return this.svc.getStocksEnAlerte();
+  }
+
+  @Patch('stocks/:id')
+  @Roles('logistique', 'admin', 'economat')
+  @ApiOperation({ summary: 'Mettre à jour quantité en stock' })
+  updateStock(@Param('id') id: string, @Body() body: any) {
+    return this.svc.updateStock(id, body.quantite);
+  }
+
+  @Post('mouvements')
+  @Roles('logistique', 'admin', 'economat')
+  @ApiOperation({ summary: 'Enregistrer mouvement de stock' })
+  createMouvement(@Body() dto: any) {
+    return this.svc.createMouvement(dto);
+  }
+
+  @Get('mouvements')
+  @Roles('logistique', 'admin', 'economat')
+  @ApiOperation({ summary: 'Historique des mouvements' })
+  getMouvements(@Query('stockId') stockId?: string) {
+    return this.svc.getMouvements(stockId);
+  }
+
+  // ========== RÉSERVATIONS DE SALLES ==========
+  @Post('reservations')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
+  @ApiOperation({ summary: 'Réserver une salle' })
+  reserver(@Body() dto: any) {
+    return this.svc.reserver('', dto);
+  }
+
+  @Get('reservations')
+  @Roles('logistique', 'admin', 'secretaire', 'enseignant')
+  @ApiOperation({ summary: 'Liste des réservations' })
+  getReservations(@Query('salleId') salleId?: string) {
+    return this.svc.getReservations('', salleId);
+  }
+
+  @Patch('reservations/:id/approuver')
+  @Roles('logistique', 'admin')
+  @ApiOperation({ summary: 'Approuver une réservation de salle' })
   approuver(@Param('id') id: string, @Body() body: any) {
-    return this.svc.approuverReservation(id, body.approvedBy);
+    return this.svc.approuverReservation(id, body.approuvePar);
+  }
+
+  @Patch('reservations/:id/refuser')
+  @Roles('logistique', 'admin')
+  @ApiOperation({ summary: 'Refuser une réservation de salle' })
+  refuser(@Param('id') id: string, @Body() body: any) {
+    return this.svc.refuserReservation(id, body.approuvePar);
+  }
+
+  // ========== STATISTIQUES ==========
+  @Get('stats')
+  @Roles('logistique', 'admin', 'president')
+  @ApiOperation({ summary: 'Statistiques logistique' })
+  getStats() {
+    return this.svc.getStats();
   }
 }
+
+// Made with Bob

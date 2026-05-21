@@ -1,0 +1,499 @@
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource, In } from 'typeorm';
+import { Note } from '../entities/note.entity';
+import { Etudiant } from '../../users/entities/etudiant.entity';
+import { ElementConstitutif } from '../entities/element-constitutif.entity';
+import { UniteEnseignement } from '../entities/unite-enseignement.entity';
+import { SessionExamen } from '../entities/session-examen.entity';
+import { DeliberationService } from './deliberation.service';
+import { CreateNoteDto } from '../dto/create-note.dto';
+import { UpdateNoteDto } from '../dto/update-note.dto';
+import { SaisieNotesMassiveDto } from '../dto/saisie-notes-massive.dto';
+
+@Injectable()
+export class NotesService {
+  constructor(
+    @InjectRepository(Note)
+    private readonly noteRepository: Repository<Note>,
+    @InjectRepository(Etudiant)
+    private readonly etudiantRepository: Repository<Etudiant>,
+    @InjectRepository(ElementConstitutif)
+    private readonly ecRepository: Repository<ElementConstitutif>,
+    @InjectRepository(UniteEnseignement)
+    private readonly ueRepository: Repository<UniteEnseignement>,
+    @InjectRepository(SessionExamen)
+    private readonly sessionRepository: Repository<SessionExamen>,
+    private readonly deliberationService: DeliberationService,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  /**
+   * Crée une nouvelle note
+   */
+  async create(createNoteDto: CreateNoteDto, userId: string): Promise<Note> {
+    // Vérifier si la note peut être modifiée
+    const peutModifier = await this.deliberationService.peutModifierNote(
+      createNoteDto.etudiantId,
+      createNoteDto.sessionId,
+    );
+
+    if (!peutModifier.peutModifier) {
+      throw new ForbiddenException(peutModifier.motif || 'Modification non autorisée');
+    }
+
+    // Vérifier que l'étudiant existe
+    const etudiant = await this.etudiantRepository.findOne({
+      where: { id: createNoteDto.etudiantId },
+    });
+
+    if (!etudiant) {
+      throw new NotFoundException('Étudiant non trouvé');
+    }
+
+    // Vérifier que l'EC existe
+    const ec = await this.ecRepository.findOne({
+      where: { id: createNoteDto.ecId },
+      relations: ['ue'],
+    });
+
+    if (!ec) {
+      throw new NotFoundException('Élément constitutif non trouvé');
+    }
+
+    // Vérifier que la session existe
+    const session = await this.sessionRepository.findOne({
+      where: { id: createNoteDto.sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session d\'examen non trouvée');
+    }
+
+    // Vérifier si une note existe déjà
+    const existingNote = await this.noteRepository.findOne({
+      where: {
+        etudiantId: createNoteDto.etudiantId,
+        ecId: createNoteDto.ecId,
+        sessionId: createNoteDto.sessionId,
+      },
+    });
+
+    if (existingNote) {
+      throw new BadRequestException('Une note existe déjà pour cet étudiant/EC/session');
+    }
+
+    const note = this.noteRepository.create({
+      ...createNoteDto,
+      ueId: ec.ue.id,
+      saisiPar: { id: userId } as any,
+    });
+
+    return await this.noteRepository.save(note);
+  }
+
+  /**
+   * Met à jour une note existante
+   */
+  async update(id: string, updateNoteDto: UpdateNoteDto, userId: string): Promise<Note> {
+    const note = await this.noteRepository.findOne({
+      where: { id },
+      relations: ['etudiant', 'sessionExamen'],
+    });
+
+    if (!note) {
+      throw new NotFoundException('Note non trouvée');
+    }
+
+    // Vérifier si la note peut être modifiée
+    const peutModifier = await this.deliberationService.peutModifierNote(
+      note.etudiant.id,
+      note.sessionExamen.id,
+    );
+
+    if (!peutModifier.peutModifier) {
+      throw new ForbiddenException(peutModifier.motif || 'Modification non autorisée');
+    }
+
+    // Mettre à jour les champs
+    if (updateNoteDto.valeur !== undefined) {
+      note.valeur = updateNoteDto.valeur;
+    }
+
+    if (updateNoteDto.absenceJustifiee !== undefined) {
+      note.absenceJustifiee = updateNoteDto.absenceJustifiee;
+    }
+
+    if (updateNoteDto.observations !== undefined) {
+      note.observations = updateNoteDto.observations;
+    }
+
+    return await this.noteRepository.save(note);
+  }
+
+  /**
+   * Saisie massive de notes pour une promotion
+   */
+  async saisieMassive(saisieDto: SaisieNotesMassiveDto, userId: string): Promise<{ 
+    succes: number; 
+    erreurs: any[]; 
+    total: number;
+  }> {
+    const { sessionId, ecId, notes } = saisieDto;
+    
+    // Vérifier que l'EC et la session existent
+    const ec = await this.ecRepository.findOne({
+      where: { id: ecId },
+      relations: ['ue'],
+    });
+
+    if (!ec) {
+      throw new NotFoundException('Élément constitutif non trouvé');
+    }
+
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session d\'examen non trouvée');
+    }
+
+    let succes = 0;
+    const erreurs: any[] = [];
+    const total = notes.length;
+
+    // Traiter chaque note dans une transaction
+    for (const noteData of notes) {
+      try {
+        // Vérifier si la note peut être modifiée
+        const peutModifier = await this.deliberationService.peutModifierNote(
+          noteData.etudiantId,
+          sessionId,
+        );
+
+        if (!peutModifier.peutModifier) {
+          erreurs.push({
+            etudiantId: noteData.etudiantId,
+            erreur: peutModifier.motif || 'Modification non autorisée',
+          });
+          continue;
+        }
+
+        // Vérifier si une note existe déjà
+        const existingNote = await this.noteRepository.findOne({
+          where: {
+            etudiant: { id: noteData.etudiantId },
+            ec: { id: ecId },
+            sessionExamen: { id: sessionId },
+          },
+        });
+
+        if (existingNote) {
+          // Mettre à jour la note existante
+          existingNote.valeur = noteData.valeur;
+          existingNote.observations = noteData.observations;
+          await this.noteRepository.save(existingNote);
+        } else {
+          // Créer une nouvelle note
+          const note = this.noteRepository.create({
+            etudiant: { id: noteData.etudiantId },
+            ec: { id: noteData.ecId },
+            ue: { id: ec.uniteEnseignement.id },
+            sessionId,
+            valeur: noteData.valeur,
+            absenceJustifiee: noteData.absenceJustifiee || false,
+            observations: noteData.observations,
+            saisiPar: { id: userId } as any,
+          });
+          await this.noteRepository.save(note);
+        }
+
+        succes++;
+      } catch (error) {
+        erreurs.push({
+          etudiantId: noteData.etudiantId,
+          erreur: error.message,
+        });
+      }
+    }
+
+    return { succes, erreurs, total };
+  }
+
+  /**
+   * Récupère les notes d'un étudiant pour un semestre
+   */
+  async getNotesEtudiantSemestre(
+    etudiantId: string,
+    semestre: number,
+    anneeNiveau: number,
+  ): Promise<any> {
+    // Récupérer les UE du semestre
+    const ues = await this.ueRepository.find({
+      where: { semestre, anneeNiveau },
+      relations: ['elementConstitutifs'],
+    });
+
+    const result = {
+      etudiant: await this.etudiantRepository.findOne({ where: { id: etudiantId } }),
+      semestre,
+      anneeNiveau,
+      ues: [],
+    };
+
+    for (const ue of ues) {
+      const ueData = {
+        ue,
+        ecs: [],
+        moyenneUE: 0,
+        creditsAcquis: false,
+      };
+
+      let totalPoints = 0;
+      let totalCoefficients = 0;
+
+      for (const ec of ue.elementsConstitutifs) {
+        const existingNotes = await this.noteRepository.find({
+          where: {
+            etudiant: { id: etudiantId },
+            ec: { id: ec.id },
+          },
+        });
+
+        const notes = existingNotes.filter(note => !note.absenceJustifiee);
+
+        const noteFinale = this.determinerNoteFinale(notes);
+        
+        ueData.ecs.push({
+          ec,
+          notes,
+          noteFinale,
+          coefficient: ec.coefficient,
+          points: noteFinale ? noteFinale.valeur * ec.coefficient : 0,
+        });
+
+        if (noteFinale) {
+          totalPoints += noteFinale.valeur * ec.coeffiant;
+          totalCoefficients += ec.coeffiant;
+        }
+      }
+
+      ueData.moyenneUE = totalCoefficients > 0 ? totalPoints / totalCoefficients : 0;
+      ueData.creditsAcquis = ueData.moyenneUE >= 10;
+
+      result.ues.push(ueData);
+    }
+
+    return result;
+  }
+
+  /**
+   * Récupère la grille de saisie pour une promotion
+   */
+  async getGrilleSaisie(
+    parcoursId: string,
+    semestre: number,
+    anneeNiveau: number,
+    ecId?: string,
+  ): Promise<any> {
+    // Récupérer les étudiants inscrits
+    const inscriptions = await this.dataSource.getRepository('Inscription').find({
+      where: {
+        parcours: { id: parcoursId },
+        statut: 'validee',
+      },
+      relations: ['etudiant'],
+    });
+
+    // Récupérer les ECs à évaluer
+    let ecs;
+    if (ecId) {
+      ecs = [await this.ecRepository.findOne({
+        where: { id: ecId },
+        relations: ['ue'],
+      })];
+    } else {
+      const ues = await this.ueRepository.find({
+        where: { semestre, anneeNiveau },
+        relations: ['elementConstitutifs'],
+      });
+      ecs = ues.flatMap(ue => ue.elementsConstitutifs.map(ec => ({ ...ec, ue })));
+    }
+
+    // Récupérer les notes existantes
+      anneeNiveau,
+      etudiants: inscriptions.map(i => ({
+        etudiant: i.etudiant,
+        notes: ecs.map(ec => {
+          const note = notesExistantes.find(n => 
+            n.etudiant.id === i.etudiant.id && n.ec.id === ec.id
+          );
+          return {
+            ec,
+            note: note || null,
+          };
+        }),
+      })),
+      ecs,
+      sessions: await this.sessionRepository.find({
+        where: { statut: 'en_cours' },
+      }),
+    };
+
+    return grille;
+  }
+
+  /**
+   * Exporte les notes au format Excel
+   */
+  async exporterNotes(
+    parcoursId: string,
+    semestre: number,
+    anneeNiveau: number,
+    format: 'excel' | 'csv' = 'excel',
+  ): Promise<Buffer> {
+    const grille = await this.getGrilleSaisie(parcoursId, semestre, anneeNiveau);
+
+    // Construire les données pour l'export
+    const headers = ['Matricule', 'Nom', 'Prénoms'];
+    const ecHeaders = grille.ecs.map(ec => `${ec.code} - ${ec.intitule}`);
+    headers.push(...ecHeaders);
+
+    const rows = grille.etudiants.map(etudiantData => {
+      const row = [
+        etudiantData.etudiant.matricule,
+        etudiantData.etudiant.nom,
+        etudiantData.etudiant.prenoms,
+      ];
+
+      etudiantData.notes.forEach(noteData => {
+        row.push(noteData.note ? noteData.note.valeur : '');
+      });
+
+      return row;
+    });
+
+    // TODO: Implémenter la génération Excel/CSV avec une librairie comme xlsx
+    // Pour l'instant, retourner un format simple
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    return Buffer.from(csvContent, 'utf-8');
+  }
+
+  /**
+   * Supprime une note
+   */
+  async remove(id: string, userId: string): Promise<void> {
+    const note = await this.noteRepository.findOne({
+      where: { id },
+      relations: ['etudiant', 'sessionExamen'],
+    });
+
+    if (!note) {
+      throw new NotFoundException('Note non trouvée');
+    }
+
+    // Vérifier si la note peut être modifiée
+    const peutModifier = await this.deliberationService.peutModifierNote(
+      note.etudiant.id,
+      note.sessionExamen.id,
+    );
+
+    if (!peutModifier.peutModifier) {
+      throw new ForbiddenException(peutModifier.motif || 'Suppression non autorisée');
+    }
+
+    await this.noteRepository.remove(note);
+  }
+
+  /**
+   * Détermine la note finale à partir des différentes sessions
+   */
+  private determinerNoteFinale(notes: Note[]): Note | null {
+    if (notes.length === 0) return null;
+
+    // Priorité: session normale > rattrapage > deuxième chance
+    const sessionNormale = notes.find(n => 
+      n.sessionExamen.typeSession === 'normale'
+    );
+    
+    if (sessionNormale && sessionNormale.valeur >= 10) {
+      return sessionNormale;
+    }
+
+    const sessionRattrapage = notes.find(n => 
+      n.sessionExamen.typeSession === 'rattrapage'
+    );
+
+    if (sessionRattrapage) {
+      return sessionRattrapage;
+    }
+
+    const sessionDeuxiemeChance = notes.find(n => 
+      n.sessionExamen.typeSession === 'deuxieme_chance'
+    );
+
+    return sessionDeuxiemeChance || notes[0];
+  }
+
+  /**
+   * Calcule les statistiques des notes pour un EC
+   */
+  async getStatistiquesNotesEC(ecId: string, sessionId?: string): Promise<any> {
+    const whereCondition: any = { ec: { id: ecId } };
+    if (sessionId) {
+      whereCondition.sessionExamen = { id: sessionId };
+    }
+
+    const notes = await this.noteRepository.find({
+      where: whereCondition,
+    });
+
+    if (notes.length === 0) {
+      return {
+        effectif: 0,
+        moyenne: 0,
+        ecartType: 0,
+        mediane: 0,
+        min: 0,
+        max: 0,
+        distribution: {
+          '0-5': 0,
+          '5-10': 0,
+          '10-15': 0,
+          '15-20': 0,
+        },
+      };
+    }
+
+    const valeurs = notes.map(n => n.valeur).filter(v => v !== null);
+    
+    // Calcul des statistiques
+    const moyenne = valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
+    const sortedValeurs = valeurs.sort((a, b) => a - b);
+    const mediane = sortedValeurs.length % 2 === 0 
+      ? (sortedValeurs[sortedValeurs.length / 2 - 1] + sortedValeurs[sortedValeurs.length / 2]) / 2
+      : sortedValeurs[Math.floor(sortedValeurs.length / 2)];
+    
+    const variance = valeurs.reduce((sum, val) => sum + Math.pow(val - moyenne, 2), 0) / valeurs.length;
+    const ecartType = Math.sqrt(variance);
+
+    return {
+      effectif: valeurs.length,
+      moyenne: Math.round(moyenne * 100) / 100,
+      ecartType: Math.round(ecartType * 100) / 100,
+      mediane: Math.round(mediane * 100) / 100,
+      min: Math.min(...valeurs),
+      max: Math.max(...valeurs),
+      distribution: {
+        '0-5': valeurs.filter(v => v >= 0 && v < 5).length,
+        '5-10': valeurs.filter(v => v >= 5 && v < 10).length,
+        '10-15': valeurs.filter(v => v >= 10 && v < 15).length,
+        '15-20': valeurs.filter(v => v >= 15 && v <= 20).length,
+      },
+    };
+  }
+}

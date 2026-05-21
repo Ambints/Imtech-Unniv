@@ -1,7 +1,7 @@
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
   PRESIDENT = 'president',
-  RESPONSABLE_PEDAGOGIQUE = 'responsable_pedagogique',
+  RESP_PEDAGOGIQUE = 'resp_pedagogique',
   SECRETAIRE_PARCOURS = 'secretaire_parcours',
   SURVEILLANT_GENERAL = 'surveillant_general',
   SCOLARITE = 'scolarite',
@@ -10,11 +10,11 @@ export enum UserRole {
   CAISSIER = 'caissier',
   COMMUNICATION = 'communication',
   ADMIN = 'admin',
-  RESPONSABLE_LOGISTIQUE = 'responsable_logistique',
-  SERVICE_ENTRETIEN = 'service_entretien',
+  LOGISTIQUE = 'logistique',
+  ENTRETIEN = 'entretien',
   ETUDIANT = 'etudiant',
   PARENT = 'parent',
-  PROFESSEUR = 'professeur',
+  ENSEIGNANT = 'enseignant',
 }
 
 export enum AcademicLevel { LICENCE = 'licence', MASTER = 'master', DOCTORAT = 'doctorat' }

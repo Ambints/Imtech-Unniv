@@ -13,8 +13,7 @@
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
-    "noImplicitAny": false,
-    "ignoreDeprecations": "6.0"
+    "noImplicitAny": false
   },
   "include": [
     "src/**/*"

@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Annonce, Notification, Message } from './communication.entities';
+import { CommunicationService } from './communication.service';
+import { CommunicationController } from './communication.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Annonce, Notification, Message])],
-  exports: [TypeOrmModule],
+  controllers: [CommunicationController],
+  providers: [CommunicationService],
+  exports: [CommunicationService],
 })
 export class CommunicationModule {}
+
+// Made with Bob

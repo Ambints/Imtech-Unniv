@@ -20,4 +20,5 @@ export declare class CreateTenantDto {
     dateFinAbonnement?: string;
     prixMensuel?: number;
     maxUtilisateurs?: number;
+    actif?: boolean;
 }

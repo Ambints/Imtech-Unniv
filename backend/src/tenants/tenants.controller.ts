@@ -76,7 +76,15 @@ export class TenantsController {
   @ApiResponse({ status: 200, description: 'Détails de l\'université' })
   @ApiResponse({ status: 404, description: 'Université non trouvée' })
   findOne(@Param('id') id: string) {
-    return this.svc.findOne(id);
+    console.log(`🔍 Controller - Recherche du tenant: ${id}`);
+    try {
+      const result = this.svc.findOne(id);
+      console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
+      return result;
+    } catch (error) {
+      console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
+      throw error;
+    }
   }
 
   @Get('by-slug/:slug')
@@ -143,5 +151,41 @@ export class TenantsController {
   @ApiResponse({ status: 404, description: 'Université non trouvée' })
   removeSubscription(@Param('id') id: string) {
     return this.svc.removeSubscription(id);
+  }
+
+  @Get('debug/check-table')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Vérifier le contenu de la table tenant (debug)' })
+  @ApiResponse({ status: 200, description: 'Contenu de la table tenant' })
+  async checkTenantTable() {
+    console.log('🔍 Debug - Vérification de la table tenant...');
+    try {
+      const tenants = await this.svc.findAll();
+      console.log(`📊 Debug - ${tenants.length} tenants trouvés`);
+      
+      // Vérifier si les schémas existent
+      const schemas = [];
+      for (const tenant of tenants) {
+        if (tenant.schemaName) {
+          schemas.push(tenant.schemaName);
+        }
+      }
+      
+      return {
+        tenantCount: tenants.length,
+        tenants: tenants,
+        schemas: schemas,
+        message: `Found ${tenants.length} tenants in database`
+      };
+    } catch (error) {
+      console.log(`❌ Debug - Erreur: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        error: errorMessage,
+        tenantCount: 0,
+        tenants: [],
+        schemas: []
+      };
+    }
   }
 }

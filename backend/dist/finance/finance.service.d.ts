@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { GrilleTarifaire, Echeancier, Paiement, Budget, Depense, ContratPersonnel, FichePaie } from './finance.entities';
 export declare class FinanceService {
     private grilleRepo;
@@ -8,25 +8,28 @@ export declare class FinanceService {
     private depenseRepo;
     private contratRepo;
     private fichePaieRepo;
-    constructor(grilleRepo: Repository<GrilleTarifaire>, echeancierRepo: Repository<Echeancier>, paiementRepo: Repository<Paiement>, budgetRepo: Repository<Budget>, depenseRepo: Repository<Depense>, contratRepo: Repository<ContratPersonnel>, fichePaieRepo: Repository<FichePaie>);
+    private dataSource;
+    constructor(grilleRepo: Repository<GrilleTarifaire>, echeancierRepo: Repository<Echeancier>, paiementRepo: Repository<Paiement>, budgetRepo: Repository<Budget>, depenseRepo: Repository<Depense>, contratRepo: Repository<ContratPersonnel>, fichePaieRepo: Repository<FichePaie>, dataSource: DataSource);
     enregistrerPaiement(tid: string, dto: any, caissierId: string): Promise<{
-        paiement: Paiement[];
+        paiement: Paiement;
+        etudiantNom: string;
         recu: {
             numeroRecu: string;
             date: Date;
             montant: any;
             mode: any;
+            matricule: any;
             statut: string;
             message: string;
         };
     }>;
     getPaiementsEtudiant(tid: string, inscriptionId: string): Promise<Paiement[]>;
-    getTousPaiements(tid: string, date?: string): Promise<Paiement[]>;
+    getTousPaiements(tid: string, date?: string): Promise<any>;
     getCaisseJournaliere(tid: string): Promise<{
         date: Date;
-        total: number;
-        nombrePaiements: number;
-        paiements: Paiement[];
+        total: any;
+        nombrePaiements: any;
+        paiements: any;
     }>;
     cloturerCaisse(tid: string, userId: string): Promise<{
         message: string;
@@ -58,7 +61,18 @@ export declare class FinanceService {
     creerContrat(tid: string, dto: any): Promise<ContratPersonnel[]>;
     getContrats(tid: string, utilisateurId?: string): Promise<ContratPersonnel[]>;
     creerEcheancier(tid: string, dto: any): Promise<Echeancier[]>;
-    getEcheanciers(tid: string, inscriptionId?: string): Promise<Echeancier[]>;
+    getEcheanciers(tid: string, inscriptionId?: string): Promise<any>;
+    getInscriptionsActives(tid: string): Promise<any>;
     creerFichePaie(dto: any): Promise<FichePaie[]>;
     getFichesPaie(contratId?: string): Promise<FichePaie[]>;
+    getGrilleTarifaire(tid: string): Promise<any>;
+    creerFraisInscription(tid: string, dto: any): Promise<any>;
+    updateFraisInscription(tid: string, id: string, dto: any): Promise<any>;
+    deleteFraisInscription(tid: string, id: string): Promise<any>;
+    toggleActifFrais(tid: string, id: string): Promise<any>;
+    getPaiementsInscriptionEnAttente(tid: string): Promise<any>;
+    getTousPaiementsInscription(tid: string, statut?: string): Promise<any>;
+    validerPaiementInscription(tid: string, paiementId: string, caissierId: string, noteValidation?: string): Promise<any>;
+    rejeterPaiementInscription(tid: string, paiementId: string, caissierId: string, motifRejet: string): Promise<any>;
+    getStatistiquesPaiementsInscription(tid: string): Promise<any>;
 }

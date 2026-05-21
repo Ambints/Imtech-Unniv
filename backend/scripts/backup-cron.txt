@@ -1,0 +1,20 @@
+# Configuration CRON pour les backups automatiques
+# À ajouter dans crontab avec: crontab -e
+
+# Backup quotidien à 2h du matin (heure serveur)
+0 2 * * * cd /chemin/vers/imtech-university/backend && npm run backup:daily
+
+# Backup hebdomadaire complet le dimanche à 3h du matin
+0 3 * * 0 cd /chemin/vers/imtech-university/backend && npm run backup:weekly
+
+# Nettoyage des anciens backups tous les jours à 4h du matin
+0 4 * * * cd /chemin/vers/imtech-university/backend && npm run backup:cleanup
+
+# Vérification de l'espace disque tous les jours à 5h du matin
+0 5 * * * cd /chemin/vers/imtech-university/backend && npm run backup:check-space
+
+# Installation instructions:
+# 1. Copier ce contenu dans votre crontab: crontab -e
+# 2. Assurez-vous que Node.js et npm sont dans le PATH
+# 3. Vérifiez que les permissions sont correctes sur les répertoires de backup
+# 4. Testez manuellement: npm run backup:daily

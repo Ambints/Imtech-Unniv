@@ -6,6 +6,7 @@ export declare class Parcours {
     niveau: string;
     dureeAnnees: number;
     responsableId: string;
+    secretaireId: string;
     description: string;
     actif: boolean;
     anneeOuverture: number;
@@ -166,6 +167,7 @@ export declare class EmploiDuTemps {
     typeSeance: string;
     statut: string;
     motifAnnulation: string;
+    createdById: string;
     createdAt: Date;
     updatedAt: Date;
 }

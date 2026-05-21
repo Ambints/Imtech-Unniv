@@ -11,6 +11,7 @@ require("reflect-metadata");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
+const core_1 = require("@nestjs/core");
 const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const tenants_module_1 = require("./tenants/tenants.module");
@@ -27,6 +28,9 @@ const portail_module_1 = require("./portail/portail.module");
 const rh_module_1 = require("./rh/rh.module");
 const economat_module_1 = require("./economat/economat.module");
 const caissier_module_1 = require("./caissier/caissier.module");
+const pedagogique_module_1 = require("./pedagogique/pedagogique.module");
+const messagerie_module_1 = require("./messagerie/messagerie.module");
+const cache_module_1 = require("./cache/cache.module");
 const tenant_entity_1 = require("./tenants/tenant.entity");
 const user_entity_1 = require("./users/user.entity");
 const super_admin_entity_1 = require("./users/super-admin.entity");
@@ -35,12 +39,36 @@ const finance_entities_1 = require("./finance/finance.entities");
 const logistics_entities_1 = require("./logistics/logistics.entities");
 const communication_entities_1 = require("./communication/communication.entities");
 const discipline_entities_1 = require("./discipline/discipline.entities");
+const surveillance_entities_1 = require("./discipline/surveillance.entities");
+const encadrement_entities_1 = require("./discipline/encadrement.entities");
 const examens_entities_1 = require("./examens/examens.entities");
 const documents_entities_1 = require("./documents/documents.entities");
+const entities_1 = require("./scolarite/entities");
+const etudiant_entity_1 = require("./scolarite/entities/etudiant.entity");
+const session_examen_entity_1 = require("./scolarite/entities/session-examen.entity");
+const utilisateur_entity_1 = require("./scolarite/entities/utilisateur.entity");
+const note_entity_1 = require("./scolarite/entities/note.entity");
+const parcours_entity_1 = require("./scolarite/entities/parcours.entity");
+const annee_academique_entity_1 = require("./scolarite/entities/annee-academique.entity");
+const unite_enseignement_entity_1 = require("./scolarite/entities/unite-enseignement.entity");
+const element_constitutif_entity_1 = require("./scolarite/entities/element-constitutif.entity");
+const inscription_entity_1 = require("./scolarite/entities/inscription.entity");
+const pedagogique_entities_1 = require("./pedagogique/pedagogique.entities");
+const secretaire_entities_1 = require("./pedagogique/secretaire.entities");
+const secretaire_parcours_entity_1 = require("./pedagogique/secretaire-parcours.entity");
 const plan_entity_1 = require("./tenants/plan.entity");
 const plans_module_1 = require("./plans/plans.module");
 const subscriptions_module_1 = require("./subscriptions/subscriptions.module");
+const scolarite_module_1 = require("./scolarite/scolarite.module");
+const president_module_1 = require("./president/president.module");
+const tenant_middleware_1 = require("./tenants/tenant.middleware");
+const tenant_schema_interceptor_1 = require("./tenants/tenant-schema.interceptor");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer
+            .apply(tenant_middleware_1.TenantMiddleware)
+            .forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
@@ -68,7 +96,6 @@ exports.AppModule = AppModule = __decorate([
                 username: process.env.DB_USER || 'postgres',
                 password: process.env.DB_PASSWORD || 'password',
                 database: process.env.DB_NAME || 'imtech_university',
-                schema: 'univ_demo',
                 entities: [
                     user_entity_1.User,
                     academic_entities_1.Parcours, academic_entities_1.UniteEnseignement, academic_entities_1.ElementConstitutif, academic_entities_1.Departement,
@@ -81,8 +108,19 @@ exports.AppModule = AppModule = __decorate([
                     logistics_entities_1.PlanningEntretien, logistics_entities_1.RapportEntretien,
                     communication_entities_1.Annonce, communication_entities_1.Notification, communication_entities_1.Message,
                     discipline_entities_1.Incident, discipline_entities_1.Sanction, discipline_entities_1.Avertissement,
+                    surveillance_entities_1.PointageQR, surveillance_entities_1.PresenceSurveillance, surveillance_entities_1.AlerteDiscipline, surveillance_entities_1.ConfigurationExamen,
+                    encadrement_entities_1.SuiviMoral, encadrement_entities_1.AutorisationSortie, encadrement_entities_1.RapportConduite, encadrement_entities_1.ConseilDiscipline,
                     examens_entities_1.SujetExamen, examens_entities_1.Deliberation, examens_entities_1.Jury, examens_entities_1.PVNote,
                     documents_entities_1.ReleveNote, documents_entities_1.Attestation, documents_entities_1.Diplome,
+                    pedagogique_entities_1.ReferentielCompetences, pedagogique_entities_1.SujetExamen, pedagogique_entities_1.ProcesVerbal,
+                    pedagogique_entities_1.StageMemoire, pedagogique_entities_1.StatistiqueParcours, pedagogique_entities_1.ContenuCours, pedagogique_entities_1.Soutenance,
+                    secretaire_entities_1.AbsenceEnseignant, secretaire_entities_1.Rattrapage, secretaire_entities_1.Convocation, secretaire_entities_1.NoteDerogatoire,
+                    secretaire_entities_1.DemandeEtudiant, secretaire_parcours_entity_1.SecretaireParcours,
+                    entities_1.Deliberation, entities_1.ResultatSemestre, entities_1.ResultatUE, entities_1.Diplome,
+                    entities_1.SuplementDiplome, entities_1.TransfertEtudiant, entities_1.ArchiveScolarite, entities_1.VerrouillageNotes,
+                    etudiant_entity_1.Etudiant, session_examen_entity_1.SessionExamen, utilisateur_entity_1.Utilisateur, note_entity_1.Note,
+                    parcours_entity_1.Parcours, annee_academique_entity_1.AnneeAcademique, unite_enseignement_entity_1.UniteEnseignement,
+                    element_constitutif_entity_1.ElementConstitutif, inscription_entity_1.Inscription,
                 ],
                 synchronize: false,
                 logging: false,
@@ -105,6 +143,17 @@ exports.AppModule = AppModule = __decorate([
             rh_module_1.RHModule,
             caissier_module_1.CaissierModule,
             economat_module_1.EconomatModule,
+            pedagogique_module_1.PedagogiqueModule,
+            scolarite_module_1.ScolariteModule,
+            messagerie_module_1.MessagerieModule,
+            president_module_1.PresidentModule,
+            cache_module_1.ImtechCacheModule,
+        ],
+        providers: [
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: tenant_schema_interceptor_1.TenantSchemaInterceptor,
+            },
         ],
     })
 ], AppModule);

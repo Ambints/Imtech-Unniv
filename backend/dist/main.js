@@ -1,10 +1,16 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("reflect-metadata");
 const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const global_exception_filter_1 = require("./debug/global-exception.filter");
+const helmet_1 = __importDefault(require("helmet"));
+const compression_1 = __importDefault(require("compression"));
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         bodyParser: true,
@@ -13,14 +19,43 @@ async function bootstrap() {
     app.use(require('express').urlencoded({ limit: '10mb', extended: true }));
     app.setGlobalPrefix('api/v1');
     const isDev = process.env.NODE_ENV !== 'production';
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        const allowedOrigins = isDev ? ['http://localhost:3000', 'http://localhost:5173'] : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+        if (req.method === 'OPTIONS') {
+            res.header('Access-Control-Allow-Origin', origin || '*');
+            res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With, X-Tenant-Id');
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.header('Access-Control-Max-Age', '3600');
+            return res.status(204).end();
+        }
+        if (allowedOrigins.includes(origin) || isDev) {
+            res.header('Access-Control-Allow-Origin', origin);
+            res.header('Access-Control-Allow-Credentials', 'true');
+        }
+        next();
+    });
     app.enableCors({
-        origin: isDev ? true : (process.env.FRONTEND_URL || 'http://localhost:3000'),
+        origin: isDev ? ['http://localhost:3000', 'http://localhost:5173'] : (process.env.FRONTEND_URL || 'http://localhost:3000'),
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-Tenant-Id'],
         exposedHeaders: ['Content-Range', 'X-Content-Range'],
+        preflightContinue: true,
+        optionsSuccessStatus: 204
     });
-    app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
+    app.use((0, helmet_1.default)());
+    app.use((0, compression_1.default)());
+    app.useGlobalPipes(new common_1.ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: {
+            enableImplicitConversion: true,
+        },
+    }));
+    app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
     const config = new swagger_1.DocumentBuilder()
         .setTitle('IMTECH UNIVERSITY API')
         .setDescription([

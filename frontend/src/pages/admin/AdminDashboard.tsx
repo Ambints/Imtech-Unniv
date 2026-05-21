@@ -11,6 +11,10 @@ import {
   Award, UserPlus, ClipboardList, Plus, Edit2, Trash2, Save, Search, X,
   Mail as MailIcon, Phone as PhoneIcon
 } from 'lucide-react';
+import GestionRHPage from './GestionRHPage';
+import GestionCommunicationPage from './GestionCommunicationPage';
+import GestionDisciplinePage from './GestionDisciplinePage';
+import GestionLogistiquePage from './GestionLogistiquePage';
 
 interface AdminDashboardProps {
   defaultTab?: string;
@@ -52,7 +56,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   const [permissions, setPermissions] = useState<any>({
     etudiant: [],
     parent: [],
-    professeur: []
+    enseignant: []
   });
   const [savingPermissions, setSavingPermissions] = useState(false);
 
@@ -73,14 +77,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
 
   // === ÉTATS POUR LA GESTION ACADÉMIQUE ===
   // Sous-onglet actif dans la section académique
-  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'etudiants'>('departements');
+  const [academicSubTab, setAcademicSubTab] = useState<'departements' | 'parcours' | 'ue' | 'niveaux' | 'annees' | 'etudiants'>('departements');
   const [loadingAcademic, setLoadingAcademic] = useState(false);
 
   // Données académiques
   const [departements, setDepartements] = useState<any[]>([]);
   const [parcours, setParcours] = useState<any[]>([]);
   const [ues, setUes] = useState<any[]>([]);
+  const [niveauxEtude, setNiveauxEtude] = useState<any[]>([]);
+  const [anneesAcademiques, setAnneesAcademiques] = useState<any[]>([]);
   const [etudiants, setEtudiants] = useState<any[]>([]);
+  const [rpUsers, setRpUsers] = useState<any[]>([]);
 
   // Formulaire Département
   const [showDepartementForm, setShowDepartementForm] = useState(false);
@@ -102,8 +109,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     niveau: 'Licence',
     dureeAnnees: 3,
     description: '',
-    totalCredits: 60
+    totalCredits: 60,
+    responsableId: ''
   });
+
+  // Assignation rapide RP
+  const [showAssignRPModal, setShowAssignRPModal] = useState(false);
+  const [assigningParcours, setAssigningParcours] = useState<any>(null);
+  const [selectedRPId, setSelectedRPId] = useState('');
+
+  // Assignation rapide Secrétaire
+  const [showAssignSecretaireModal, setShowAssignSecretaireModal] = useState(false);
+  const [selectedSecretaireId, setSelectedSecretaireId] = useState('');
+  const [secretaireUsers, setSecretaireUsers] = useState<any[]>([]);
 
   // Formulaire UE
   const [showUEForm, setShowUEForm] = useState(false);
@@ -178,23 +196,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     try {
       setLoadingAcademic(true);
       const tid = authTenant?.id || user?.tenantId;
-      if (!tid) return;
+      if (!tid) {
+        setLoadingAcademic(false);
+        return;
+      }
 
       console.log('[DEBUG Frontend] Loading academic data for tenant:', tid);
-      const [deptRes, parcRes, ueRes, etuRes] = await Promise.all([
-        api.get(`/academic/${tid}/departements`),
-        api.get(`/academic/${tid}/parcours`),
-        api.get(`/academic/${tid}/ue${selectedParcoursForUE ? `?parcoursId=${selectedParcoursForUE}` : ''}`),
-        api.get(`/academic/${tid}/etudiants`)
+      
+      // Load data with individual error handling to prevent blocking
+      const loadWithFallback = async (promise: Promise<any>, fallback: any = []) => {
+        try {
+          const result = await promise;
+          return result.data || fallback;
+        } catch (error) {
+          console.warn('Failed to load data:', error);
+          return fallback;
+        }
+      };
+
+      const [deptData, parcData, ueData, niveauxData, anneesData, etuData, rpData] = await Promise.all([
+        loadWithFallback(api.get(`/academic/${tid}/departements`)),
+        loadWithFallback(api.get(`/academic/${tid}/parcours`)),
+        loadWithFallback(api.get(`/academic/${tid}/ue${selectedParcoursForUE ? `?parcoursId=${selectedParcoursForUE}` : ''}`)),
+        loadWithFallback(api.get(`/admin/${tid}/niveaux-etude`)),
+        loadWithFallback(api.get(`/academic/${tid}/annees`)),
+        loadWithFallback(api.get(`/academic/${tid}/etudiants`)),
+        loadWithFallback(api.get(`/users?role=resp_pedagogique&tenantId=${tid}`))
       ]);
 
-      console.log('[DEBUG Frontend] Etudiants loaded:', etuRes.data?.length || 0, etuRes.data);
-      setDepartements(deptRes.data);
-      setParcours(parcRes.data);
-      setUes(ueRes.data);
-      setEtudiants(etuRes.data);
+      console.log('[DEBUG Frontend] Etudiants loaded:', etuData?.length || 0);
+      console.log('[DEBUG Frontend] Années académiques loaded:', anneesData?.length || 0);
+      setDepartements(deptData || []);
+      setParcours(parcData || []);
+      setUes(ueData || []);
+      setNiveauxEtude(niveauxData || []);
+      setAnneesAcademiques(anneesData || []);
+      setEtudiants(etuData || []);
+      setRpUsers(rpData || []);
     } catch (error) {
       console.error('Erreur chargement données académiques:', error);
+      // Set empty arrays to prevent undefined errors
+      setDepartements([]);
+      setParcours([]);
+      setUes([]);
+      setNiveauxEtude([]);
+      setAnneesAcademiques([]);
+      setEtudiants([]);
+      setRpUsers([]);
     } finally {
       setLoadingAcademic(false);
     }
@@ -273,7 +321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   const resetParcoursForm = () => {
     setParcoursForm({
       code: '', nom: '', departementId: '', niveau: 'Licence',
-      dureeAnnees: 3, description: '', totalCredits: 60
+      dureeAnnees: 3, description: '', totalCredits: 60, responsableId: ''
     });
   };
 
@@ -282,7 +330,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     setParcoursForm({
       code: p.code, nom: p.nom, departementId: p.departementId,
       niveau: p.niveau, dureeAnnees: p.dureeAnnees,
-      description: p.description || '', totalCredits: p.totalCredits || 60
+      description: p.description || '', totalCredits: p.totalCredits || 60,
+      responsableId: p.responsableId || ''
     });
     setShowParcoursForm(true);
   };
@@ -297,6 +346,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       loadAcademicData();
     } catch (err) {
       toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  // === ASSIGNATION RAPIDE RP ===
+  const openAssignRPModal = (p: any) => {
+    setAssigningParcours(p);
+    setSelectedRPId(p.responsableId || '');
+    setShowAssignRPModal(true);
+  };
+
+  const handleAssignRP = async () => {
+    if (!assigningParcours) return;
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.patch(`/academic/${tid}/parcours/${assigningParcours.id}`, {
+        responsableId: selectedRPId || null
+      });
+
+      toast.success(selectedRPId ? 'Responsable Pédagogique assigné' : 'Responsable Pédagogique retiré');
+      setShowAssignRPModal(false);
+      setAssigningParcours(null);
+      setSelectedRPId('');
+      loadAcademicData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'assignation');
+    }
+  };
+
+  // === ASSIGNATION RAPIDE SECRETAIRE ===
+  const openAssignSecretaireModal = async (p: any) => {
+    setAssigningParcours(p);
+    setSelectedSecretaireId(p.secretaireId || '');
+    setShowAssignSecretaireModal(true);
+    
+    // Charger les utilisateurs secrétaires
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+      
+      console.log('[DEBUG] Chargement des secrétaires pour tenant:', tid);
+      const { data } = await api.get(`/users?role=secretaire&tenantId=${tid}`);
+      console.log('[DEBUG] Secrétaires reçus:', data);
+      
+      // Si aucun secrétaire trouvé, essayer de charger tous les utilisateurs et filtrer côté client
+      if (!data || data.length === 0) {
+        console.log('[DEBUG] Aucun secrétaire trouvé avec role=secretaire, essai avec tous les utilisateurs...');
+        const { data: allUsers } = await api.get(`/users?tenantId=${tid}`);
+        console.log('[DEBUG] Tous les utilisateurs:', allUsers);
+        
+        // Chercher les rôles qui contiennent 'sec', 'secrétaire', 'secretariat', etc.
+        const secretaires = allUsers?.filter((u: any) => {
+          const role = u.role?.toLowerCase() || '';
+          return role.includes('sec') || 
+                 role.includes('secretaire') || 
+                 role.includes('secretariat') ||
+                 role === 'sp' ||
+                 role === 'secretaire_parcours';
+        }) || [];
+        console.log('[DEBUG] Utilisateurs filtrés (contenant sec):', secretaires);
+        setSecretaireUsers(secretaires);
+      } else {
+        setSecretaireUsers(data);
+      }
+    } catch (err) {
+      console.error('Erreur chargement secrétaires:', err);
+      setSecretaireUsers([]);
+    }
+  };
+
+  const handleAssignSecretaire = async () => {
+    if (!assigningParcours) return;
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.post(`/secretaire/${tid}/parcours/${assigningParcours.id}/assigner-secretaire`, {
+        secretaireId: selectedSecretaireId
+      });
+
+      toast.success(selectedSecretaireId ? 'Secrétaire assigné avec succès' : 'Secrétaire retiré');
+      setShowAssignSecretaireModal(false);
+      setAssigningParcours(null);
+      setSelectedSecretaireId('');
+      loadAcademicData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'assignation');
     }
   };
 
@@ -354,6 +491,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   };
 
   // === GESTION ÉTUDIANTS ===
+  const [createdAccount, setCreatedAccount] = useState<any>(null);
+
   const handleSaveEtudiant = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -362,8 +501,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         await api.patch(`/academic/${tid}/etudiants/${editingEtudiant.id}`, etudiantForm);
         toast.success('Étudiant modifié');
       } else {
-        await api.post(`/academic/${tid}/etudiants`, etudiantForm);
-        toast.success('Étudiant créé');
+        const response = await api.post(`/academic/${tid}/etudiants`, etudiantForm);
+        console.log('[Frontend] Student created:', response.data);
+
+        if (response.data.compteCreé || response.data.utilisateurId) {
+          setCreatedAccount({
+            etudiantId: response.data.id,
+            utilisateurId: response.data.utilisateurId,
+            email: response.data.email || `${response.data.matricule}@etudiant.local`,
+            matricule: response.data.matricule,
+            nom: response.data.nom,
+            prenom: response.data.prenom,
+            message: response.data.message
+          });
+          toast.success(response.data.message || 'Étudiant et compte créés avec succès');
+        } else {
+          toast.success('Étudiant créé');
+        }
       }
       setShowEtudiantForm(false);
       setEditingEtudiant(null);
@@ -414,13 +568,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   useEffect(() => {
     setActiveTab(defaultTab);
   }, [defaultTab]);
-
-  // Redirection automatique vers la gestion financière complète
-  useEffect(() => {
-    if (activeTab === 'finance') {
-      navigate('/finance/gestion');
-    }
-  }, [activeTab, navigate]);
 
   // Synchroniser configFormData avec config
   useEffect(() => {
@@ -1080,7 +1227,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     const portailsConfig = [
       { type: 'etudiant', label: 'Portail Étudiant', icon: GraduationCap, color: 'primary' },
       { type: 'parent', label: 'Portail Parent', icon: Users, color: 'success' },
-      { type: 'professeur', label: 'Portail Professeur', icon: UserCog, color: 'warning' }
+      { type: 'enseignant', label: 'Portail Enseignant', icon: UserCog, color: 'warning' }
     ];
 
     return (
@@ -1157,7 +1304,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       entretien: 'Entretien',
       etudiant: 'Étudiant',
       parent: 'Parent',
-      professeur: 'Professeur'
+      enseignant: 'Enseignant'
     };
 
     const getRoleBadgeColor = (role: string) => {
@@ -1167,7 +1314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         resp_pedagogique: 'info',
         etudiant: 'success',
         parent: 'warning',
-        professeur: 'secondary'
+        enseignant: 'secondary'
       };
       return colors[role] || 'secondary';
     };
@@ -1365,7 +1512,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                           <optgroup label="Portails">
                             <option value="etudiant">Étudiant</option>
                             <option value="parent">Parent</option>
-                            <option value="professeur">Professeur</option>
+                            <option value="enseignant">Enseignant</option>
                           </optgroup>
                         </select>
                       </div>
@@ -1413,6 +1560,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       { key: 'departements', label: 'Départements', icon: Building2, count: departements.length, color: 'primary' },
       { key: 'parcours', label: 'Parcours', icon: GraduationCap, count: parcours.length, color: 'success' },
       { key: 'ue', label: 'UE', icon: BookOpen, count: ues.length, color: 'warning' },
+      { key: 'niveaux', label: 'Niveaux', icon: Award, count: niveauxEtude.length, color: 'secondary' },
+      { key: 'annees', label: 'Années Académiques', icon: Calendar, count: anneesAcademiques.length, color: 'danger' },
       { key: 'etudiants', label: 'Étudiants', icon: Users, count: etudiants.length, color: 'info' }
     ];
 
@@ -1476,6 +1625,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
             {academicSubTab === 'departements' && renderDepartementsSection()}
             {academicSubTab === 'parcours' && renderParcoursSection()}
             {academicSubTab === 'ue' && renderUESection()}
+            {academicSubTab === 'niveaux' && renderNiveauxSection()}
+            {academicSubTab === 'annees' && renderAnneesAcademiquesSection()}
             {academicSubTab === 'etudiants' && renderEtudiantsSection()}
           </>
         )}
@@ -1817,6 +1968,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                     placeholder="Description facultative du parcours..."
                   />
                 </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-medium">Responsable Pédagogique</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={parcoursForm.responsableId}
+                    onChange={(e) => setParcoursForm({ ...parcoursForm, responsableId: e.target.value })}
+                  >
+                    <option value="">-- Aucun --</option>
+                    {rpUsers.map((rp) => (
+                      <option key={rp.id} value={rp.id}>{rp.prenom} {rp.nom}</option>
+                    ))}
+                  </select>
+                  {rpUsers.length === 0 && (
+                    <small className="text-muted">Aucun utilisateur RP disponible. Créez un utilisateur avec le rôle "Resp. Pédagogique".</small>
+                  )}
+                </div>
               </div>
               <div className="d-flex gap-2 mt-3">
                 <button type="submit" className="btn btn-success btn-sm">
@@ -1882,12 +2049,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                   <th className="small fw-semibold text-uppercase">Département</th>
                   <th className="small fw-semibold text-uppercase">Niveau</th>
                   <th className="small fw-semibold text-uppercase">Durée</th>
+                  <th className="small fw-semibold text-uppercase">Responsable Pédagogique</th>
+                  <th className="small fw-semibold text-uppercase">Secrétaire</th>
                   <th className="small fw-semibold text-uppercase text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredParcours.map((p) => {
                   const dept = departements.find((d) => d.id === p.departementId);
+                  // Utiliser les données du responsable retournées par le backend
+                  const rp = p.responsable || rpUsers.find((r) => r.id === p.responsableId);
+                  // Utiliser secretaireAssigne du backend (via secretaire_parcours)
+                  const sec = p.secretaireAssigne || secretaireUsers.find((s) => s.id === p.secretaireId);
                   return (
                     <tr key={p.id} className="border-top">
                       <td>
@@ -1905,8 +2078,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                       </td>
                       <td><span className="badge bg-info">{p.niveau}</span></td>
                       <td>{p.dureeAnnees} ans</td>
+                      <td>
+                        {rp ? (
+                          <span className="badge bg-info bg-opacity-10 text-info">
+                            <UserCog size={12} className="me-1" />
+                            {rp.prenom} {rp.nom}
+                          </span>
+                        ) : (
+                          <em className="text-muted small">Non assigné</em>
+                        )}
+                      </td>
+                      <td>
+                        {sec ? (
+                          <span className="badge bg-success bg-opacity-10 text-success">
+                            <UserPlus size={12} className="me-1" />
+                            {sec.prenom} {sec.nom}
+                          </span>
+                        ) : (
+                          <em className="text-muted small">Non assigné</em>
+                        )}
+                      </td>
                       <td className="text-end">
                         <div className="btn-group btn-group-sm">
+                          <button
+                            className="btn btn-outline-info"
+                            onClick={() => openAssignRPModal(p)}
+                            title={p.responsableId ? "Changer le Responsable Pédagogique" : "Assigner un Responsable Pédagogique"}
+                          >
+                            <UserCog size={14} />
+                          </button>
+                          <button
+                            className="btn btn-outline-success"
+                            onClick={() => openAssignSecretaireModal(p)}
+                            title={p.secretaireId ? "Changer le Secrétaire" : "Assigner un Secrétaire"}
+                          >
+                            <UserPlus size={14} />
+                          </button>
                           <button
                             className="btn btn-outline-primary"
                             onClick={() => handleEditParcours(p)}
@@ -1928,6 +2135,154 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                 })}
               </tbody>
             </table>
+
+            {/* Modal Assignation Rapide Secrétaire */}
+            {showAssignSecretaireModal && assigningParcours && (
+              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title">
+                        <UserPlus size={18} className="me-2 text-success" />
+                        Assigner un Secrétaire
+                      </h5>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => { setShowAssignSecretaireModal(false); setAssigningParcours(null); setSelectedSecretaireId(''); }}
+                      />
+                    </div>
+                    <div className="modal-body">
+                      <div className="alert alert-light border mb-3">
+                        <strong>Parcours :</strong> {assigningParcours.code} - {assigningParcours.nom}
+                      </div>
+                      
+                      {assigningParcours.secretaireId && (
+                        <div className="alert alert-warning py-2 mb-3">
+                          <small>⚠️ Ce parcours a déjà un secrétaire assigné. La nouvelle assignation remplacera l'ancienne.</small>
+                        </div>
+                      )}
+                      
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Sélectionner un Secrétaire</label>
+                        <select
+                          className="form-select"
+                          value={selectedSecretaireId}
+                          onChange={(e) => setSelectedSecretaireId(e.target.value)}
+                        >
+                          <option value="">-- Non assigné --</option>
+                          {secretaireUsers.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.prenom} {u.nom} ({u.email})
+                            </option>
+                          ))}
+                        </select>
+                        {secretaireUsers.length === 0 && (
+                          <div className="alert alert-warning py-2 mt-2">
+                            <strong>Aucun utilisateur trouvé avec le rôle "secretaire".</strong><br/>
+                            <small>Vérifiez la console (F12) pour voir les rôles disponibles.<br/>
+                            Les rôles possibles sont : secretaire, secretaire_parcours, etc.</small>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="alert alert-info py-2">
+                        <small>💡 <strong>Règle :</strong> Un secrétaire peut gérer plusieurs parcours, mais un parcours ne peut avoir qu'un seul secrétaire.</small>
+                      </div>
+                    </div>
+                    <div className="modal-footer">
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => { setShowAssignSecretaireModal(false); setAssigningParcours(null); setSelectedSecretaireId(''); }}
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-success"
+                        onClick={handleAssignSecretaire}
+                        disabled={!selectedSecretaireId || secretaireUsers.length === 0}
+                      >
+                        <UserPlus size={16} className="me-2" />
+                        Assigner
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Assignation Rapide RP */}
+            {showAssignRPModal && assigningParcours && (
+              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title">
+                        <UserCog size={18} className="me-2 text-info" />
+                        Assigner un Responsable Pédagogique
+                      </h5>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => { setShowAssignRPModal(false); setAssigningParcours(null); setSelectedRPId(''); }}
+                      />
+                    </div>
+                    <div className="modal-body">
+                      <div className="mb-3">
+                        <label className="form-label fw-medium">Parcours</label>
+                        <div className="p-2 bg-light rounded">
+                          <span className="badge bg-success me-2">{assigningParcours.code}</span>
+                          <span className="fw-semibold">{assigningParcours.nom}</span>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label fw-medium">Responsable Pédagogique</label>
+                        <select
+                          className="form-select"
+                          value={selectedRPId}
+                          onChange={(e) => setSelectedRPId(e.target.value)}
+                        >
+                          <option value="">-- Aucun --</option>
+                          {rpUsers.map((rp) => (
+                            <option key={rp.id} value={rp.id}>
+                              {rp.prenom} {rp.nom} ({rp.email})
+                            </option>
+                          ))}
+                        </select>
+                        {rpUsers.length === 0 && (
+                          <div className="alert alert-warning mt-2 mb-0">
+                            <small>Aucun utilisateur RP disponible. Créez un utilisateur avec le rôle "Resp. Pédagogique" dans la section Gestion Utilisateurs.</small>
+                          </div>
+                        )}
+                      </div>
+                      <div className="alert alert-info">
+                        <small><strong>Règle :</strong> Un RP peut gérer plusieurs parcours, mais un parcours ne peut avoir qu'un seul RP.</small>
+                      </div>
+                    </div>
+                    <div className="modal-footer">
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => { setShowAssignRPModal(false); setAssigningParcours(null); setSelectedRPId(''); }}
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-info text-white"
+                        onClick={handleAssignRP}
+                        disabled={rpUsers.length === 0}
+                      >
+                        <CheckCircle size={16} className="me-1" />
+                        {selectedRPId ? 'Assigner' : 'Retirer l\'assignation'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         </div>
@@ -2286,6 +2641,434 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
     );
   };
 
+  // === SECTION NIVEAUX D'ÉTUDES ===
+  const renderNiveauxSection = () => (
+    <div className="card border-0 shadow-sm">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex align-items-center gap-2">
+            <h6 className="card-title mb-0 text-secondary">
+              <Award size={18} className="me-2" />
+              Niveaux d'Études
+            </h6>
+            <span className="badge bg-secondary bg-opacity-10 text-secondary">
+              {niveauxEtude.length}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => navigate('/admin/niveaux')}
+          >
+            <Award size={16} className="me-2" />
+            Gérer les Niveaux
+          </button>
+        </div>
+
+        {niveauxEtude.length === 0 ? (
+          <div className="text-center py-5">
+            <Award size={48} className="text-muted mb-3" />
+            <h6 className="text-muted">Aucun niveau configuré</h6>
+            <p className="text-muted small mb-3">
+              Configurez les niveaux d'études disponibles pour les inscriptions
+            </p>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => navigate('/admin/niveaux')}
+            >
+              <Plus size={16} className="me-2" />
+              Configurer les niveaux
+            </button>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: '80px' }}>Ordre</th>
+                  <th style={{ width: '100px' }}>Code</th>
+                  <th>Libellé</th>
+                  <th style={{ width: '150px' }}>Type Diplôme</th>
+                  <th style={{ width: '100px' }} className="text-center">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {niveauxEtude.map((niveau) => (
+                  <tr key={niveau.id}>
+                    <td>
+                      <span className="badge bg-secondary">{niveau.ordre}</span>
+                    </td>
+                    <td>
+                      <code className="text-secondary">{niveau.code}</code>
+                    </td>
+                    <td>
+                      <div>
+                        <div className="fw-medium">{niveau.libelle}</div>
+                        {niveau.description && (
+                          <small className="text-muted">{niveau.description}</small>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge bg-info bg-opacity-10 text-info">
+                        {niveau.type_diplome || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      {niveau.actif ? (
+                        <span className="badge bg-success">Actif</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactif</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-top">
+          <small className="text-muted">
+            <Award size={14} className="me-1" />
+            Les niveaux d'études sont utilisés dans le formulaire d'inscription des étudiants.
+            Cliquez sur "Gérer les Niveaux" pour ajouter, modifier ou supprimer des niveaux.
+          </small>
+        </div>
+      </div>
+    </div>
+  );
+  // === SECTION ANNÉES ACADÉMIQUES ===
+  const [showAnneeForm, setShowAnneeForm] = useState(false);
+  const [editingAnnee, setEditingAnnee] = useState<any>(null);
+  const [anneeForm, setAnneeForm] = useState({
+    libelle: '',
+    annee_debut: new Date().getFullYear(),
+    annee_fin: new Date().getFullYear() + 1,
+    date_debut: '',
+    date_fin: '',
+    active: true
+  });
+
+  const handleCreateAnnee = async () => {
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      const payload = {
+        libelle: anneeForm.libelle,
+        anneeDebut: anneeForm.annee_debut,
+        anneeFin: anneeForm.annee_fin,
+        dateDebut: anneeForm.date_debut || null,
+        dateFin: anneeForm.date_fin || null,
+        active: anneeForm.active
+      };
+
+      if (editingAnnee) {
+        await api.patch(`/academic/${tid}/annees/${editingAnnee.id}`, payload);
+        toast.success('Année académique modifiée avec succès');
+      } else {
+        await api.post(`/academic/${tid}/annees`, payload);
+        toast.success('Année académique créée avec succès');
+      }
+
+      setShowAnneeForm(false);
+      setEditingAnnee(null);
+      setAnneeForm({
+        libelle: '',
+        annee_debut: new Date().getFullYear(),
+        annee_fin: new Date().getFullYear() + 1,
+        date_debut: '',
+        date_fin: '',
+        active: true
+      });
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur création année:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'opération');
+    }
+  };
+
+  const handleDeleteAnnee = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette année académique ?')) return;
+    
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.delete(`/academic/${tid}/annees/${id}`);
+      toast.success('Année académique supprimée');
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur suppression année:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleToggleAnneeActive = async (id: string) => {
+    try {
+      const tid = authTenant?.id || user?.tenantId;
+      if (!tid) return;
+
+      await api.post(`/academic/${tid}/annees/${id}/activer`);
+      toast.success('Statut modifié');
+      loadAcademicData();
+    } catch (error: any) {
+      console.error('Erreur toggle active:', error);
+      toast.error(error.response?.data?.message || 'Erreur lors de la modification');
+    }
+  };
+
+  const renderAnneesAcademiquesSection = () => (
+    <div className="card border-0 shadow-sm">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex align-items-center gap-2">
+            <h6 className="card-title mb-0 text-danger">
+              <Calendar size={18} className="me-2" />
+              Années Académiques
+            </h6>
+            <span className="badge bg-danger bg-opacity-10 text-danger">
+              {anneesAcademiques.length}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={() => {
+              setEditingAnnee(null);
+              setAnneeForm({
+                libelle: '',
+                annee_debut: new Date().getFullYear(),
+                annee_fin: new Date().getFullYear() + 1,
+                date_debut: '',
+                date_fin: '',
+                active: true
+              });
+              setShowAnneeForm(true);
+            }}
+          >
+            <Plus size={16} className="me-2" />
+            Nouvelle Année
+          </button>
+        </div>
+
+        {anneesAcademiques.length === 0 ? (
+          <div className="text-center py-5">
+            <Calendar size={48} className="text-muted mb-3" />
+            <h6 className="text-muted">Aucune année académique configurée</h6>
+            <p className="text-muted small mb-3">
+              Créez des années académiques pour organiser les inscriptions et les cours
+            </p>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => setShowAnneeForm(true)}
+            >
+              <Plus size={16} className="me-2" />
+              Créer la première année
+            </button>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Libellé</th>
+                  <th style={{ width: '150px' }}>Période</th>
+                  <th style={{ width: '200px' }}>Dates</th>
+                  <th style={{ width: '100px' }} className="text-center">Statut</th>
+                  <th style={{ width: '150px' }} className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anneesAcademiques.map((annee) => (
+                  <tr key={annee.id}>
+                    <td>
+                      <div className="fw-medium">{annee.libelle}</div>
+                    </td>
+                    <td>
+                      <span className="badge bg-danger bg-opacity-10 text-danger">
+                        {annee.annee_debut} - {annee.annee_fin}
+                      </span>
+                    </td>
+                    <td>
+                      <small className="text-muted">
+                        {annee.date_debut && annee.date_fin ? (
+                          <>
+                            {new Date(annee.date_debut).toLocaleDateString('fr-FR')} - {new Date(annee.date_fin).toLocaleDateString('fr-FR')}
+                          </>
+                        ) : (
+                          'Non défini'
+                        )}
+                      </small>
+                    </td>
+                    <td className="text-center">
+                      <button
+                        className={`btn btn-sm ${annee.active ? 'btn-success' : 'btn-secondary'}`}
+                        onClick={() => handleToggleAnneeActive(annee.id)}
+                        title={annee.active ? 'Désactiver' : 'Activer'}
+                      >
+                        {annee.active ? <CheckCircle size={14} /> : <XIcon size={14} />}
+                      </button>
+                    </td>
+                    <td className="text-center">
+                      <div className="btn-group btn-group-sm">
+                        <button
+                          className="btn btn-outline-primary"
+                          onClick={() => {
+                            setEditingAnnee(annee);
+                            setAnneeForm({
+                              libelle: annee.libelle,
+                              annee_debut: annee.annee_debut,
+                              annee_fin: annee.annee_fin,
+                              date_debut: annee.date_debut || '',
+                              date_fin: annee.date_fin || '',
+                              active: annee.active
+                            });
+                            setShowAnneeForm(true);
+                          }}
+                          title="Modifier"
+                        >
+                          <EditIcon size={14} />
+                        </button>
+                        <button
+                          className="btn btn-outline-danger"
+                          onClick={() => handleDeleteAnnee(annee.id)}
+                          title="Supprimer"
+                        >
+                          <TrashIcon size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-top">
+          <small className="text-muted">
+            <Calendar size={14} className="me-1" />
+            Les années académiques sont utilisées pour organiser les inscriptions, les cours et les examens.
+            Une seule année peut être active à la fois.
+          </small>
+        </div>
+      </div>
+
+      {/* Modal Formulaire */}
+      {showAnneeForm && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {editingAnnee ? 'Modifier l\'année académique' : 'Nouvelle année académique'}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowAnneeForm(false);
+                    setEditingAnnee(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Libellé *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={anneeForm.libelle}
+                    onChange={(e) => setAnneeForm({ ...anneeForm, libelle: e.target.value })}
+                    placeholder="Ex: Année Académique 2024-2025"
+                  />
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Année Début *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={anneeForm.annee_debut}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_debut: parseInt(e.target.value) })}
+                      min="2000"
+                      max="2100"
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Année Fin *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={anneeForm.annee_fin}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_fin: parseInt(e.target.value) })}
+                      min="2000"
+                      max="2100"
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Date Début</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={anneeForm.date_debut}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, date_debut: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Date Fin</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={anneeForm.date_fin}
+                      onChange={(e) => setAnneeForm({ ...anneeForm, date_fin: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="form-check">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id="anneeActive"
+                    checked={anneeForm.active}
+                    onChange={(e) => setAnneeForm({ ...anneeForm, active: e.target.checked })}
+                  />
+                  <label className="form-check-label" htmlFor="anneeActive">
+                    Année active
+                  </label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowAnneeForm(false);
+                    setEditingAnnee(null);
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleCreateAnnee}
+                  disabled={!anneeForm.libelle || !anneeForm.annee_debut || !anneeForm.annee_fin}
+                >
+                  <SaveIcon size={16} className="me-2" />
+                  {editingAnnee ? 'Modifier' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+
   // === SECTION ÉTUDIANTS ===
   const renderEtudiantsSection = () => (
     <div className="card border-0 shadow-sm">
@@ -2527,6 +3310,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
             </form>
           )}
 
+          {/* Notification compte créé */}
+          {createdAccount && (
+            <div className="alert alert-success alert-dismissible fade show mb-4" role="alert">
+              <div className="d-flex align-items-start gap-3">
+                <div className="bg-white bg-opacity-25 rounded-circle p-2">
+                  <UserPlus size={24} />
+                </div>
+                <div className="flex-grow-1">
+                  <h6 className="alert-heading mb-2">Compte étudiant créé avec succès !</h6>
+                  <p className="mb-2 small">{createdAccount.message}</p>
+                  <div className="bg-white bg-opacity-50 rounded p-2 mb-2">
+                    <div className="small"><strong>Email:</strong> {createdAccount.email}</div>
+                    <div className="small"><strong>Matricule:</strong> {createdAccount.matricule}</div>
+                    <div className="small"><strong>Nom:</strong> {createdAccount.nom} {createdAccount.prenom}</div>
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => {
+                        setActiveTab('users');
+                        setCreatedAccount(null);
+                      }}
+                    >
+                      <UserCog size={14} className="me-1" />
+                      Modifier le compte
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      onClick={() => setCreatedAccount(null)}
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* État vide */}
           {etudiants.length === 0 ? (
             <div className="text-center py-5">
@@ -2599,21 +3420,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                         {etu.telephone && <div className="small"><PhoneIconAlias size={12} className="me-1" /> {etu.telephone}</div>}
                       </td>
                       <td className="text-end">
-                        <div className="btn-group btn-group-sm">
-                          <button
-                            className="btn btn-outline-primary"
-                            onClick={() => handleEditEtudiant(etu)}
-                            title="Modifier"
-                          >
-                            <EditIcon size={14} />
-                          </button>
-                          <button
-                            className="btn btn-outline-danger"
-                            onClick={() => handleDeleteEtudiant(etu.id)}
-                            title="Supprimer"
-                          >
-                            <TrashIcon size={14} />
-                          </button>
+                        <div className="d-flex align-items-center justify-content-end gap-2">
+                          {etu.utilisateurId && (
+                            <span className="badge bg-success" title="Compte utilisateur lié">
+                              <UserCog size={12} className="me-1" />
+                              Compte actif
+                            </span>
+                          )}
+                          <div className="btn-group btn-group-sm">
+                            <button
+                              className="btn btn-outline-primary"
+                              onClick={() => handleEditEtudiant(etu)}
+                              title="Modifier étudiant"
+                            >
+                              <EditIcon size={14} />
+                            </button>
+                            {etu.utilisateurId && (
+                              <button
+                                className="btn btn-outline-success"
+                                onClick={() => {
+                                  setActiveTab('users');
+                                  // TODO: Pass utilisateurId to user edit
+                                }}
+                                title="Modifier compte"
+                              >
+                                <UserCog size={14} />
+                              </button>
+                            )}
+                            <button
+                              className="btn btn-outline-danger"
+                              onClick={() => handleDeleteEtudiant(etu.id)}
+                              title="Supprimer"
+                            >
+                              <TrashIcon size={14} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -2686,180 +3527,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   );
 
   // Rendu de la gestion RH
-  const renderRH = () => (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body">
-        <h5 className="card-title mb-4">
-          <Briefcase size={20} className="me-2" />
-          Gestion des Ressources Humaines
-        </h5>
-        <div className="row g-3">
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Personnel</h6>
-                <small className="text-muted">Gestion dossiers personnel</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Contrats</h6>
-                <small className="text-muted">CDI, CDD, vacations</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Paie</h6>
-                <small className="text-muted">Salaires, vacations, charges</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Congés & Absences</h6>
-                <small className="text-muted">Gestion congés, absences</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Évaluations</h6>
-                <small className="text-muted">Évaluations performance</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Recrutement</h6>
-                <small className="text-muted">Offres, candidatures</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const renderRH = () => <GestionRHPage />;
 
   // Rendu de la communication
-  const renderCommunication = () => (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body">
-        <h5 className="card-title mb-4">
-          <MessageSquare size={20} className="me-2" />
-          Gestion de la Communication
-        </h5>
-        <div className="row g-3">
-          <div className="col-md-4">
-            <div className="card bg-light">
-              <div className="card-body">
-                <h6>Actualités</h6>
-                <small className="text-muted">Publication actualités, annonces</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card bg-light">
-              <div className="card-body">
-                <h6>Événements</h6>
-                <small className="text-muted">Gestion calendrier événements</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card bg-light">
-              <div className="card-body">
-                <h6>Campagnes</h6>
-                <small className="text-muted">Campagnes communication ciblées</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const renderCommunication = () => <GestionCommunicationPage />;
 
   // Rendu de la discipline
-  const renderDiscipline = () => (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body">
-        <h5 className="card-title mb-4">
-          <Scale size={20} className="me-2" />
-          Gestion de la Discipline
-        </h5>
-        <div className="row g-3">
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Présences & Absences</h6>
-                <small className="text-muted">Suivi présences journalières</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Incidents</h6>
-                <small className="text-muted">Rapports incidents disciplinaires</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Sanctions</h6>
-                <small className="text-muted">Gestion sanctions disciplinaires</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Surveillance Examens</h6>
-                <small className="text-muted">Organisation surveillance</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const renderDiscipline = () => <GestionDisciplinePage />;
 
   // Rendu de la logistique
-  const renderLogistics = () => (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body">
-        <h5 className="card-title mb-4">
-          <Package size={20} className="me-2" />
-          Gestion Logistique & Maintenance
-        </h5>
-        <div className="row g-3">
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Infrastructures</h6>
-                <small className="text-muted">Bâtiments, salles, bureaux</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Équipements</h6>
-                <small className="text-muted">Tables, chaises, matériel pédagogique</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Maintenance</h6>
-                <small className="text-muted">Tickets incidents, planification</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Réservations</h6>
-                <small className="text-muted">Salles, amphithéâtres, labos</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="list-group">
-              <div className="list-group-item">
-                <h6 className="mb-2">Stocks</h6>
-                <small className="text-muted">Fournitures, produits entretien</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Énergie</h6>
-                <small className="text-muted">Suivi consommations, groupes électrogènes</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Inventaire</h6>
-                <small className="text-muted">Codification mobilier, matériel</small>
-              </div>
-              <div className="list-group-item">
-                <h6 className="mb-2">Entretien</h6>
-                <small className="text-muted">Planning nettoyage, zones assignées</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const renderLogistics = () => <GestionLogistiquePage />;
 
   if (loading) {
     return (

@@ -49,7 +49,16 @@ let TenantsController = class TenantsController {
         return this.svc.findAll();
     }
     findOne(id) {
-        return this.svc.findOne(id);
+        console.log(`🔍 Controller - Recherche du tenant: ${id}`);
+        try {
+            const result = this.svc.findOne(id);
+            console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
+            return result;
+        }
+        catch (error) {
+            console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
+            throw error;
+        }
     }
     findBySlug(slug) {
         return this.svc.findBySlug(slug);
@@ -74,6 +83,35 @@ let TenantsController = class TenantsController {
     }
     removeSubscription(id) {
         return this.svc.removeSubscription(id);
+    }
+    async checkTenantTable() {
+        console.log('🔍 Debug - Vérification de la table tenant...');
+        try {
+            const tenants = await this.svc.findAll();
+            console.log(`📊 Debug - ${tenants.length} tenants trouvés`);
+            const schemas = [];
+            for (const tenant of tenants) {
+                if (tenant.schemaName) {
+                    schemas.push(tenant.schemaName);
+                }
+            }
+            return {
+                tenantCount: tenants.length,
+                tenants: tenants,
+                schemas: schemas,
+                message: `Found ${tenants.length} tenants in database`
+            };
+        }
+        catch (error) {
+            console.log(`❌ Debug - Erreur: ${error}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return {
+                error: errorMessage,
+                tenantCount: 0,
+                tenants: [],
+                schemas: []
+            };
+        }
     }
 };
 exports.TenantsController = TenantsController;
@@ -222,6 +260,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "removeSubscription", null);
+__decorate([
+    (0, common_1.Get)('debug/check-table'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Vérifier le contenu de la table tenant (debug)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Contenu de la table tenant' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "checkTenantTable", null);
 exports.TenantsController = TenantsController = __decorate([
     (0, swagger_1.ApiTags)('Super Admin - Gestion des Universités'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

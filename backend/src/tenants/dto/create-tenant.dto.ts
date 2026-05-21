@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsUrl, Length, Matches, IsEnum, IsNumber, IsDateString, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsUrl, Length, Matches, IsEnum, IsNumber, IsDateString, IsBoolean, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTenantDto {
@@ -123,4 +123,9 @@ export class CreateTenantDto {
   @IsNumber()
   @IsOptional()
   maxUtilisateurs?: number;
+
+  @ApiPropertyOptional({ description: 'Statut actif', example: true })
+  @IsBoolean()
+  @IsOptional()
+  actif?: boolean;
 }

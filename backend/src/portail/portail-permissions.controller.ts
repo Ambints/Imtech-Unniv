@@ -49,7 +49,7 @@ export class PortailPermissionsController {
     const grouped = {
       etudiant: [],
       parent: [],
-      professeur: []
+      enseignant: []
     };
 
     permissions.forEach((perm: any) => {
@@ -73,7 +73,7 @@ export class PortailPermissionsController {
       throw new BadRequestException('Tenant ID manquant');
     }
 
-    if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+    if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
       throw new BadRequestException('Type de portail invalide');
     }
 
@@ -117,7 +117,7 @@ export class PortailPermissionsController {
       throw new BadRequestException('Tenant ID manquant');
     }
 
-    if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+    if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
       throw new BadRequestException('Type de portail invalide');
     }
 
@@ -155,7 +155,7 @@ export class PortailPermissionsController {
       throw new BadRequestException('Tenant ID manquant');
     }
 
-    if (!['etudiant', 'parent', 'professeur'].includes(type)) {
+    if (!['etudiant', 'parent', 'enseignant'].includes(type)) {
       throw new BadRequestException('Type de portail invalide');
     }
 
