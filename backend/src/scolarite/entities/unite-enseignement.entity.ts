@@ -12,7 +12,6 @@ import { Parcours } from './parcours.entity';
 import { ElementConstitutif } from './element-constitutif.entity';
 import { Note } from './note.entity';
 import { ResultatUE } from './resultat-ue.entity';
-import { TransfertEtudiant } from './transfert-etudiant.entity';
 import { Utilisateur } from './utilisateur.entity';
 
 @Entity('unite_enseignement')
@@ -78,10 +77,6 @@ export class UniteEnseignement {
 
   @OneToMany(() => ResultatUE, (resultat) => resultat.uniteEnseignement)
   resultatsUE: ResultatUE[];
-
-  // Note: TransfertEtudiant n'a pas de relation uniteEnseignement
-  // @OneToMany(() => TransfertEtudiant, (transfert) => transfert.uniteEnseignement)
-  // transferts: TransfertEtudiant[];
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

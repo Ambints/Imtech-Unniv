@@ -152,7 +152,7 @@ export default function TicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {tickets?.map((ticket) => (
+                {Array.isArray(tickets) ? tickets.map((ticket) => (
                   <tr key={ticket.id}>
                     <td>
                       <span className={`badge ${getPriorityBadge(ticket.priorite)}`}>
@@ -187,7 +187,13 @@ export default function TicketsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={9} className="text-center text-muted py-4">
+                      Aucun ticket trouvé
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -214,7 +220,7 @@ export default function TicketsPage() {
                       <label className="form-label">Bâtiment</label>
                       <select name="batiment_id" className="form-select">
                         <option value="">Sélectionner...</option>
-                        {batiments?.map((b) => (
+                        {(batiments || []).map((b) => (
                           <option key={b.id} value={b.id}>{b.nom}</option>
                         ))}
                       </select>
@@ -223,7 +229,7 @@ export default function TicketsPage() {
                       <label className="form-label">Salle</label>
                       <select name="salle_id" className="form-select">
                         <option value="">Sélectionner...</option>
-                        {salles?.map((s) => (
+                        {(salles || []).map((s) => (
                           <option key={s.id} value={s.id}>{s.nom}</option>
                         ))}
                       </select>

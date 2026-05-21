@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { usersApi, tenantsApi } from '../../api/client';
-import { 
-  Users, Plus, Edit, Trash2, Search, Filter, 
+import {
+  Users, Plus, Edit, Trash2, Search, Filter,
   CheckCircle, XCircle, Shield, User, Crown
 } from 'lucide-react';
 
@@ -108,6 +108,7 @@ const EDITABLE_ROLES = ['super_admin', 'admin', 'president'];
 
 export const UserManagement: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,21 +117,53 @@ export const UserManagement: React.FC = () => {
   const [filterUniversity, setFilterUniversity] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
     loadTenants();
+    
+    // Vérifier si on revient avec un nouvel utilisateur à mettre en évidence
+    const state = location.state as any;
+    if (state?.newUserId) {
+      setHighlightedUserId(state.newUserId);
+      // Retirer le highlight après 3 secondes
+      setTimeout(() => setHighlightedUserId(null), 3000);
+      // Nettoyer l'état pour éviter de re-highlight lors du prochain rendu
+      window.history.replaceState({}, document.title);
+    }
+  }, [filterRole, filterUniversity, location.state]);
+
+  // Refresh list when component becomes visible (after navigation back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadUsers();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', loadUsers);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', loadUsers);
+    };
   }, [filterRole, filterUniversity]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
       const data = await usersApi.getAll(undefined, filterRole || undefined, filterUniversity || undefined);
-      setUsers(data);
+      // Trier pour mettre les plus récents en premier
+      const sortedData = data.sort((a: UserData, b: UserData) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setUsers(sortedData);
       setError(null);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 
-                           err.message || 
+      const errorMessage = err.response?.data?.message ||
+                           err.message ||
                            'Erreur lors du chargement des utilisateurs';
       setError(errorMessage);
       console.error('Erreur API:', err);
@@ -361,7 +394,14 @@ export const UserManagement: React.FC = () => {
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} style={{ borderBottom: '1px solid rgba(15,25,35,0.04)' }}>
+                  <tr
+                    key={user.id}
+                    style={{
+                      borderBottom: '1px solid rgba(15,25,35,0.04)',
+                      backgroundColor: highlightedUserId === user.id ? '#DBEAFE' : 'transparent',
+                      transition: 'background-color 0.3s ease'
+                    }}
+                  >
                     <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {user.photoUrl ? (

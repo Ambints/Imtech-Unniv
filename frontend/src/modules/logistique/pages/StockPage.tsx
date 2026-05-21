@@ -144,7 +144,7 @@ export default function StockPage() {
               <div className="d-flex justify-content-between">
                 <div>
                   <p className="text-muted mb-1 small">Total articles</p>
-                  <h4 className="mb-0">{stock?.length || 0}</h4>
+                  <h4 className="mb-0">{Array.isArray(stock) ? stock.length : 0}</h4>
                 </div>
                 <div className="bg-primary bg-opacity-10 p-3 rounded">
                   <i className="bi bi-box text-primary fs-4"></i>
@@ -160,7 +160,7 @@ export default function StockPage() {
                 <div>
                   <p className="text-muted mb-1 small">En alerte</p>
                   <h4 className="mb-0 text-danger">
-                    {stock?.filter(s => s.en_alerte).length || 0}
+                    {Array.isArray(stock) ? stock.filter(s => s.en_alerte).length : 0}
                   </h4>
                 </div>
                 <div className="bg-danger bg-opacity-10 p-3 rounded">
@@ -192,7 +192,7 @@ export default function StockPage() {
                 </tr>
               </thead>
               <tbody>
-                {stock?.map((article) => (
+                {Array.isArray(stock) && stock.length > 0 ? stock.map((article) => (
                   <tr key={article.id} className={article.en_alerte ? 'stock-row-alerte' : ''}>
                     <td><code>{article.reference}</code></td>
                     <td className="fw-medium">{article.libelle}</td>
@@ -218,11 +218,11 @@ export default function StockPage() {
                       )}
                     </td>
                     <td className="text-muted">
-                      {article.prix_unitaire ? `${article.prix_unitaire.toFixed(2)} €` : '-'}
+                      {article.prix_unitaire ? `${Number(article.prix_unitaire).toFixed(2)} €` : '-'}
                     </td>
                     <td className="text-muted">
-                      {article.prix_unitaire 
-                        ? `${(article.quantite_stock * article.prix_unitaire).toFixed(2)} €`
+                      {article.prix_unitaire
+                        ? `${(Number(article.quantite_stock) * Number(article.prix_unitaire)).toFixed(2)} €`
                         : '-'
                       }
                     </td>
@@ -255,7 +255,13 @@ export default function StockPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={10} className="text-center text-muted py-4">
+                      Aucun article en stock
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

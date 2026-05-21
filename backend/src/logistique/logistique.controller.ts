@@ -29,7 +29,7 @@ import { TraiterDemandeRessourceDto } from './dto/traiter-demande-ressource.dto'
 
 @Controller('logistique')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('logistique')
+@Roles('logistique', 'responsable_logistique')
 @UseInterceptors(TenantSchemaInterceptor)
 export class LogistiqueController {
   constructor(private readonly logistiqueService: LogistiqueService) {}

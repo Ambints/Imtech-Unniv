@@ -7,6 +7,7 @@ import CongesPage from './CongesPage';
 import PaieVacationsPage from './PaieVacationsPage';
 import EvaluationsPage from './EvaluationsPage';
 import RecrutementPage from './RecrutementPage';
+import AffectationCoursPage from './AffectationCoursPage';
 
 export const RHPage: React.FC = () => {
   return (
@@ -18,6 +19,7 @@ export const RHPage: React.FC = () => {
       <Route path="paie" element={<PaieVacationsPage />} />
       <Route path="evaluations" element={<EvaluationsPage />} />
       <Route path="recrutement" element={<RecrutementPage />} />
+      <Route path="affectation-cours" element={<AffectationCoursPage />} />
       <Route path="*" element={<Navigate to="/rh" replace />} />
     </Routes>
   );

@@ -10,6 +10,7 @@ import { AdminModule } from './admin/admin.module';
 import { AcademicModule } from './academic/academic.module';
 import { FinanceModule } from './finance/finance.module';
 import { LogisticsModule } from './logistics/logistics.module';
+import { LogistiqueModule } from './logistique/logistique.module';
 import { CommunicationModule } from './communication/communication.module';
 import { DisciplineModule } from './discipline/discipline.module';
 import { ExamensModule } from './examens/examens.module';
@@ -22,6 +23,7 @@ import { CaissierModule } from './caissier/caissier.module';
 import { PedagogiqueModule } from './pedagogique/pedagogique.module';
 import { MessagerieModule } from './messagerie/messagerie.module';
 import { ImtechCacheModule } from './cache/cache.module';
+import { ConfigurationModule } from './configuration/configuration.module';
 import { Tenant } from './tenants/tenant.entity';
 import { User } from './users/user.entity';
 import { SuperAdmin } from './users/super-admin.entity';
@@ -61,7 +63,6 @@ import {
   ResultatUE,
   Diplome as ScolariteDiplome,
   SuplementDiplome,
-  TransfertEtudiant,
   ArchiveScolarite,
   VerrouillageNotes,
 } from './scolarite/entities';
@@ -147,7 +148,7 @@ import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
         AbsenceEnseignant, Rattrapage, Convocation, NoteDerogatoire,
         DemandeEtudiant, SecretaireParcours,
         ScolariteDeliberation, ResultatSemestre, ResultatUE, ScolariteDiplome,
-        SuplementDiplome, TransfertEtudiant, ArchiveScolarite, VerrouillageNotes,
+        SuplementDiplome, ArchiveScolarite, VerrouillageNotes,
         ScolariteEtudiant, ScolariteSessionExamen, Utilisateur, ScolariteNote,
         ScolariteParcours, ScolariteAnneeAcademique, ScolariteUniteEnseignement,
         ScolariteElementConstitutif, ScolariteInscription,
@@ -162,6 +163,7 @@ import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
     AcademicModule,
     FinanceModule,
     LogisticsModule,
+    LogistiqueModule,
     CommunicationModule,
     PlansModule,
     SubscriptionsModule,
@@ -178,6 +180,7 @@ import { TenantSchemaInterceptor } from './tenants/tenant-schema.interceptor';
     MessagerieModule,
     PresidentModule,
     ImtechCacheModule,
+    ConfigurationModule,
   ],
   providers: [
     {

@@ -22,6 +22,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const errorMessage = Array.isArray(message) ? message.join('; ') : String(message);
 
+    // LOG THE ERROR SO WE CAN SEE IT
+    console.error('='.repeat(80));
+    console.error('[GlobalExceptionFilter] Caught exception:');
+    console.error('URL:', (req as any)?.url);
+    console.error('Method:', (req as any)?.method);
+    console.error('Status:', status);
+    console.error('Error Name:', name);
+    console.error('Error Code:', code);
+    console.error('Message:', errorMessage);
+    if (exception instanceof Error) {
+      console.error('Stack:', exception.stack);
+    } else {
+      console.error('Exception:', exception);
+    }
+    console.error('='.repeat(80));
+
     res.status(status).json({
       statusCode: status,
       error: name ?? 'Error',

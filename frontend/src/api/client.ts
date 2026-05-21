@@ -95,9 +95,23 @@ api.interceptors.request.use((config) => {
     console.warn('⚠️ Pas de token trouvé!');
   }
 
-  // Super Admin n'a pas besoin de tenant ID - il gère tous les tenants
-  if (userRole === 'super_admin') {
-    console.log('✅ Super Admin - pas besoin de X-Tenant-Id');
+  // Super Admin n'a pas besoin de tenant ID seulement pour les routes whitelistées
+  const whitelistedSuperAdminRoutes = [
+    '/api/v1/tenants',
+    '/api/v1/users',
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/logout',
+    '/api/v1/health',
+    '/api/v1/docs'
+  ];
+
+  const isWhitelistedSuperAdminRoute = userRole === 'super_admin' &&
+    whitelistedSuperAdminRoutes.some(route => config.url?.includes(route));
+
+  if (isWhitelistedSuperAdminRoute) {
+    console.log('✅ Super Admin sur route whitelistée - pas besoin de X-Tenant-Id');
     return config;
   }
 
@@ -168,11 +182,11 @@ export const tenantsApi = {
 };
 
 export const plansApi = {
-  getAll: async () => (await api.get('/plans')).data,
-  getOne: async (id: string) => (await api.get(`/plans/${id}`)).data,
-  create: async (dto: any) => (await api.post('/plans', dto)).data,
-  update: async (id: string, dto: any) => (await api.patch(`/plans/${id}`, dto)).data,
-  delete: async (id: string) => (await api.delete(`/plans/${id}`)).data,
+  getAll: async () => (await api.get('/tenants/plans')).data,
+  getOne: async (id: string) => (await api.get(`/tenants/plans/${id}`)).data,
+  create: async (dto: any) => (await api.post('/tenants/plans', dto)).data,
+  update: async (id: string, dto: any) => (await api.patch(`/tenants/plans/${id}`, dto)).data,
+  delete: async (id: string) => (await api.delete(`/tenants/plans/${id}`)).data,
 };
 
 export const usersApi = {

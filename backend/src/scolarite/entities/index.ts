@@ -3,7 +3,6 @@ export { ResultatSemestre } from './resultat-semestre.entity';
 export { ResultatUE } from './resultat-ue.entity';
 export { Diplome } from './diplome.entity';
 export { SuplementDiplome } from './suplement-diplome.entity';
-export { TransfertEtudiant } from './transfert-etudiant.entity';
 export { ArchiveScolarite } from './archive-scolarite.entity';
 export { VerrouillageNotes } from './verrouillage-notes.entity';
 export { Inscription } from './inscription.entity';

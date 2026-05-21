@@ -39,8 +39,9 @@ export default function DemandesRessourcePage() {
     );
   }
 
-  const soumises = demandes?.filter(d => d.statut === 'soumise') || [];
-  const traitees = demandes?.filter(d => d.statut !== 'soumise') || [];
+  const demandesArray = Array.isArray(demandes) ? demandes : [];
+  const soumises = demandesArray.filter(d => d.statut === 'soumise');
+  const traitees = demandesArray.filter(d => d.statut !== 'soumise');
 
   return (
     <div className="container-fluid py-4">

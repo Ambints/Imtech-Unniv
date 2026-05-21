@@ -80,6 +80,7 @@ let UsersService = class UsersService {
     async create(dto) {
         const password = dto.password || this.generateSecurePassword();
         const hashedPassword = await bcrypt.hash(password, 12);
+        await this.cacheService.invalidatePattern('users:*');
         if (dto.role === 'super_admin') {
             const existingSuperAdmin = await this.superAdminRepo.findOne({ where: { email: dto.email } });
             if (existingSuperAdmin)
@@ -119,8 +120,8 @@ let UsersService = class UsersService {
             if (existing.length > 0)
                 throw new common_1.ConflictException('Email deja utilise dans cette université');
             const tableCheckQuery = `
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_schema = $1 AND table_name = 'utilisateur'
       `;
             const tableExists = await this.dataSource.query(tableCheckQuery, [tenant.schemaName]);
@@ -145,6 +146,46 @@ let UsersService = class UsersService {
                 !dto.password,
                 !dto.password ? new Date() : null
             ]);
+            const userId = result[0].id;
+            if (dto.role === 'enseignant') {
+                try {
+                    const countQuery = `
+            SELECT COUNT(*) as count
+            FROM "${tenant.schemaName}".enseignant
+          `;
+                    const countResult = await this.dataSource.query(countQuery);
+                    const nextNum = (parseInt(countResult[0]?.count || 0) + 1);
+                    const matricule = `ENS${String(nextNum).padStart(5, '0')}`;
+                    console.log(`Génération du matricule: ${matricule} (next_num: ${nextNum})`);
+                    const insertEnseignantQuery = `
+            INSERT INTO "${tenant.schemaName}".enseignant
+            (utilisateur_id, matricule, nom, prenom, titre, grade, specialite, email, telephone, actif)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, matricule
+          `;
+                    const enseignantResult = await this.dataSource.query(insertEnseignantQuery, [
+                        userId,
+                        matricule,
+                        dto.nom,
+                        dto.prenom,
+                        dto.titre || null,
+                        dto.grade || null,
+                        dto.specialite || null,
+                        dto.email,
+                        dto.telephone || null,
+                        true
+                    ]);
+                    console.log(`Enregistrement enseignant créé avec matricule ${matricule} pour l'utilisateur ${dto.email}`);
+                    result[0].enseignantId = enseignantResult[0].id;
+                    result[0].matricule = enseignantResult[0].matricule;
+                }
+                catch (error) {
+                    console.error('Erreur lors de la création de l\'enregistrement enseignant:', error);
+                    console.error('Détails de l\'erreur:', error.stack);
+                    await this.dataSource.query(`DELETE FROM "${tenant.schemaName}".utilisateur WHERE id = $1`, [userId]);
+                    throw new common_1.ConflictException('Erreur lors de la création du profil enseignant: ' + error.message);
+                }
+            }
             if (!dto.password) {
                 try {
                     await this.emailService.sendCredentialsEmail(dto.email, dto.nom, dto.prenom, password, dto.role, tenant.nom);
@@ -199,8 +240,12 @@ let UsersService = class UsersService {
         for (const tenant of tenants) {
             if (tid && tenant.id !== tid)
                 continue;
-            if (university && tenant.nom.toLowerCase().indexOf(university.toLowerCase()) === -1)
-                continue;
+            if (university) {
+                const matchById = tenant.id === university;
+                const matchByName = tenant.nom.toLowerCase().indexOf(university.toLowerCase()) !== -1;
+                if (!matchById && !matchByName)
+                    continue;
+            }
             const schemaName = tenant.schemaName;
             let query = `SELECT id, email, nom, prenom, telephone, role, actif, created_at, derniere_connexion FROM "${schemaName}".utilisateur`;
             const params = [];
@@ -227,14 +272,15 @@ let UsersService = class UsersService {
                     createdAt: u.created_at,
                     telephone: u.telephone,
                     photoUrl: u.photo_url,
-                    tenantId: u.tenant_id,
-                    university: u.university,
+                    tenantId: tenant.id,
+                    university: tenant.nom,
                 })));
             }
             catch (err) {
                 console.warn(`Failed to query schema ${tenant.schemaName}:`, err?.message || String(err));
             }
         }
+        await this.cacheService.set(cacheKey, allUsers, 300);
         return allUsers;
     }
     async findOne(id) {
@@ -327,6 +373,7 @@ let UsersService = class UsersService {
     }
     async update(id, dto) {
         console.log(`[UsersService] Updating user ${id} with data:`, { ...dto, password: dto.password ? '***' : undefined });
+        await this.cacheService.invalidatePattern('users:*');
         const tenants = await this.tenantRepo.find({ where: { actif: true } });
         for (const tenant of tenants) {
             if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {
@@ -419,6 +466,7 @@ let UsersService = class UsersService {
         throw new common_1.NotFoundException(`Utilisateur ${id} introuvable`);
     }
     async remove(id) {
+        await this.cacheService.invalidatePattern('users:*');
         const tenants = await this.tenantRepo.find({ where: { actif: true } });
         for (const tenant of tenants) {
             if (!tenant.schemaName || tenant.schemaName === 'univ_demo') {

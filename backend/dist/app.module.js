@@ -19,6 +19,7 @@ const admin_module_1 = require("./admin/admin.module");
 const academic_module_1 = require("./academic/academic.module");
 const finance_module_1 = require("./finance/finance.module");
 const logistics_module_1 = require("./logistics/logistics.module");
+const logistique_module_1 = require("./logistique/logistique.module");
 const communication_module_1 = require("./communication/communication.module");
 const discipline_module_1 = require("./discipline/discipline.module");
 const examens_module_1 = require("./examens/examens.module");
@@ -31,6 +32,7 @@ const caissier_module_1 = require("./caissier/caissier.module");
 const pedagogique_module_1 = require("./pedagogique/pedagogique.module");
 const messagerie_module_1 = require("./messagerie/messagerie.module");
 const cache_module_1 = require("./cache/cache.module");
+const configuration_module_1 = require("./configuration/configuration.module");
 const tenant_entity_1 = require("./tenants/tenant.entity");
 const user_entity_1 = require("./users/user.entity");
 const super_admin_entity_1 = require("./users/super-admin.entity");
@@ -117,7 +119,7 @@ exports.AppModule = AppModule = __decorate([
                     secretaire_entities_1.AbsenceEnseignant, secretaire_entities_1.Rattrapage, secretaire_entities_1.Convocation, secretaire_entities_1.NoteDerogatoire,
                     secretaire_entities_1.DemandeEtudiant, secretaire_parcours_entity_1.SecretaireParcours,
                     entities_1.Deliberation, entities_1.ResultatSemestre, entities_1.ResultatUE, entities_1.Diplome,
-                    entities_1.SuplementDiplome, entities_1.TransfertEtudiant, entities_1.ArchiveScolarite, entities_1.VerrouillageNotes,
+                    entities_1.SuplementDiplome, entities_1.ArchiveScolarite, entities_1.VerrouillageNotes,
                     etudiant_entity_1.Etudiant, session_examen_entity_1.SessionExamen, utilisateur_entity_1.Utilisateur, note_entity_1.Note,
                     parcours_entity_1.Parcours, annee_academique_entity_1.AnneeAcademique, unite_enseignement_entity_1.UniteEnseignement,
                     element_constitutif_entity_1.ElementConstitutif, inscription_entity_1.Inscription,
@@ -132,6 +134,7 @@ exports.AppModule = AppModule = __decorate([
             academic_module_1.AcademicModule,
             finance_module_1.FinanceModule,
             logistics_module_1.LogisticsModule,
+            logistique_module_1.LogistiqueModule,
             communication_module_1.CommunicationModule,
             plans_module_1.PlansModule,
             subscriptions_module_1.SubscriptionsModule,
@@ -148,6 +151,7 @@ exports.AppModule = AppModule = __decorate([
             messagerie_module_1.MessagerieModule,
             president_module_1.PresidentModule,
             cache_module_1.ImtechCacheModule,
+            configuration_module_1.ConfigurationModule,
         ],
         providers: [
             {

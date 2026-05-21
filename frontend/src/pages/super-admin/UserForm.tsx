@@ -131,11 +131,17 @@ export const UserForm: React.FC = () => {
 
       if (isEdit) {
         await usersApi.update(id!, payload);
+        navigate('/super-admin/users');
       } else {
-        await usersApi.create(payload);
+        const newUser = await usersApi.create(payload);
+        // Rediriger avec l'ID du nouvel utilisateur pour le mettre en évidence
+        navigate('/super-admin/users', {
+          state: {
+            newUserId: newUser.id,
+            scrollToTop: true
+          }
+        });
       }
-
-      navigate('/super-admin/users');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
       console.error('Erreur:', err);

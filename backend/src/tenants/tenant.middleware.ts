@@ -15,9 +15,8 @@ export class TenantMiddleware implements NestMiddleware {
     { path: '/api/v1/auth/login', method: 'POST' },
     { path: '/api/v1/auth/register', method: 'POST' },
     { path: '/api/v1/auth/refresh', method: 'POST' },
-    { path: '/api/v1/tenants', method: 'GET' },      // SuperAdmin liste tous les tenants
-    { path: '/api/v1/tenants', method: 'POST' },     // SuperAdmin crée un tenant
-    { path: '/api/v1/users', method: 'GET' },        // SuperAdmin liste tous les users
+    { path: '/api/v1/tenants' },                     // Toutes les routes /tenants/* pour SuperAdmin
+    { path: '/api/v1/users' },                       // Toutes les routes /users/* pour SuperAdmin
     { path: '/api/v1/health' },                       // Health check
     { path: '/api/v1/docs' },                         // Documentation
   ];

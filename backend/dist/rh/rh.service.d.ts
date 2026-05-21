@@ -74,4 +74,55 @@ export declare class RHService {
     }): Promise<any[]>;
     getStatsRH(): Promise<any>;
     getStatsHeuresComplementaires(annee: number, mois: number): Promise<any>;
+    creerCours(data: {
+        parcoursId: string;
+        code: string;
+        intitule: string;
+        creditsEcts: number;
+        coefficient: number;
+        volumeCm?: number;
+        volumeTd?: number;
+        volumeTp?: number;
+        semestre: number;
+        anneeNiveau: number;
+        typeUe?: 'obligatoire' | 'optionnel' | 'libre';
+        enseignantId?: string;
+    }): Promise<any>;
+    modifierCours(id: string, data: Partial<{
+        code: string;
+        intitule: string;
+        creditsEcts: number;
+        coefficient: number;
+        volumeCm: number;
+        volumeTd: number;
+        volumeTp: number;
+        semestre: number;
+        anneeNiveau: number;
+        typeUe: 'obligatoire' | 'optionnel' | 'libre';
+        enseignantId: string;
+        actif: boolean;
+    }>): Promise<any>;
+    getCours(filters?: {
+        parcoursId?: string;
+        semestre?: number;
+        anneeNiveau?: number;
+        enseignantId?: string;
+        actif?: boolean;
+    }): Promise<any[]>;
+    getCoursById(id: string): Promise<any>;
+    affecterEnseignantCours(data: {
+        ueId: string;
+        enseignantId: string;
+        anneeAcademiqueId: string;
+        typeSeance: 'CM' | 'TD' | 'TP';
+        volumePrevu: number;
+    }): Promise<any>;
+    getAffectationsCours(filters?: {
+        enseignantId?: string;
+        ueId?: string;
+        anneeAcademiqueId?: string;
+    }): Promise<any[]>;
+    supprimerAffectationCours(id: string): Promise<void>;
+    getParcoursDisponibles(): Promise<any[]>;
+    getEnseignantsDisponibles(): Promise<any[]>;
 }

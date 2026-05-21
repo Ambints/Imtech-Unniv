@@ -24,9 +24,8 @@ let TenantMiddleware = class TenantMiddleware {
             { path: '/api/v1/auth/login', method: 'POST' },
             { path: '/api/v1/auth/register', method: 'POST' },
             { path: '/api/v1/auth/refresh', method: 'POST' },
-            { path: '/api/v1/tenants', method: 'GET' },
-            { path: '/api/v1/tenants', method: 'POST' },
-            { path: '/api/v1/users', method: 'GET' },
+            { path: '/api/v1/tenants' },
+            { path: '/api/v1/users' },
             { path: '/api/v1/health' },
             { path: '/api/v1/docs' },
         ];

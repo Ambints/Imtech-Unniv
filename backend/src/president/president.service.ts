@@ -94,7 +94,6 @@ export class PresidentService {
         // Scolarité
         inscriptionsEnCours,
         diplomesAGenerer,
-        transfertsEnAttente,
         pvEnAttente
       ] = await Promise.all([
         // Académique - CORRIGÉ: etudiant.actif au lieu de statut
@@ -199,9 +198,6 @@ export class PresidentService {
         `SELECT COUNT(*) as count FROM ${schema}.diplome WHERE statut = 'pret_signature'`
       ).catch(() => [{count: 0}]),
       this.dataSource.query(
-        `SELECT COUNT(*) as count FROM ${schema}.transfert_etudiant WHERE statut = 'en_attente'`
-      ).catch(() => [{count: 0}]),
-      this.dataSource.query(
         `SELECT COUNT(*) as count FROM ${schema}.pv_deliberation WHERE statut = 'en_attente_validation'`
       ).catch(() => [{count: 0}])
     ]);
@@ -253,7 +249,7 @@ export class PresidentService {
       // Scolarité
       inscriptionsEnCours: parseInt(inscriptionsEnCours[0]?.count || '0'),
       diplomesAGenerer: parseInt(diplomesAGenerer[0]?.count || '0'),
-      transfertsEnAttente: parseInt(transfertsEnAttente[0]?.count || '0'),
+      transfertsEnAttente: 0,
       pvDeliberationEnAttente: parseInt(pvEnAttente[0]?.count || '0')
     };
     } catch (error) {
@@ -304,7 +300,6 @@ export class PresidentService {
       // Scolarité
       inscriptionsEnCours,
       diplomesAGenerer,
-      transfertsEnAttente,
       
       // Finances
       budgetInfo,
@@ -341,9 +336,6 @@ export class PresidentService {
       ),
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM ${schema}.diplome WHERE statut IN ('pret_signature', 'en_preparation')`
-      ),
-      this.dataSource.query(
-        `SELECT COUNT(*) as count FROM ${schema}.transfert_etudiant WHERE statut = 'en_attente'`
       ),
       
       // Finances
@@ -402,7 +394,7 @@ export class PresidentService {
       scolarite: {
         inscriptionsEnCours: parseInt(inscriptionsEnCours[0]?.count || '0'),
         diplomesAGenerer: parseInt(diplomesAGenerer[0]?.count || '0'),
-        transfertsEnAttente: parseInt(transfertsEnAttente[0]?.count || '0')
+        transfertsEnAttente: 0
       },
       finances: {
         budgetConsomme: budgetConsomme,

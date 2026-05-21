@@ -34,10 +34,17 @@ let RHService = RHService_1 = class RHService {
             if (!this.tenantSchema || this.tenantSchema === 'public') {
                 throw new common_1.BadRequestException('Tenant schema not set. Please provide X-Tenant-Id header.');
             }
-            const schemaQuery = `SET search_path TO "${this.tenantSchema}", public`;
-            await this.dataSource.query(schemaQuery);
-            this.logger.debug(`Executing query in schema: ${this.tenantSchema}`);
-            return this.dataSource.query(sql, params);
+            const queryRunner = this.dataSource.createQueryRunner();
+            await queryRunner.connect();
+            try {
+                await queryRunner.query(`SET search_path TO "${this.tenantSchema}", public`);
+                this.logger.debug(`Executing query in schema: ${this.tenantSchema}`);
+                const result = await queryRunner.query(sql, params);
+                return result;
+            }
+            finally {
+                await queryRunner.release();
+            }
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -59,24 +66,26 @@ let RHService = RHService_1 = class RHService {
         }, {});
     }
     async getUtilisateurs() {
+        this.logger.log(`[getUtilisateurs] Fetching users from schema: ${this.tenantSchema}`);
         const result = await this.query(`
       SELECT id, nom, prenom, email, role, actif
-      FROM utilisateur
+      FROM "${this.tenantSchema}".utilisateur
       ORDER BY nom, prenom
     `);
+        this.logger.log(`[getUtilisateurs] Found ${result.length} users in schema ${this.tenantSchema}`);
         return this.toCamelCase(result);
     }
     async getDepartements() {
         const result = await this.query(`
       SELECT id, nom, code, description
-      FROM departement
+      FROM "${this.tenantSchema}".departement
       ORDER BY nom
     `);
         return this.toCamelCase(result);
     }
     async createContrat(data) {
         const result = await this.query(`
-      INSERT INTO contrat_personnel (
+      INSERT INTO "${this.tenantSchema}".contrat_personnel (
         utilisateur_id, type_contrat, poste, departement_id, date_debut, date_fin,
         salaire_brut, salaire_net, volume_horaire_hebdo, actif, observations
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -95,9 +104,9 @@ let RHService = RHService_1 = class RHService {
         u.nom as utilisateur_nom,
         u.prenom as utilisateur_prenom,
         d.nom as departement_nom
-      FROM contrat_personnel c
-      LEFT JOIN utilisateur u ON u.id = c.utilisateur_id
-      LEFT JOIN departement d ON d.id = c.departement_id
+      FROM "${this.tenantSchema}".contrat_personnel c
+      LEFT JOIN "${this.tenantSchema}".utilisateur u ON u.id = c.utilisateur_id
+      LEFT JOIN "${this.tenantSchema}".departement d ON d.id = c.departement_id
       WHERE 1=1
     `;
         const params = [];
@@ -119,47 +128,47 @@ let RHService = RHService_1 = class RHService {
         return this.toCamelCase(result);
     }
     async renouvelerContrat(id, data) {
-        const contrats = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
+        const contrats = await this.query(`SELECT * FROM "${this.tenantSchema}".contrat_personnel WHERE id = $1`, [id]);
         if (!contrats || contrats.length === 0) {
             throw new common_1.NotFoundException('Contrat non trouvé');
         }
         if (data.nouveauSalaire) {
             await this.query(`
-        UPDATE contrat_personnel
+        UPDATE "${this.tenantSchema}".contrat_personnel
         SET date_fin = $1, salaire_brut = $2, updated_at = NOW()
         WHERE id = $3
       `, [data.nouvelleDateFin, data.nouveauSalaire, id]);
         }
         else {
             await this.query(`
-        UPDATE contrat_personnel
+        UPDATE "${this.tenantSchema}".contrat_personnel
         SET date_fin = $1, updated_at = NOW()
         WHERE id = $2
       `, [data.nouvelleDateFin, id]);
         }
-        const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".contrat_personnel WHERE id = $1`, [id]);
         return this.toCamelCase(result[0]);
     }
     async resilierContrat(id, motif) {
         await this.query(`
-      UPDATE contrat_personnel
+      UPDATE "${this.tenantSchema}".contrat_personnel
       SET actif = false, observations = $1, updated_at = NOW()
       WHERE id = $2
     `, [motif, id]);
-        const result = await this.query(`SELECT * FROM contrat_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".contrat_personnel WHERE id = $1`, [id]);
         return this.toCamelCase(result[0]);
     }
     async createHeuresComplementaires(data) {
         const heuresComp = await this.query(`
-      INSERT INTO heure_complementaire (enseignant_id, date_travail, nb_heures, taux_horaire, motif, statut, created_at)
+      INSERT INTO "${this.tenantSchema}".heure_complementaire (enseignant_id, date_travail, nb_heures, taux_horaire, motif, statut, created_at)
       VALUES ($1, $2, $3, $4, $5, 'saisie', NOW())
       RETURNING *
     `, [data.enseignantId, data.dateTravail, data.nbHeures, data.tauxHoraire, data.motif]);
         return this.toCamelCase(heuresComp[0]);
     }
     async findHeuresComplementaires(filters) {
-        let query = `SELECT hc.*, e.nom, e.prenom FROM heure_complementaire hc
-                 JOIN enseignant e ON e.id = hc.enseignant_id WHERE 1=1`;
+        let query = `SELECT hc.*, e.nom, e.prenom FROM "${this.tenantSchema}".heure_complementaire hc
+                 JOIN "${this.tenantSchema}".enseignant e ON e.id = hc.enseignant_id WHERE 1=1`;
         const params = [];
         let paramCount = 0;
         if (filters?.enseignantId) {
@@ -180,11 +189,11 @@ let RHService = RHService_1 = class RHService {
     }
     async validerHeuresComplementaires(id, validePar) {
         await this.query(`
-      UPDATE heure_complementaire
+      UPDATE "${this.tenantSchema}".heure_complementaire
       SET statut = 'valide', valide_par = $1, date_validation = NOW()
       WHERE id = $2
     `, [validePar, id]);
-        const result = await this.query(`SELECT * FROM heure_complementaire WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".heure_complementaire WHERE id = $1`, [id]);
         return this.toCamelCase(result[0]);
     }
     async getVolumeHoraireEnseignant(enseignantId, annee) {
@@ -195,14 +204,14 @@ let RHService = RHService_1 = class RHService {
         COUNT(*) as nb_seances,
         COALESCE(SUM(CASE WHEN statut = 'valide' THEN nb_heures ELSE 0 END), 0) as heures_validees,
         COALESCE(SUM(CASE WHEN statut = 'saisie' THEN nb_heures ELSE 0 END), 0) as heures_en_attente
-      FROM heure_complementaire
+      FROM "${this.tenantSchema}".heure_complementaire
       WHERE enseignant_id = $1 ${anneeFilter}
     `, [enseignantId]);
         return this.toCamelCase(result[0]);
     }
     async demanderConge(data) {
         const result = await this.query(`
-      INSERT INTO conge_personnel (
+      INSERT INTO "${this.tenantSchema}".conge_personnel (
         utilisateur_id, type_conge, date_debut, date_fin, nb_jours, motif, statut
       ) VALUES ($1, $2, $3, $4, $5, $6, 'demande')
       RETURNING *
@@ -215,8 +224,8 @@ let RHService = RHService_1 = class RHService {
     async findConges(filters) {
         let query = `
       SELECT c.*, u.nom as utilisateur_nom, u.prenom as utilisateur_prenom
-      FROM conge_personnel c
-      LEFT JOIN utilisateur u ON u.id = c.utilisateur_id
+      FROM "${this.tenantSchema}".conge_personnel c
+      LEFT JOIN "${this.tenantSchema}".utilisateur u ON u.id = c.utilisateur_id
       WHERE 1=1
     `;
         const params = [];
@@ -239,20 +248,20 @@ let RHService = RHService_1 = class RHService {
     }
     async approuverConge(id, data) {
         await this.query(`
-      UPDATE conge_personnel
+      UPDATE "${this.tenantSchema}".conge_personnel
       SET statut = 'approuve', approuve_par = $1, date_approbation = NOW()
       WHERE id = $2
     `, [data.approuvePar, id]);
-        const result = await this.query(`SELECT * FROM conge_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".conge_personnel WHERE id = $1`, [id]);
         return result[0];
     }
     async refuserConge(id, data) {
         await this.query(`
-      UPDATE conge_personnel
+      UPDATE "${this.tenantSchema}".conge_personnel
       SET statut = 'refuse', approuve_par = $1, date_approbation = NOW(), motif = $2
       WHERE id = $3
     `, [data.approuvePar, data.motif, id]);
-        const result = await this.query(`SELECT * FROM conge_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".conge_personnel WHERE id = $1`, [id]);
         return result[0];
     }
     async getSoldeConges(utilisateurId) {
@@ -261,7 +270,7 @@ let RHService = RHService_1 = class RHService {
         25 as conges_acquis_annuels,
         COALESCE(SUM(nb_jours), 0) as conges_pris,
         25 - COALESCE(SUM(nb_jours), 0) as solde_restant
-      FROM conge_personnel
+      FROM "${this.tenantSchema}".conge_personnel
       WHERE utilisateur_id = $1
         AND statut = 'approuve'
         AND EXTRACT(YEAR FROM date_debut) = EXTRACT(YEAR FROM NOW())
@@ -272,7 +281,7 @@ let RHService = RHService_1 = class RHService {
         const cotisations = data.salaireBrut * 0.22;
         const netAPayer = data.salaireBrut - cotisations + (data.primes || 0) - (data.retenues || 0) + (data.montantHeuresSupp || 0);
         const result = await this.query(`
-      INSERT INTO fiche_paie (
+      INSERT INTO "${this.tenantSchema}".fiche_paie (
         contrat_id, annee, mois, salaire_brut, cotisations, primes, retenues,
         net_a_payer, heures_supp, montant_heures_supp, statut
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'brouillon')
@@ -287,9 +296,9 @@ let RHService = RHService_1 = class RHService {
     async findFichesPaie(filters) {
         let query = `
       SELECT fp.*, c.poste, u.nom as utilisateur_nom, u.prenom as utilisateur_prenom
-      FROM fiche_paie fp
-      LEFT JOIN contrat_personnel c ON c.id = fp.contrat_id
-      LEFT JOIN utilisateur u ON u.id = c.utilisateur_id
+      FROM "${this.tenantSchema}".fiche_paie fp
+      LEFT JOIN "${this.tenantSchema}".contrat_personnel c ON c.id = fp.contrat_id
+      LEFT JOIN "${this.tenantSchema}".utilisateur u ON u.id = c.utilisateur_id
       WHERE 1=1
     `;
         const params = [];
@@ -312,26 +321,26 @@ let RHService = RHService_1 = class RHService {
     }
     async validerFichePaie(id) {
         await this.query(`
-      UPDATE fiche_paie
+      UPDATE "${this.tenantSchema}".fiche_paie
       SET statut = 'valide'
       WHERE id = $1
     `, [id]);
-        const result = await this.query(`SELECT * FROM fiche_paie WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".fiche_paie WHERE id = $1`, [id]);
         return result[0];
     }
     async genererFichesPaieMasse(annee, mois) {
-        const contrats = await this.query(`SELECT * FROM contrat_personnel WHERE actif = true`);
+        const contrats = await this.query(`SELECT * FROM "${this.tenantSchema}".contrat_personnel WHERE actif = true`);
         const results = [];
         for (const contrat of contrats) {
             const existing = await this.query(`
-        SELECT * FROM fiche_paie
+        SELECT * FROM "${this.tenantSchema}".fiche_paie
         WHERE contrat_id = $1 AND annee = $2 AND mois = $3
       `, [contrat.id, annee, mois]);
             if (!existing || existing.length === 0) {
                 const cotisations = Number(contrat.salaire_brut) * 0.22;
                 const netAPayer = Number(contrat.salaire_net) || (Number(contrat.salaire_brut) - cotisations);
                 const result = await this.query(`
-          INSERT INTO fiche_paie (
+          INSERT INTO "${this.tenantSchema}".fiche_paie (
             contrat_id, annee, mois, salaire_brut, cotisations, net_a_payer, statut
           ) VALUES ($1, $2, $3, $4, $5, $6, 'brouillon')
           RETURNING *
@@ -343,7 +352,7 @@ let RHService = RHService_1 = class RHService {
     }
     async createEvaluation(data) {
         const evalResult = await this.query(`
-      INSERT INTO evaluation_personnel (
+      INSERT INTO "${this.tenantSchema}".evaluation_personnel (
         utilisateur_id, evaluateur_id, annee_evaluation, date_evaluation, objectifs, competences, statut
       ) VALUES ($1, $2, $3, NOW(), $4, $5, 'en_cours')
       RETURNING *
@@ -358,9 +367,9 @@ let RHService = RHService_1 = class RHService {
         u.prenom as utilisateur_prenom,
         ev.nom as evaluateur_nom,
         ev.prenom as evaluateur_prenom
-      FROM evaluation_personnel ep
-      LEFT JOIN utilisateur u ON u.id = ep.utilisateur_id
-      LEFT JOIN utilisateur ev ON ev.id = ep.evaluateur_id
+      FROM "${this.tenantSchema}".evaluation_personnel ep
+      LEFT JOIN "${this.tenantSchema}".utilisateur u ON u.id = ep.utilisateur_id
+      LEFT JOIN "${this.tenantSchema}".utilisateur ev ON ev.id = ep.evaluateur_id
       WHERE 1=1
     `;
         const params = [];
@@ -383,26 +392,26 @@ let RHService = RHService_1 = class RHService {
     }
     async submitAutoEvaluation(id, data) {
         await this.query(`
-      UPDATE evaluation_personnel
+      UPDATE "${this.tenantSchema}".evaluation_personnel
       SET auto_evaluation = $1, date_auto_evaluation = NOW(), statut = 'auto_evalue'
       WHERE id = $2
     `, [JSON.stringify(data), id]);
-        const result = await this.query(`SELECT * FROM evaluation_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".evaluation_personnel WHERE id = $1`, [id]);
         return result[0];
     }
     async finaliserEvaluation(id, data) {
         await this.query(`
-      UPDATE evaluation_personnel
+      UPDATE "${this.tenantSchema}".evaluation_personnel
       SET appreciation = $1, points_forts = $2, axes_amelioration = $3,
           note_globale = $4, statut = 'finalise', date_finalisation = NOW()
       WHERE id = $5
     `, [data.appreciation, data.pointsForts, data.axesAmelioration, data.noteGlobale, id]);
-        const result = await this.query(`SELECT * FROM evaluation_personnel WHERE id = $1`, [id]);
+        const result = await this.query(`SELECT * FROM "${this.tenantSchema}".evaluation_personnel WHERE id = $1`, [id]);
         return result[0];
     }
     async createDeclarationSociale(data) {
         const decl = await this.query(`
-      INSERT INTO declaration_sociale (
+      INSERT INTO "${this.tenantSchema}".declaration_sociale (
         type_declaration, periode_debut, periode_fin, organisme,
         montant_total_cotisations, nb_salaries, statut, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, 'preparation', NOW())
@@ -411,7 +420,7 @@ let RHService = RHService_1 = class RHService {
         return decl[0];
     }
     async findDeclarationsSociales(filters) {
-        let query = `SELECT * FROM declaration_sociale WHERE 1=1`;
+        let query = `SELECT * FROM "${this.tenantSchema}".declaration_sociale WHERE 1=1`;
         const params = [];
         let paramCount = 0;
         if (filters?.type) {
@@ -438,11 +447,11 @@ let RHService = RHService_1 = class RHService {
           'salaire_brut', fp.salaire_brut,
           'cotisations', fp.cotisations
         )) as lignes
-      FROM declaration_sociale ds
-      JOIN fiche_paie fp ON fp.annee = EXTRACT(YEAR FROM ds.periode_debut)
+      FROM "${this.tenantSchema}".declaration_sociale ds
+      JOIN "${this.tenantSchema}".fiche_paie fp ON fp.annee = EXTRACT(YEAR FROM ds.periode_debut)
         AND fp.mois = EXTRACT(MONTH FROM ds.periode_debut)
-      JOIN contrat_personnel cp ON cp.id = fp.contrat_id
-      JOIN utilisateur u ON u.id = cp.utilisateur_id
+      JOIN "${this.tenantSchema}".contrat_personnel cp ON cp.id = fp.contrat_id
+      JOIN "${this.tenantSchema}".utilisateur u ON u.id = cp.utilisateur_id
       WHERE ds.id = $1
       GROUP BY ds.id
     `, [id]);
@@ -450,7 +459,7 @@ let RHService = RHService_1 = class RHService {
     }
     async createRecrutement(data) {
         const recrutement = await this.query(`
-      INSERT INTO recrutement (
+      INSERT INTO "${this.tenantSchema}".recrutement (
         poste, type_contrat, departement_id, nb_postes, date_cloture,
         statut, created_at, description
       ) VALUES ($1, $2, $3, $4, $5, 'ouvert', NOW(), $6)
@@ -459,8 +468,8 @@ let RHService = RHService_1 = class RHService {
         return recrutement[0];
     }
     async findRecrutements(filters) {
-        let query = `SELECT r.*, d.nom as departement_nom FROM recrutement r
-                 LEFT JOIN departement d ON d.id = r.departement_id WHERE 1=1`;
+        let query = `SELECT r.*, d.nom as departement_nom FROM "${this.tenantSchema}".recrutement r
+                 LEFT JOIN "${this.tenantSchema}".departement d ON d.id = r.departement_id WHERE 1=1`;
         const params = [];
         let paramCount = 0;
         if (filters?.statut) {
@@ -477,17 +486,17 @@ let RHService = RHService_1 = class RHService {
     }
     async getStatsRH() {
         const effectifsResult = await this.query(`
-      SELECT COUNT(*) as count FROM contrat_personnel WHERE actif = true
+      SELECT COUNT(*) as count FROM "${this.tenantSchema}".contrat_personnel WHERE actif = true
     `);
         const masseSalariale = await this.query(`
-      SELECT COALESCE(SUM(salaire_brut), 0) as total FROM contrat_personnel WHERE actif = true
+      SELECT COALESCE(SUM(salaire_brut), 0) as total FROM "${this.tenantSchema}".contrat_personnel WHERE actif = true
     `);
         const contratsParType = await this.query(`
-      SELECT type_contrat, COUNT(*) as count FROM contrat_personnel
+      SELECT type_contrat, COUNT(*) as count FROM "${this.tenantSchema}".contrat_personnel
       WHERE actif = true GROUP BY type_contrat
     `);
         const congesEnAttenteResult = await this.query(`
-      SELECT COUNT(*) as count FROM conge_personnel WHERE statut = 'demande'
+      SELECT COUNT(*) as count FROM "${this.tenantSchema}".conge_personnel WHERE statut = 'demande'
     `);
         return {
             effectifs: parseInt(effectifsResult[0]?.count || 0),
@@ -502,11 +511,261 @@ let RHService = RHService_1 = class RHService {
         COUNT(DISTINCT enseignant_id) as nb_enseignants,
         COALESCE(SUM(nb_heures), 0) as total_heures,
         COALESCE(SUM(nb_heures * taux_horaire), 0) as cout_total
-      FROM heure_complementaire
+      FROM "${this.tenantSchema}".heure_complementaire
       WHERE EXTRACT(YEAR FROM date_travail) = $1 AND EXTRACT(MONTH FROM date_travail) = $2
         AND statut = 'valide'
     `, [annee, mois]);
         return result[0];
+    }
+    async creerCours(data) {
+        const result = await this.query(`
+      INSERT INTO "${this.tenantSchema}".unite_enseignement (
+        parcours_id, code, intitule, credits_ects, coefficient,
+        volume_cm, volume_td, volume_tp, semestre, annee_niveau,
+        type_ue, enseignant_id, actif, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, NOW())
+      RETURNING *
+    `, [
+            data.parcoursId, data.code, data.intitule, data.creditsEcts, data.coefficient,
+            data.volumeCm || 0, data.volumeTd || 0, data.volumeTp || 0,
+            data.semestre, data.anneeNiveau, data.typeUe || 'obligatoire', data.enseignantId || null
+        ]);
+        this.logger.log(`Cours (UE) créé: ${data.code} - ${data.intitule}`);
+        return result[0];
+    }
+    async modifierCours(id, data) {
+        const fields = [];
+        const values = [];
+        let paramCount = 0;
+        if (data.code !== undefined) {
+            fields.push(`code = $${++paramCount}`);
+            values.push(data.code);
+        }
+        if (data.intitule !== undefined) {
+            fields.push(`intitule = $${++paramCount}`);
+            values.push(data.intitule);
+        }
+        if (data.creditsEcts !== undefined) {
+            fields.push(`credits_ects = $${++paramCount}`);
+            values.push(data.creditsEcts);
+        }
+        if (data.coefficient !== undefined) {
+            fields.push(`coefficient = $${++paramCount}`);
+            values.push(data.coefficient);
+        }
+        if (data.volumeCm !== undefined) {
+            fields.push(`volume_cm = $${++paramCount}`);
+            values.push(data.volumeCm);
+        }
+        if (data.volumeTd !== undefined) {
+            fields.push(`volume_td = $${++paramCount}`);
+            values.push(data.volumeTd);
+        }
+        if (data.volumeTp !== undefined) {
+            fields.push(`volume_tp = $${++paramCount}`);
+            values.push(data.volumeTp);
+        }
+        if (data.semestre !== undefined) {
+            fields.push(`semestre = $${++paramCount}`);
+            values.push(data.semestre);
+        }
+        if (data.anneeNiveau !== undefined) {
+            fields.push(`annee_niveau = $${++paramCount}`);
+            values.push(data.anneeNiveau);
+        }
+        if (data.typeUe !== undefined) {
+            fields.push(`type_ue = $${++paramCount}`);
+            values.push(data.typeUe);
+        }
+        if (data.enseignantId !== undefined) {
+            fields.push(`enseignant_id = $${++paramCount}`);
+            values.push(data.enseignantId);
+        }
+        if (data.actif !== undefined) {
+            fields.push(`actif = $${++paramCount}`);
+            values.push(data.actif);
+        }
+        if (fields.length === 0) {
+            throw new common_1.BadRequestException('Aucune donnée à modifier');
+        }
+        values.push(id);
+        const result = await this.query(`
+      UPDATE "${this.tenantSchema}".unite_enseignement
+      SET ${fields.join(', ')}
+      WHERE id = $${++paramCount}
+      RETURNING *
+    `, values);
+        if (result.length === 0) {
+            throw new common_1.NotFoundException(`Cours (UE) avec l'ID ${id} non trouvé`);
+        }
+        this.logger.log(`Cours (UE) modifié: ${id}`);
+        return result[0];
+    }
+    async getCours(filters) {
+        let query = `
+      SELECT 
+        ue.*,
+        p.nom as parcours_nom,
+        p.code as parcours_code,
+        e.nom as enseignant_nom,
+        e.prenom as enseignant_prenom,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".element_constitutif ec WHERE ec.ue_id = ue.id AND ec.actif = TRUE) as nb_elements_constitutifs,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".affectation_cours ac WHERE ac.ue_id = ue.id) as nb_affectations
+      FROM "${this.tenantSchema}".unite_enseignement ue
+      LEFT JOIN "${this.tenantSchema}".parcours p ON p.id = ue.parcours_id
+      LEFT JOIN "${this.tenantSchema}".enseignant e ON e.id = ue.enseignant_id
+      WHERE 1=1
+    `;
+        const params = [];
+        let paramCount = 0;
+        if (filters?.parcoursId) {
+            query += ` AND ue.parcours_id = $${++paramCount}`;
+            params.push(filters.parcoursId);
+        }
+        if (filters?.semestre) {
+            query += ` AND ue.semestre = $${++paramCount}`;
+            params.push(filters.semestre);
+        }
+        if (filters?.anneeNiveau) {
+            query += ` AND ue.annee_niveau = $${++paramCount}`;
+            params.push(filters.anneeNiveau);
+        }
+        if (filters?.enseignantId) {
+            query += ` AND ue.enseignant_id = $${++paramCount}`;
+            params.push(filters.enseignantId);
+        }
+        if (filters?.actif !== undefined) {
+            query += ` AND ue.actif = $${++paramCount}`;
+            params.push(filters.actif);
+        }
+        query += ` ORDER BY ue.annee_niveau, ue.semestre, ue.code`;
+        return this.query(query, params);
+    }
+    async getCoursById(id) {
+        const result = await this.query(`
+      SELECT 
+        ue.*,
+        p.nom as parcours_nom,
+        p.code as parcours_code,
+        p.niveau_etude_id,
+        e.nom as enseignant_nom,
+        e.prenom as enseignant_prenom,
+        e.email as enseignant_email,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".element_constitutif ec WHERE ec.ue_id = ue.id AND ec.actif = TRUE) as nb_elements_constitutifs,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".affectation_cours ac WHERE ac.ue_id = ue.id) as nb_affectations,
+        (SELECT json_agg(json_build_object(
+          'id', ec.id,
+          'code', ec.code,
+          'intitule', ec.intitule,
+          'coefficient', ec.coefficient,
+          'actif', ec.actif
+        )) FROM "${this.tenantSchema}".element_constitutif ec WHERE ec.ue_id = ue.id) as elements_constitutifs
+      FROM "${this.tenantSchema}".unite_enseignement ue
+      LEFT JOIN "${this.tenantSchema}".parcours p ON p.id = ue.parcours_id
+      LEFT JOIN "${this.tenantSchema}".enseignant e ON e.id = ue.enseignant_id
+      WHERE ue.id = $1
+    `, [id]);
+        if (result.length === 0) {
+            throw new common_1.NotFoundException(`Cours (UE) avec l'ID ${id} non trouvé`);
+        }
+        return result[0];
+    }
+    async affecterEnseignantCours(data) {
+        const ue = await this.query(`
+      SELECT id FROM "${this.tenantSchema}".unite_enseignement WHERE id = $1
+    `, [data.ueId]);
+        if (ue.length === 0) {
+            throw new common_1.NotFoundException(`Cours (UE) avec l'ID ${data.ueId} non trouvé`);
+        }
+        const enseignant = await this.query(`
+      SELECT id FROM "${this.tenantSchema}".enseignant WHERE id = $1
+    `, [data.enseignantId]);
+        if (enseignant.length === 0) {
+            throw new common_1.NotFoundException(`Enseignant avec l'ID ${data.enseignantId} non trouvé`);
+        }
+        const result = await this.query(`
+      INSERT INTO "${this.tenantSchema}".affectation_cours (
+        enseignant_id, ue_id, annee_academique_id, type_seance, volume_prevu, volume_realise, created_at
+      ) VALUES ($1, $2, $3, $4, $5, 0, NOW())
+      RETURNING *
+    `, [data.enseignantId, data.ueId, data.anneeAcademiqueId, data.typeSeance, data.volumePrevu]);
+        this.logger.log(`Enseignant ${data.enseignantId} affecté au cours ${data.ueId}`);
+        return result[0];
+    }
+    async getAffectationsCours(filters) {
+        let query = `
+      SELECT 
+        ac.*,
+        ue.code as ue_code,
+        ue.intitule as ue_intitule,
+        ue.credits_ects,
+        e.nom as enseignant_nom,
+        e.prenom as enseignant_prenom,
+        aa.libelle as annee_academique,
+        p.nom as parcours_nom
+      FROM "${this.tenantSchema}".affectation_cours ac
+      JOIN "${this.tenantSchema}".unite_enseignement ue ON ue.id = ac.ue_id
+      JOIN "${this.tenantSchema}".enseignant e ON e.id = ac.enseignant_id
+      JOIN "${this.tenantSchema}".annee_academique aa ON aa.id = ac.annee_academique_id
+      JOIN "${this.tenantSchema}".parcours p ON p.id = ue.parcours_id
+      WHERE 1=1
+    `;
+        const params = [];
+        let paramCount = 0;
+        if (filters?.enseignantId) {
+            query += ` AND ac.enseignant_id = $${++paramCount}`;
+            params.push(filters.enseignantId);
+        }
+        if (filters?.ueId) {
+            query += ` AND ac.ue_id = $${++paramCount}`;
+            params.push(filters.ueId);
+        }
+        if (filters?.anneeAcademiqueId) {
+            query += ` AND ac.annee_academique_id = $${++paramCount}`;
+            params.push(filters.anneeAcademiqueId);
+        }
+        query += ` ORDER BY aa.date_debut DESC, ue.code`;
+        return this.query(query, params);
+    }
+    async supprimerAffectationCours(id) {
+        const result = await this.query(`
+      DELETE FROM "${this.tenantSchema}".affectation_cours
+      WHERE id = $1
+      RETURNING id
+    `, [id]);
+        if (result.length === 0) {
+            throw new common_1.NotFoundException(`Affectation avec l'ID ${id} non trouvée`);
+        }
+        this.logger.log(`Affectation de cours supprimée: ${id}`);
+    }
+    async getParcoursDisponibles() {
+        return this.query(`
+      SELECT 
+        p.*,
+        ne.nom as niveau_etude_nom,
+        ne.code as niveau_etude_code,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".unite_enseignement ue WHERE ue.parcours_id = p.id AND ue.actif = TRUE) as nb_cours
+      FROM "${this.tenantSchema}".parcours p
+      LEFT JOIN "${this.tenantSchema}".niveau_etude ne ON ne.id = p.niveau_etude_id
+      WHERE p.actif = TRUE
+      ORDER BY ne.ordre, p.nom
+    `);
+    }
+    async getEnseignantsDisponibles() {
+        return this.query(`
+      SELECT 
+        e.*,
+        u.email,
+        u.telephone,
+        d.nom as departement_nom,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".affectation_cours ac WHERE ac.enseignant_id = e.id) as nb_affectations,
+        (SELECT COUNT(*) FROM "${this.tenantSchema}".unite_enseignement ue WHERE ue.enseignant_id = e.id) as nb_cours_responsable
+      FROM "${this.tenantSchema}".enseignant e
+      JOIN "${this.tenantSchema}".utilisateur u ON u.id = e.utilisateur_id
+      LEFT JOIN "${this.tenantSchema}".departement d ON d.id = e.departement_id
+      WHERE e.actif = TRUE AND u.actif = TRUE
+      ORDER BY e.nom, e.prenom
+    `);
     }
 };
 exports.RHService = RHService;

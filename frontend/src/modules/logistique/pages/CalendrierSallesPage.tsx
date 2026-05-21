@@ -12,7 +12,8 @@ export default function CalendrierSallesPage() {
   const { data: events, isLoading } = useCalendrier(dateDebut, dateFin);
 
   // Grouper par salle
-  const eventsBySalle = events?.reduce((acc, event) => {
+  const eventsArray = Array.isArray(events) ? events : [];
+  const eventsBySalle = eventsArray.reduce((acc, event) => {
     if (!acc[event.salle_id]) {
       acc[event.salle_id] = {
         salle_nom: event.salle_nom,
@@ -42,6 +43,9 @@ export default function CalendrierSallesPage() {
           <i className="bi bi-calendar4-week me-2"></i>
           Calendrier des salles
         </h2>
+        <div className="text-muted small">
+          {eventsArray.length} événement(s) trouvé(s)
+        </div>
       </div>
 
       {/* Filtres dates */}
@@ -106,7 +110,8 @@ export default function CalendrierSallesPage() {
                   <tr>
                     <th>Date</th>
                     <th>Horaire</th>
-                    <th>Titre</th>
+                    <th>Titre / UE</th>
+                    <th>Détails</th>
                     <th>Type</th>
                     <th>Statut</th>
                   </tr>
@@ -128,18 +133,50 @@ export default function CalendrierSallesPage() {
                           })}
                         </td>
                         <td className="text-muted">
+                          <i className="bi bi-clock me-1"></i>
                           {event.heure_debut} - {event.heure_fin}
                         </td>
-                        <td className="fw-medium">{event.titre}</td>
+                        <td>
+                          <div className="fw-medium">{event.titre}</div>
+                          {event.ue_nom && event.ue_nom !== event.titre && (
+                            <small className="text-muted">{event.ue_nom}</small>
+                          )}
+                        </td>
+                        <td>
+                          {event.source === 'cours' ? (
+                            <div className="small">
+                              {event.enseignant_nom && (
+                                <div>
+                                  <i className="bi bi-person me-1"></i>
+                                  {event.enseignant_nom}
+                                </div>
+                              )}
+                              {event.parcours_nom && (
+                                <div className="text-muted">
+                                  <i className="bi bi-mortarboard me-1"></i>
+                                  {event.parcours_nom}
+                                </div>
+                              )}
+                              {event.type_seance && (
+                                <span className="badge bg-info text-dark mt-1">
+                                  {event.type_seance}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted small">Réservation</span>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge ${event.source === 'cours' ? 'bg-primary' : 'bg-success'}`}>
-                            {event.source}
+                            {event.source === 'cours' ? 'Cours' : 'Réservation'}
                           </span>
                         </td>
                         <td>
                           <span className={`badge ${
-                            event.statut === 'approuvee' ? 'bg-success' :
+                            event.statut === 'approuvee' || event.statut === 'planifie' ? 'bg-success' :
                             event.statut === 'en_attente' ? 'bg-warning text-dark' :
+                            event.statut === 'annule' ? 'bg-danger' :
                             'bg-secondary'
                           }`}>
                             {event.statut}
@@ -155,9 +192,22 @@ export default function CalendrierSallesPage() {
       ))}
 
       {(!eventsBySalle || Object.keys(eventsBySalle).length === 0) && (
-        <div className="alert alert-info">
-          <i className="bi bi-info-circle me-2"></i>
-          Aucun événement pour la période sélectionnée.
+        <div className="card border-0 shadow-sm">
+          <div className="card-body text-center py-5">
+            <i className="bi bi-calendar-x display-1 text-muted mb-3"></i>
+            <h5 className="text-muted">Aucun événement pour la période sélectionnée</h5>
+            <p className="text-muted mb-4">
+              Il n'y a pas de cours (emploi du temps) ni de réservations de salles pour cette période.
+            </p>
+            <div className="alert alert-info text-start">
+              <strong>💡 Pour voir des événements :</strong>
+              <ul className="mb-0 mt-2">
+                <li>Assurez-vous qu'il y a des cours planifiés dans l'emploi du temps</li>
+                <li>Vérifiez qu'il y a des réservations de salles approuvées</li>
+                <li>Ajustez les dates de début et de fin pour élargir la période</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

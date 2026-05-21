@@ -18,7 +18,6 @@ import { ResultatSemestre } from './entities/resultat-semestre.entity';
 import { ResultatUE } from './entities/resultat-ue.entity';
 import { Diplome } from './entities/diplome.entity';
 import { SuplementDiplome } from './entities/suplement-diplome.entity';
-import { TransfertEtudiant } from './entities/transfert-etudiant.entity';
 import { ArchiveScolarite } from './entities/archive-scolarite.entity';
 import { VerrouillageNotes } from './entities/verrouillage-notes.entity';
 import { Inscription } from './entities/inscription.entity';
@@ -43,7 +42,6 @@ import { AcademicModule } from '../academic/academic.module';
       ResultatUE,
       Diplome,
       SuplementDiplome,
-      TransfertEtudiant,
       ArchiveScolarite,
       VerrouillageNotes,
       Inscription,

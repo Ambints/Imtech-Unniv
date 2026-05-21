@@ -1,31 +1,26 @@
 import { EconomatService } from './economat.service';
+import { CreateBudgetDto } from './dto/create-budget.dto';
+import { UpdateBudgetDto } from './dto/update-budget.dto';
+import { BudgetFiltersDto, RecouvrementFiltersDto } from './dto/filters.dto';
 export declare class EconomatController {
-    private readonly svc;
-    constructor(svc: EconomatService);
-    createBudget(dto: any): Promise<import("../finance/finance.entities").Budget>;
-    findBudgets(filters: any): Promise<import("../finance/finance.entities").Budget[]>;
-    getBudgetByAnnee(anneeAcademiqueId: string): Promise<any>;
-    allouerBudget(id: string, montant: number): Promise<import("../finance/finance.entities").Budget>;
-    getExecutionBudget(id: string): Promise<any>;
-    createDemandeAchat(dto: any): Promise<any>;
-    findDemandesAchat(filters: any): Promise<any[]>;
-    validerDemandeAchat(id: string, validePar: string): Promise<any>;
-    rejeterDemandeAchat(id: string, dto: {
-        validePar: string;
-        motif: string;
-    }): Promise<any>;
-    createDepense(dto: any): Promise<import("../finance/finance.entities").Depense>;
-    findDepenses(filters: any): Promise<import("../finance/finance.entities").Depense[]>;
-    approuverDepense(id: string, dto: {
-        approuvePar: string;
-    }): Promise<import("../finance/finance.entities").Depense>;
-    getDepensesParCategorie(anneeAcademiqueId?: string): Promise<any>;
-    getStockAlertes(): Promise<import("../logistics/logistics.entities").Stock[]>;
-    getValeurStock(): Promise<any>;
-    getStatsRecouvrement(anneeAcademiqueId?: string): Promise<any>;
-    getImpayes(filters: any): Promise<any[]>;
-    getCreances(jours?: number): Promise<any>;
-    getRapportMensuel(mois: number, annee: number): Promise<any>;
-    getBilanFinancier(anneeAcademiqueId?: string): Promise<any>;
-    getPrevisionTresorerie(mois?: number): Promise<any[]>;
+    private readonly economatService;
+    constructor(economatService: EconomatService);
+    getAnneesAcademiques(): Promise<any>;
+    createBudget(dto: CreateBudgetDto): Promise<any>;
+    getBudgets(filters: BudgetFiltersDto): Promise<import("./interfaces/budget.interface").BudgetWithDetails[]>;
+    getBudgetStats(anneeAcademiqueId?: string): Promise<import("./interfaces/budget.interface").BudgetStats>;
+    getBudgetByDepartement(anneeAcademiqueId?: string): Promise<import("./interfaces/budget.interface").BudgetByDepartement[]>;
+    getBudgetById(id: string): Promise<import("./interfaces/budget.interface").BudgetWithDetails>;
+    updateBudget(id: string, dto: UpdateBudgetDto): Promise<any>;
+    getFournisseurs(search?: string): Promise<import("./interfaces/depense.interface").DepenseByFournisseur[]>;
+    getFournisseurTransactions(fournisseur: string): Promise<import("./interfaces/depense.interface").DepenseWithDetails[]>;
+    getRecouvrementStats(anneeAcademiqueId?: string): Promise<import("./interfaces/recouvrement.interface").RecouvrementStats>;
+    getInscriptionsImpayees(filters: RecouvrementFiltersDto): Promise<import("./interfaces/recouvrement.interface").InscriptionImpayee[]>;
+    getRecouvrementByParcours(anneeAcademiqueId?: string): Promise<import("./interfaces/recouvrement.interface").RecouvrementByParcours[]>;
+    getRapportJournalier(date: string): Promise<import("./interfaces/rapport.interface").RapportJournalier>;
+    getRapportMensuel(mois: string, annee: number): Promise<import("./interfaces/rapport.interface").RapportMensuel>;
+    getRapportAnnuel(anneeAcademiqueId: string): Promise<import("./interfaces/rapport.interface").RapportAnnuel>;
+    getBilanFinancier(anneeAcademiqueId: string): Promise<import("./interfaces/rapport.interface").BilanFinancier>;
+    getSubventions(anneeAcademiqueId?: string): Promise<any[]>;
+    getSubventionUtilisation(id: string): Promise<any[]>;
 }

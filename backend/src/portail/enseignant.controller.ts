@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, UploadedFile, UseInterceptors, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseGuards, UploadedFile, UseInterceptors, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -16,8 +16,34 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class PortailEnseignantController {
   constructor(private readonly svc: PortailEnseignantService) {}
 
-  private getTenantId(req: Request): string {
-    return req.headers['x-tenant-id'] as string;
+  private getTenantId(req: Request): string | null {
+    // First, try to get the tenantId that was set by the TenantMiddleware
+    const reqAny = req as any;
+    if (reqAny.tenantId !== undefined) {
+      return reqAny.tenantId;
+    }
+
+    // Fallback to our own extraction
+    let tenantId = req.headers['x-tenant-id'] as string;
+
+    if (!tenantId) {
+      tenantId = req.headers['X-Tenant-ID'] as string;
+    }
+
+    if (!tenantId && req.query && req.query.tenantId) {
+      tenantId = req.query.tenantId as string;
+    }
+
+    if (!tenantId) {
+      const pathParts = req.path.split('/');
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const foundId = pathParts.find(part => uuidPattern.test(part));
+      if (foundId) {
+        tenantId = foundId;
+      }
+    }
+
+    return tenantId || null;
   }
 
   // ========== PROFIL & MES COURS ==========
@@ -29,12 +55,22 @@ export class PortailEnseignantController {
 
   @Get('mes-cours')
   @ApiOperation({ summary: 'Liste des cours assignés' })
-  getMesCours(
+  async getMesCours(
     @CurrentUser() user: any,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @Req() req: Request,
   ) {
-    return this.svc.getMesCours(this.getTenantId(req), user.id, anneeAcademiqueId);
+    const tenantId = this.getTenantId(req);
+    console.log('[getMesCours] tenantId:', tenantId, 'userId:', user.id, 'anneeAcademiqueId:', anneeAcademiqueId);
+    try {
+      const result = await this.svc.getMesCours(tenantId, user.id, anneeAcademiqueId);
+      console.log('[getMesCours] SUCCESS - returned', result?.length || 0, 'courses');
+      return result;
+    } catch (error) {
+      console.error('[getMesCours] ERROR:', error instanceof Error ? error.message : String(error));
+      console.error('[getMesCours] Stack:', error instanceof Error ? error.stack : 'No stack trace');
+      throw error;
+    }
   }
 
   @Get('mes-etudiants/:affectationId')
@@ -110,8 +146,18 @@ export class PortailEnseignantController {
   // ========== NOTES ==========
   @Get('sessions-evaluation')
   @ApiOperation({ summary: 'Sessions d\'évaluation disponibles' })
-  getSessionsEvaluation(@CurrentUser() user: any, @Req() req: Request) {
-    return this.svc.getSessionsEvaluation(this.getTenantId(req), user.id);
+  async getSessionsEvaluation(@CurrentUser() user: any, @Req() req: Request) {
+    const tenantId = this.getTenantId(req);
+    console.log('[getSessionsEvaluation] tenantId:', tenantId, 'userId:', user.id);
+    try {
+      const result = await this.svc.getSessionsEvaluation(tenantId, user.id);
+      console.log('[getSessionsEvaluation] SUCCESS - returned', result?.length || 0, 'sessions');
+      return result;
+    } catch (error) {
+      console.error('[getSessionsEvaluation] ERROR:', error instanceof Error ? error.message : String(error));
+      console.error('[getSessionsEvaluation] Stack:', error instanceof Error ? error.stack : 'No stack trace');
+      throw error;
+    }
   }
 
   @Get('notes/saisie/:sessionId/:affectationId')
@@ -263,17 +309,100 @@ export class PortailEnseignantController {
   // ========== MES STATISTIQUES ==========
   @Get('mes-stats')
   @ApiOperation({ summary: 'Statistiques de mes cours' })
-  getMesStats(
+  async getMesStats(
     @CurrentUser() user: any,
     @Query('anneeAcademiqueId') anneeAcademiqueId: string,
     @Req() req: Request,
   ) {
-    return this.svc.getMesStats(this.getTenantId(req), user.id, anneeAcademiqueId);
+    const tenantId = this.getTenantId(req);
+    console.log('[getMesStats] tenantId:', tenantId, 'userId:', user.id, 'anneeAcademiqueId:', anneeAcademiqueId);
+    try {
+      const result = await this.svc.getMesStats(tenantId, user.id, anneeAcademiqueId);
+      console.log('[getMesStats] SUCCESS - returned stats');
+      return result;
+    } catch (error) {
+      console.error('[getMesStats] ERROR:', error instanceof Error ? error.message : String(error));
+      console.error('[getMesStats] Stack:', error instanceof Error ? error.stack : 'No stack trace');
+      throw error;
+    }
   }
 
   @Get('mes-stats/taux-reussite/:affectationId')
   @ApiOperation({ summary: 'Taux de réussite par EC' })
   getTauxReussiteEC(@Param('affectationId') affectationId: string) {
     return this.svc.getTauxReussiteEC(affectationId);
+  }
+
+  // ========== GÉNÉRATION DE COURS ==========
+  @Post('cours/unite-enseignement')
+  @ApiOperation({ summary: 'Créer une unité d\'enseignement' })
+  creerUniteEnseignement(@Body() dto: any, @CurrentUser() user: any) {
+    return this.svc.creerUniteEnseignement(dto, user.id);
+  }
+
+  @Patch('cours/unite-enseignement/:id')
+  @ApiOperation({ summary: 'Modifier une unité d\'enseignement' })
+  modifierUniteEnseignement(
+    @Param('id') ueId: string,
+    @Body() dto: any,
+    @CurrentUser() user: any,
+  ) {
+    return this.svc.modifierUniteEnseignement(ueId, dto, user.id);
+  }
+
+  @Get('cours/mes-unites-enseignement')
+  @ApiOperation({ summary: 'Liste de mes unités d\'enseignement' })
+  getMesUnitesEnseignement(@CurrentUser() user: any, @Req() req: Request) {
+    return this.svc.getMesUnitesEnseignement(this.getTenantId(req), user.id);
+  }
+
+  @Post('cours/element-constitutif')
+  @ApiOperation({ summary: 'Créer un élément constitutif' })
+  creerElementConstitutif(@Body() dto: any, @CurrentUser() user: any) {
+    return this.svc.creerElementConstitutif(dto, user.id);
+  }
+
+  @Patch('cours/element-constitutif/:id')
+  @ApiOperation({ summary: 'Modifier un élément constitutif' })
+  modifierElementConstitutif(
+    @Param('id') ecId: string,
+    @Body() dto: any,
+    @CurrentUser() user: any,
+  ) {
+    return this.svc.modifierElementConstitutif(ecId, dto, user.id);
+  }
+
+  @Delete('cours/element-constitutif/:id')
+  @ApiOperation({ summary: 'Supprimer un élément constitutif' })
+  supprimerElementConstitutif(@Param('id') ecId: string, @CurrentUser() user: any) {
+    return this.svc.supprimerElementConstitutif(ecId, user.id);
+  }
+
+  @Get('cours/unite-enseignement/:ueId/elements')
+  @ApiOperation({ summary: 'Liste des éléments constitutifs d\'une UE' })
+  getElementsConstitutifs(@Param('ueId') ueId: string, @CurrentUser() user: any) {
+    return this.svc.getElementsConstitutifs(ueId, user.id);
+  }
+
+  @Get('cours/unite-enseignement/:ueId/plan-cours')
+  @ApiOperation({ summary: 'Générer le plan de cours d\'une UE' })
+  genererPlanCours(@Param('ueId') ueId: string, @CurrentUser() user: any) {
+    return this.svc.genererPlanCours(ueId, user.id);
+  }
+
+  @Post('cours/unite-enseignement/:ueId/dupliquer')
+  @ApiOperation({ summary: 'Dupliquer une unité d\'enseignement' })
+  dupliquerUniteEnseignement(
+    @Param('ueId') ueId: string,
+    @Body() dto: any,
+    @CurrentUser() user: any,
+  ) {
+    return this.svc.dupliquerUniteEnseignement(ueId, dto, user.id);
+  }
+
+  @Get('cours/parcours-disponibles')
+  @ApiOperation({ summary: 'Liste des parcours disponibles pour créer des cours' })
+  getParcoursDisponibles(@Req() req: Request) {
+    return this.svc.getParcoursDisponibles(this.getTenantId(req));
   }
 }

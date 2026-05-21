@@ -463,21 +463,45 @@ export class AcademicService {
   getAbsencesEtudiant(tid: string, etudiantId: string) { return this.getPresencesEtudiant(tid, etudiantId); }
 
   // Salles & EDT
-  getSalles(tid: string) { return this.salleRepo.find(); }
-  createSalle(tid: string, dto: any) {
+  async getSalles(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    return this.salleRepo.find();
+  }
+  async createSalle(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
     return this.salleRepo.save(this.salleRepo.create(dto));
   }
-  getEDT(tid?: string, parcoursId?: string) {
+  async getEDT(tid?: string, parcoursId?: string) {
+    if (tid) await this.tenantConnection.setTenantSchema(tid);
     return this.edtRepo.find();
   }
-  createEDT(tid: string, dto: any) {
+  async createEDT(tid: string, dto: any) {
+    await this.tenantConnection.setTenantSchema(tid);
     return this.edtRepo.save(this.edtRepo.create(dto));
   }
 
   // Annees Academiques
   async getAnneesAcademiques(tid: string) {
     await this.tenantConnection.setTenantSchema(tid);
+    
+    // Désactiver automatiquement les années académiques expirées
+    await this.desactiverAnneesExpirees(tid);
+    
     return this.anneeRepo.find({ order: { dateDebut: 'DESC' } });
+  }
+
+  async desactiverAnneesExpirees(tid: string) {
+    await this.tenantConnection.setTenantSchema(tid);
+    const aujourdhui = new Date();
+    
+    // Désactiver toutes les années dont la date de fin est dépassée
+    await this.anneeRepo
+      .createQueryBuilder()
+      .update()
+      .set({ active: false })
+      .where('date_fin < :aujourdhui', { aujourdhui })
+      .andWhere('active = :active', { active: true })
+      .execute();
   }
 
   async createAnneeAcademique(tid: string, dto: any) {

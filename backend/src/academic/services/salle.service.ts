@@ -4,12 +4,14 @@ import { Repository, Like } from 'typeorm';
 import { Salle } from '../entities/salle.entity';
 import { CreateSalleDto } from '../dto/create-salle.dto';
 import { UpdateSalleDto } from '../dto/update-salle.dto';
+import { TenantConnectionService } from '../../tenants/tenant-connection.service';
 
 @Injectable()
 export class SalleService {
   constructor(
     @InjectRepository(Salle, 'tenant')
     private salleRepository: Repository<Salle>,
+    private readonly tenantConnection: TenantConnectionService,
   ) {}
 
   async create(createSalleDto: CreateSalleDto): Promise<Salle> {
@@ -27,12 +29,14 @@ export class SalleService {
   }
 
   async findAll(tenantId: string): Promise<Salle[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
     return await this.salleRepository.find({
       order: { code: 'ASC' },
     });
   }
 
   async search(tenantId: string, query: string): Promise<Salle[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
     return await this.salleRepository.find({
       where: [
         { code: Like(`%${query}%`) },
@@ -91,6 +95,7 @@ export class SalleService {
   }
 
   async getAvailableSalles(tenantId: string, dateDebut: Date, dateFin: Date): Promise<Salle[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
     // Récupérer toutes les salles
     const allSalles = await this.findAll(tenantId);
 
@@ -113,6 +118,7 @@ export class SalleService {
   }
 
   async getSallesByType(tenantId: string, type: string): Promise<Salle[]> {
+    await this.tenantConnection.setTenantSchema(tenantId);
     return await this.salleRepository.find({
       where: { type: type as any },
       order: { code: 'ASC' },
@@ -126,6 +132,7 @@ export class SalleService {
   }
 
   async getStatistics(tenantId: string): Promise<any> {
+    await this.tenantConnection.setTenantSchema(tenantId);
     const total = await this.salleRepository.count();
     const disponibles = await this.salleRepository.count({ where: { disponible: true } });
     

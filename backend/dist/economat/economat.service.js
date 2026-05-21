@@ -11,378 +11,971 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var EconomatService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EconomatService = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const finance_entities_1 = require("../finance/finance.entities");
-const logistics_entities_1 = require("../logistics/logistics.entities");
-let EconomatService = EconomatService_1 = class EconomatService {
-    constructor(budgetRepo, depenseRepo, stockRepo, dataSource) {
-        this.budgetRepo = budgetRepo;
-        this.depenseRepo = depenseRepo;
-        this.stockRepo = stockRepo;
+const uuid_1 = require("uuid");
+let EconomatService = class EconomatService {
+    constructor(dataSource, request) {
         this.dataSource = dataSource;
-        this.logger = new common_1.Logger(EconomatService_1.name);
+        this.request = request;
+        this.tenantSchema = this.request.tenantSchema || 'public';
+        this.userId = this.request.user?.id;
     }
-    async createBudget(data) {
-        const budget = this.budgetRepo.create(data);
-        return this.budgetRepo.save(budget);
+    async query(sql, params) {
+        if (!this.tenantSchema || this.tenantSchema === 'public') {
+            console.error('[EconomatService] Tenant schema not set or is public');
+            throw new common_1.BadRequestException('Tenant schema not set');
+        }
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        try {
+            console.log(`[EconomatService] Setting search_path to: ${this.tenantSchema}`);
+            await queryRunner.query(`SET search_path TO "${this.tenantSchema}", public`);
+            console.log(`[EconomatService] Executing query:`, sql.substring(0, 200));
+            console.log(`[EconomatService] With params:`, params);
+            const result = await queryRunner.query(sql, params);
+            console.log(`[EconomatService] Query result rows:`, result?.rows?.length || result?.length || 0);
+            return result;
+        }
+        catch (error) {
+            const err = error;
+            console.error('[EconomatService] Query error:', err.message || error);
+            console.error('[EconomatService] SQL:', sql);
+            console.error('[EconomatService] Params:', params);
+            console.error('[EconomatService] Stack:', err.stack);
+            throw error;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
-    async findBudgets(filters) {
-        const query = this.budgetRepo.createQueryBuilder('b')
-            .leftJoinAndSelect('b.departement', 'd');
-        if (filters?.anneeAcademiqueId)
-            query.andWhere('b.anneeAcademiqueId = :aid', { aid: filters.anneeAcademiqueId });
-        if (filters?.departementId)
-            query.andWhere('b.departementId = :did', { did: filters.departementId });
-        return query.orderBy('b.categorie').getMany();
+    async getAnneesAcademiques() {
+        const query = `
+      SELECT
+        id,
+        libelle,
+        date_debut,
+        date_fin,
+        active,
+        created_at
+      FROM annee_academique
+      ORDER BY date_debut DESC
+    `;
+        const result = await this.query(query);
+        console.log('[getAnneesAcademiques] Result:', result);
+        console.log('[getAnneesAcademiques] Result.rows:', result?.rows);
+        if (Array.isArray(result)) {
+            console.log('[getAnneesAcademiques] Result is array, returning directly');
+            return result;
+        }
+        console.log('[getAnneesAcademiques] Returning result.rows');
+        return result.rows || [];
     }
-    async getBudgetByAnnee(anneeAcademiqueId) {
-        const budgets = await this.budgetRepo.find({
-            where: { anneeAcademiqueId },
-            order: { categorie: 'ASC' },
-        });
-        const totalPrevu = budgets.reduce((acc, b) => acc + Number(b.montantPrevu), 0);
-        const totalRealise = budgets.reduce((acc, b) => acc + Number(b.montantRealise), 0);
-        return {
-            budgets,
-            totalPrevu,
-            totalRealise,
-            ecart: totalPrevu - totalRealise,
-            tauxExecution: totalPrevu > 0 ? (totalRealise / totalPrevu) * 100 : 0,
-        };
-    }
-    async allouerBudget(id, montant) {
-        await this.budgetRepo.update(id, { montantPrevu: montant });
-        return this.budgetRepo.findOne({ where: { id } });
-    }
-    async getExecutionBudget(id) {
-        const budget = await this.budgetRepo.findOne({ where: { id } });
-        if (!budget)
-            throw new common_1.NotFoundException('Budget non trouvé');
-        const depenses = await this.dataSource.query(`
-      SELECT COALESCE(SUM(montant), 0) as total
-      FROM depense
-      WHERE budget_id = $1 AND statut = 'paye'
-    `, [id]);
-        const montantRealise = parseFloat(depenses[0]?.total || 0);
-        const montantPrevu = Number(budget.montantPrevu);
-        return {
-            budget,
-            montantRealise,
-            tauxExecution: montantPrevu > 0 ? (montantRealise / montantPrevu) * 100 : 0,
-            ecart: montantPrevu - montantRealise,
-        };
-    }
-    async createDemandeAchat(data) {
-        const demande = await this.dataSource.query(`
-      INSERT INTO demande_achat (
-        demandeur_id, departement_id, description, montant_estime, 
-        categorie, priorite, statut, date_besoin, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'soumise', $7, NOW())
+    async createBudget(dto) {
+        const id = (0, uuid_1.v4)();
+        let anneeAcademiqueId = dto.annee_academique_id;
+        if (!anneeAcademiqueId) {
+            const activeYearQuery = 'SELECT id FROM annee_academique WHERE active = TRUE LIMIT 1';
+            const activeYearResult = await this.query(activeYearQuery);
+            if (!activeYearResult.rows || activeYearResult.rows.length === 0) {
+                throw new common_1.BadRequestException('Aucune année académique active trouvée');
+            }
+            anneeAcademiqueId = activeYearResult.rows[0].id;
+        }
+        const query = `
+      INSERT INTO budget (
+        id, annee_academique_id, departement_id, categorie,
+        montant_prevu, description, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [data.demandeurId, data.departementId, data.description, data.montantEstime,
-            data.categorie, data.priorite || 'normale', data.dateBesoin]);
-        return demande[0];
-    }
-    async findDemandesAchat(filters) {
-        let query = `SELECT da.*, d.nom as departement_nom, u.nom || ' ' || u.prenom as demandeur_nom
-                 FROM demande_achat da
-                 LEFT JOIN departement d ON d.id = da.departement_id
-                 LEFT JOIN utilisateur u ON u.id = da.demandeur_id
-                 WHERE 1=1`;
-        const params = [];
-        let paramCount = 0;
-        if (filters?.statut) {
-            query += ` AND da.statut = $${++paramCount}`;
-            params.push(filters.statut);
-        }
-        if (filters?.departementId) {
-            query += ` AND da.departement_id = $${++paramCount}`;
-            params.push(filters.departementId);
-        }
-        if (filters?.priorite) {
-            query += ` AND da.priorite = $${++paramCount}`;
-            params.push(filters.priorite);
-        }
-        query += ` ORDER BY 
-      CASE da.priorite 
-        WHEN 'urgente' THEN 1 
-        WHEN 'haute' THEN 2 
-        WHEN 'normale' THEN 3 
-        ELSE 4 
-      END,
-      da.created_at DESC`;
-        return this.dataSource.query(query, params);
-    }
-    async validerDemandeAchat(id, validePar) {
-        await this.dataSource.query(`
-      UPDATE demande_achat 
-      SET statut = 'validee', valide_par = $1, date_validation = NOW()
-      WHERE id = $2
-    `, [validePar, id]);
-        return this.dataSource.query(`SELECT * FROM demande_achat WHERE id = $1`, [id]);
-    }
-    async rejeterDemandeAchat(id, data) {
-        await this.dataSource.query(`
-      UPDATE demande_achat 
-      SET statut = 'rejetee', valide_par = $1, date_validation = NOW(), motif_rejet = $2
-      WHERE id = $3
-    `, [data.validePar, data.motif, id]);
-        return this.dataSource.query(`SELECT * FROM demande_achat WHERE id = $1`, [id]);
-    }
-    async createDepense(data) {
-        const depense = this.depenseRepo.create(data);
-        return this.depenseRepo.save(depense);
-    }
-    async findDepenses(filters) {
-        const query = this.depenseRepo.createQueryBuilder('d');
-        if (filters?.statut)
-            query.andWhere('d.statut = :statut', { statut: filters.statut });
-        if (filters?.budgetId)
-            query.andWhere('d.budgetId = :bid', { bid: filters.budgetId });
-        if (filters?.anneeAcademiqueId)
-            query.andWhere('d.anneeAcademiqueId = :aid', { aid: filters.anneeAcademiqueId });
-        return query.orderBy('d.dateDepense', 'DESC').getMany();
-    }
-    async approuverDepense(id, approuvePar) {
-        await this.depenseRepo.update(id, {
-            statut: 'approuve',
-            approuvePar,
-            dateApprobation: new Date(),
-        });
-        return this.depenseRepo.findOne({ where: { id } });
-    }
-    async getDepensesParCategorie(anneeAcademiqueId) {
-        let query = `
-      SELECT categorie, SUM(montant) as total, COUNT(*) as nb_transactions
-      FROM depense
-      WHERE statut = 'paye'
     `;
-        const params = [];
+        const values = [
+            id,
+            anneeAcademiqueId,
+            dto.departement_id || null,
+            dto.categorie,
+            dto.montant_prevu,
+            dto.description || null,
+            this.userId,
+        ];
+        const result = await this.query(query, values);
+        if (Array.isArray(result)) {
+            return result[0];
+        }
+        return result.rows?.[0] || result;
+    }
+    async getBudgets(filters) {
+        let query = `
+      SELECT 
+        b.id, b.categorie, b.montant_prevu, b.montant_realise,
+        b.description, b.created_at, b.updated_at,
+        d.nom as departement, 
+        aa.libelle as annee,
+        ROUND((b.montant_realise / NULLIF(b.montant_prevu, 0) * 100), 2) as taux_execution,
+        (b.montant_prevu - b.montant_realise) as solde
+      FROM budget b
+      LEFT JOIN departement d ON b.departement_id = d.id
+      JOIN annee_academique aa ON b.annee_academique_id = aa.id
+      WHERE 1=1
+    `;
+        const values = [];
+        let paramCount = 1;
+        if (filters.annee_academique_id) {
+            query += ` AND b.annee_academique_id = $${paramCount}`;
+            values.push(filters.annee_academique_id);
+            paramCount++;
+        }
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        if (filters.departement_id) {
+            query += ` AND b.departement_id = $${paramCount}`;
+            values.push(filters.departement_id);
+            paramCount++;
+        }
+        if (filters.categorie) {
+            query += ` AND b.categorie = $${paramCount}`;
+            values.push(filters.categorie);
+            paramCount++;
+        }
+        if (filters.search) {
+            query += ` AND (b.categorie ILIKE $${paramCount} OR b.description ILIKE $${paramCount} OR d.nom ILIKE $${paramCount})`;
+            values.push(`%${filters.search}%`);
+            paramCount++;
+        }
+        query += ` ORDER BY b.created_at DESC`;
+        const result = await this.query(query, values);
+        if (Array.isArray(result)) {
+            return result;
+        }
+        return result.rows || [];
+    }
+    async getBudgetById(id) {
+        const query = `
+      SELECT 
+        b.*, d.nom as departement, aa.libelle as annee,
+        ROUND((b.montant_realise / NULLIF(b.montant_prevu, 0) * 100), 2) as taux_execution,
+        (b.montant_prevu - b.montant_realise) as solde
+      FROM budget b
+      LEFT JOIN departement d ON b.departement_id = d.id
+      JOIN annee_academique aa ON b.annee_academique_id = aa.id
+      WHERE b.id = $1
+    `;
+        const result = await this.query(query, [id]);
+        if (result.rows.length === 0) {
+            throw new common_1.NotFoundException('Budget non trouvé');
+        }
+        return result.rows[0];
+    }
+    async updateBudget(id, dto) {
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+        if (dto.montant_prevu !== undefined) {
+            updates.push(`montant_prevu = $${paramCount}`);
+            values.push(dto.montant_prevu);
+            paramCount++;
+        }
+        if (dto.montant_realise !== undefined) {
+            updates.push(`montant_realise = $${paramCount}`);
+            values.push(dto.montant_realise);
+            paramCount++;
+        }
+        if (dto.description !== undefined) {
+            updates.push(`description = $${paramCount}`);
+            values.push(dto.description);
+            paramCount++;
+        }
+        if (updates.length === 0) {
+            throw new common_1.BadRequestException('Aucune donnée à mettre à jour');
+        }
+        updates.push(`updated_at = NOW()`);
+        values.push(id);
+        const query = `
+      UPDATE budget
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+        const result = await this.query(query, values);
+        if (result.rows.length === 0) {
+            throw new common_1.NotFoundException('Budget non trouvé');
+        }
+        return result.rows[0];
+    }
+    async getBudgetStats(anneeAcademiqueId) {
+        let query = `
+      SELECT
+        COALESCE(SUM(montant_prevu), 0) as budget_total,
+        COALESCE(SUM(montant_realise), 0) as depense_totale,
+        COALESCE(SUM(montant_prevu - montant_realise), 0) as solde,
+        ROUND((COALESCE(SUM(montant_realise), 0) / NULLIF(SUM(montant_prevu), 0) * 100), 2) as taux_execution
+      FROM budget b
+      JOIN annee_academique aa ON b.annee_academique_id = aa.id
+      WHERE 1=1
+    `;
+        const values = [];
         if (anneeAcademiqueId) {
-            query += ` AND annee_academique_id = $1`;
-            params.push(anneeAcademiqueId);
+            query += ` AND b.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
         }
-        query += ` GROUP BY categorie ORDER BY total DESC`;
-        return this.dataSource.query(query, params);
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        const result = await this.query(query, values);
+        if (Array.isArray(result) && result.length > 0) {
+            return result[0];
+        }
+        if (result.rows && result.rows.length > 0) {
+            return result.rows[0];
+        }
+        return {
+            budget_total: 0,
+            depense_totale: 0,
+            solde: 0,
+            taux_execution: 0,
+        };
     }
-    async getStockAlertes() {
-        return this.stockRepo.find({
-            where: { quantiteStock: 0 },
-            order: { libelle: 'ASC' },
-        });
-    }
-    async getValeurStock() {
-        const result = await this.dataSource.query(`
-      SELECT 
-        COALESCE(SUM(quantite_stock * prix_unitaire), 0) as valeur_totale,
-        COUNT(*) as nb_articles,
-        COALESCE(SUM(CASE WHEN quantite_stock <= seuil_alerte THEN 1 ELSE 0 END), 0) as articles_alerte
-      FROM stock
-    `);
-        return result[0];
-    }
-    async getStatsRecouvrement(anneeAcademiqueId) {
-        const anneeFilter = anneeAcademiqueId ? `AND i.annee_academique_id = '${anneeAcademiqueId}'` : `AND aa.active = true`;
-        const result = await this.dataSource.query(`
-      SELECT 
-        SUM(gt.montant_total) as total_frais,
-        COALESCE(SUM(payes.montant_paye), 0) as total_encaisse,
-        SUM(gt.montant_total) - COALESCE(SUM(payes.montant_paye), 0) as total_restant,
-        ROUND(100.0 * COALESCE(SUM(payes.montant_paye), 0) / NULLIF(SUM(gt.montant_total), 0), 2) as taux_recouvrement,
-        COUNT(CASE WHEN gt.montant_total > COALESCE(payes.montant_paye, 0) THEN 1 END) as nb_impayes
-      FROM inscription i
-      JOIN grille_tarifaire gt ON gt.parcours_id = i.parcours_id AND gt.annee_academique_id = i.annee_academique_id
-      LEFT JOIN (
-        SELECT inscription_id, SUM(montant) as montant_paye
-        FROM paiement WHERE statut = 'valide' GROUP BY inscription_id
-      ) payes ON payes.inscription_id = i.id
-      JOIN annee_academique aa ON aa.id = i.annee_academique_id
-      WHERE i.statut = 'validee' ${anneeFilter}
-    `);
-        return result[0];
-    }
-    async getImpayes(filters) {
+    async getBudgetByDepartement(anneeAcademiqueId) {
         let query = `
       SELECT 
-        e.nom, e.prenom, e.email,
-        p.code as parcours_code, p.nom as parcours_nom,
-        gt.montant_total as montant_du,
-        COALESCE(payes.montant_paye, 0) as montant_paye,
-        gt.montant_total - COALESCE(payes.montant_paye, 0) as montant_restant,
-        i.date_inscription,
-        MAX(ech.date_echeance) as prochaine_echeance
-      FROM inscription i
-      JOIN etudiant e ON e.id = i.etudiant_id
-      JOIN parcours p ON p.id = i.parcours_id
-      JOIN grille_tarifaire gt ON gt.parcours_id = i.parcours_id AND gt.annee_academique_id = i.annee_academique_id
-      LEFT JOIN (
-        SELECT inscription_id, SUM(montant) as montant_paye
-        FROM paiement WHERE statut = 'valide' GROUP BY inscription_id
-      ) payes ON payes.inscription_id = i.id
-      LEFT JOIN echeancier ech ON ech.inscription_id = i.id AND ech.statut = 'en_attente'
-      WHERE i.statut = 'validee'
-        AND gt.montant_total > COALESCE(payes.montant_paye, 0)
+        d.nom as departement,
+        COALESCE(SUM(b.montant_prevu), 0) as budget_total,
+        COALESCE(SUM(b.montant_realise), 0) as depense_totale,
+        COALESCE(SUM(b.montant_prevu - b.montant_realise), 0) as solde,
+        ROUND((COALESCE(SUM(b.montant_realise), 0) / NULLIF(SUM(b.montant_prevu), 0) * 100), 2) as taux_execution
+      FROM budget b
+      JOIN departement d ON b.departement_id = d.id
+      JOIN annee_academique aa ON b.annee_academique_id = aa.id
+      WHERE 1=1
     `;
-        const params = [];
-        let paramCount = 0;
-        if (filters?.jours) {
-            query += ` AND ech.date_echeance <= NOW() + INTERVAL '${filters.jours} days'`;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND b.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
         }
-        if (filters?.montantMin) {
-            query += ` AND (gt.montant_total - COALESCE(payes.montant_paye, 0)) >= $${++paramCount}`;
-            params.push(filters.montantMin);
+        else {
+            query += ` AND aa.active = TRUE`;
         }
-        query += ` GROUP BY e.id, e.nom, e.prenom, e.email, p.code, p.nom, gt.montant_total, payes.montant_paye, i.date_inscription
-              ORDER BY montant_restant DESC`;
-        return this.dataSource.query(query, params);
+        query += ` GROUP BY d.id, d.nom ORDER BY taux_execution DESC`;
+        const result = await this.query(query, values);
+        return result.rows;
     }
-    async getCreancesAging(jours = 30) {
-        const result = await this.dataSource.query(`
+    async createDepense(dto) {
+        const id = (0, uuid_1.v4)();
+        if (dto.budget_id) {
+            const budgetCheck = await this.query(`SELECT montant_prevu, montant_realise FROM budget WHERE id = $1`, [dto.budget_id]);
+            if (budgetCheck.rows.length === 0) {
+                throw new common_1.NotFoundException('Budget non trouvé');
+            }
+            const budget = budgetCheck.rows[0];
+            const nouveauMontantRealise = parseFloat(budget.montant_realise) + dto.montant;
+            if (nouveauMontantRealise > parseFloat(budget.montant_prevu)) {
+                throw new common_1.BadRequestException('Cette dépense dépasserait le budget alloué');
+            }
+        }
+        const query = `
+      INSERT INTO depense (
+        id, budget_id, annee_academique_id, libelle, montant,
+        categorie, date_depense, fournisseur, numero_facture,
+        facture_url, observations, demande_par, statut
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'en_attente')
+      RETURNING *
+    `;
+        const values = [
+            id,
+            dto.budget_id || null,
+            dto.annee_academique_id,
+            dto.libelle,
+            dto.montant,
+            dto.categorie || null,
+            dto.date_depense || new Date(),
+            dto.fournisseur || null,
+            dto.numero_facture || null,
+            dto.facture_url || null,
+            dto.observations || null,
+            this.userId,
+        ];
+        const result = await this.query(query, values);
+        return result.rows[0];
+    }
+    async getDepenses(filters) {
+        const page = parseInt(String(filters.page || 1));
+        const limit = parseInt(String(filters.limit || 20));
+        const offset = (page - 1) * limit;
+        let query = `
+      SELECT
+        d.id, d.libelle, d.montant, d.date_depense, d.fournisseur,
+        d.numero_facture, d.statut, d.categorie, d.facture_url,
+        d.observations, d.date_approbation, d.created_at, d.updated_at,
+        d.valide_par_president, d.valide_le, d.motif_decision, d.conditions_speciales,
+        b.categorie as budget_categorie,
+        u1.nom as demandeur,
+        u1.prenom as demandeur_prenom,
+        u2.nom as approbateur,
+        u2.prenom as approbateur_prenom,
+        aa.libelle as annee
+      FROM depense d
+      LEFT JOIN budget b ON d.budget_id = b.id
+      LEFT JOIN utilisateur u1 ON d.demande_par = u1.id
+      LEFT JOIN utilisateur u2 ON d.approuve_par = u2.id
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE 1=1
+    `;
+        const values = [];
+        let paramCount = 1;
+        if (filters.annee_academique_id) {
+            query += ` AND d.annee_academique_id = $${paramCount}`;
+            values.push(filters.annee_academique_id);
+            paramCount++;
+        }
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        if (filters.statut) {
+            query += ` AND d.statut = $${paramCount}`;
+            values.push(filters.statut);
+            paramCount++;
+        }
+        if (filters.categorie) {
+            query += ` AND d.categorie = $${paramCount}`;
+            values.push(filters.categorie);
+            paramCount++;
+        }
+        if (filters.fournisseur) {
+            query += ` AND d.fournisseur ILIKE $${paramCount}`;
+            values.push(`%${filters.fournisseur}%`);
+            paramCount++;
+        }
+        if (filters.date_debut) {
+            query += ` AND d.date_depense >= $${paramCount}`;
+            values.push(filters.date_debut);
+            paramCount++;
+        }
+        if (filters.date_fin) {
+            query += ` AND d.date_depense <= $${paramCount}`;
+            values.push(filters.date_fin);
+            paramCount++;
+        }
+        if (filters.search) {
+            query += ` AND (d.libelle ILIKE $${paramCount} OR d.fournisseur ILIKE $${paramCount} OR d.numero_facture ILIKE $${paramCount})`;
+            values.push(`%${filters.search}%`);
+            paramCount++;
+        }
+        let countQuery = `
+      SELECT COUNT(*) as total
+      FROM depense d
+      LEFT JOIN budget b ON d.budget_id = b.id
+      LEFT JOIN utilisateur u1 ON d.demande_par = u1.id
+      LEFT JOIN utilisateur u2 ON d.approuve_par = u2.id
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE 1=1
+    `;
+        let countParamIndex = 1;
+        const countValues = [];
+        if (filters.annee_academique_id) {
+            countQuery += ` AND d.annee_academique_id = $${countParamIndex}`;
+            countValues.push(filters.annee_academique_id);
+            countParamIndex++;
+        }
+        else {
+            countQuery += ` AND aa.active = TRUE`;
+        }
+        if (filters.statut) {
+            countQuery += ` AND d.statut = $${countParamIndex}`;
+            countValues.push(filters.statut);
+            countParamIndex++;
+        }
+        if (filters.categorie) {
+            countQuery += ` AND d.categorie = $${countParamIndex}`;
+            countValues.push(filters.categorie);
+            countParamIndex++;
+        }
+        if (filters.fournisseur) {
+            countQuery += ` AND d.fournisseur ILIKE $${countParamIndex}`;
+            countValues.push(`%${filters.fournisseur}%`);
+            countParamIndex++;
+        }
+        if (filters.date_debut) {
+            countQuery += ` AND d.date_depense >= $${countParamIndex}`;
+            countValues.push(filters.date_debut);
+            countParamIndex++;
+        }
+        if (filters.date_fin) {
+            countQuery += ` AND d.date_depense <= $${countParamIndex}`;
+            countValues.push(filters.date_fin);
+            countParamIndex++;
+        }
+        if (filters.search) {
+            countQuery += ` AND (d.libelle ILIKE $${countParamIndex} OR d.fournisseur ILIKE $${countParamIndex} OR d.numero_facture ILIKE $${countParamIndex})`;
+            countValues.push(`%${filters.search}%`);
+            countParamIndex++;
+        }
+        const countResult = await this.query(countQuery, countValues);
+        const total = parseInt(countResult.rows[0]?.total || '0');
+        console.log('[EconomatService] After COUNT query, paramCount:', paramCount);
+        console.log('[EconomatService] Current values array:', values);
+        console.log('[EconomatService] About to add pagination');
+        query += ` ORDER BY d.date_depense DESC, d.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+        values.push(limit, offset);
+        console.log('[EconomatService] After adding pagination, values:', values);
+        console.log('[EconomatService] Final paramCount:', paramCount);
+        try {
+            console.log('[EconomatService] About to execute main depenses query');
+            console.log('[EconomatService] Full query:', query);
+            console.log('[EconomatService] Values:', values);
+            const result = await this.query(query, values);
+            console.log('[EconomatService] Main query executed successfully, rows:', result.rows?.length);
+            return { data: result.rows || [], total };
+        }
+        catch (error) {
+            console.error('[EconomatService] ❌ ERROR in main depenses query:', error);
+            console.error('[EconomatService] Error message:', error?.message);
+            console.error('[EconomatService] Error stack:', error?.stack);
+            console.error('[EconomatService] Query:', query);
+            console.error('[EconomatService] Values:', values);
+            throw new Error(`Erreur lors de la récupération des dépenses: ${error?.message || 'Erreur inconnue'}`);
+        }
+    }
+    async getDepenseById(id) {
+        const query = `
       SELECT 
-        CASE 
-          WHEN echeance >= NOW() THEN 'a_echeance'
-          WHEN echeance >= NOW() - INTERVAL '30 days' THEN '1_30_jours'
-          WHEN echeance >= NOW() - INTERVAL '60 days' THEN '31_60_jours'
-          WHEN echeance >= NOW() - INTERVAL '90 days' THEN '61_90_jours'
-          ELSE 'plus_90_jours'
-        END as tranche,
-        COUNT(*) as nb_creances,
-        SUM(montant_restant) as montant_total
-      FROM (
-        SELECT 
-          MAX(ech.date_echeance) as echeance,
-          gt.montant_total - COALESCE(
-            (SELECT SUM(montant) FROM paiement WHERE inscription_id = i.id AND statut = 'valide'), 0
-          ) as montant_restant
-        FROM inscription i
-        JOIN grille_tarifaire gt ON gt.parcours_id = i.parcours_id AND gt.annee_academique_id = i.annee_academique_id
-        JOIN echeancier ech ON ech.inscription_id = i.id
-        WHERE i.statut = 'validee'
-          AND ech.statut = 'en_attente'
-        GROUP BY i.id, gt.montant_total
-        HAVING gt.montant_total > COALESCE(
-          (SELECT SUM(montant) FROM paiement WHERE inscription_id = i.id AND statut = 'valide'), 0
-        )
-      ) creances
-      GROUP BY tranche
-    `);
-        return result;
+        d.*, b.categorie as budget_categorie,
+        u1.nom as demandeur, u2.nom as approbateur,
+        aa.libelle as annee
+      FROM depense d
+      LEFT JOIN budget b ON d.budget_id = b.id
+      LEFT JOIN utilisateur u1 ON d.demande_par = u1.id
+      LEFT JOIN utilisateur u2 ON d.approuve_par = u2.id
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE d.id = $1
+    `;
+        const result = await this.query(query, [id]);
+        if (result.rows.length === 0) {
+            throw new common_1.NotFoundException('Dépense non trouvée');
+        }
+        return result.rows[0];
+    }
+    async approveDepense(id, dto) {
+        const depense = await this.getDepenseById(id);
+        if (depense.statut !== 'en_attente') {
+            throw new common_1.BadRequestException('Cette dépense a déjà été traitée');
+        }
+        const query = `
+      UPDATE depense
+      SET statut = $1, approuve_par = $2, date_approbation = NOW(),
+          motif_decision = $3, conditions_speciales = $4
+      WHERE id = $5
+      RETURNING *
+    `;
+        const values = [dto.statut, this.userId, dto.motif_decision, dto.conditions_speciales, id];
+        const result = await this.query(query, values);
+        if (dto.statut === 'approuve' && depense.budget_id) {
+            await this.query(`UPDATE budget 
+         SET montant_realise = montant_realise + $1 
+         WHERE id = $2`, [depense.montant, depense.budget_id]);
+        }
+        return result.rows[0];
+    }
+    async validateByPresident(id, dto) {
+        const query = `
+      UPDATE depense
+      SET valide_par_president = $1, valide_le = NOW(), motif_decision = $2
+      WHERE id = $3
+      RETURNING *
+    `;
+        const values = [dto.valide_par_president || this.userId, dto.motif_decision, id];
+        const result = await this.query(query, values);
+        if (result.rows.length === 0) {
+            throw new common_1.NotFoundException('Dépense non trouvée');
+        }
+        return result.rows[0];
+    }
+    async markAsPaid(id, dto) {
+        const depense = await this.getDepenseById(id);
+        if (depense.statut !== 'approuve') {
+            throw new common_1.BadRequestException('Seules les dépenses approuvées peuvent être marquées comme payées');
+        }
+        const query = `
+      UPDATE depense
+      SET statut = 'paye', observations = $1
+      WHERE id = $2
+      RETURNING *
+    `;
+        const values = [dto.observations, id];
+        const result = await this.query(query, values);
+        return result.rows[0];
+    }
+    async getDepenseStats(anneeAcademiqueId) {
+        let query = `
+      SELECT
+        COUNT(*) FILTER (WHERE statut = 'en_attente') as nb_en_attente,
+        COALESCE(SUM(montant) FILTER (WHERE statut = 'en_attente'), 0) as montant_total,
+        COUNT(*) FILTER (WHERE statut = 'approuve') as nb_approuve,
+        COUNT(*) FILTER (WHERE statut = 'paye') as nb_paye,
+        COUNT(*) FILTER (WHERE statut = 'rejete') as nb_rejete
+      FROM depense d
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE 1=1
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND d.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
+        }
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        const result = await this.query(query, values);
+        if (result.rows && result.rows.length > 0) {
+            return result.rows[0];
+        }
+        return {
+            nb_en_attente: 0,
+            montant_total: 0,
+            nb_approuve: 0,
+            nb_paye: 0,
+            nb_rejete: 0,
+        };
+    }
+    async getDepensesByFournisseur(anneeAcademiqueId) {
+        let query = `
+      SELECT 
+        fournisseur,
+        COUNT(*) as nb_factures,
+        SUM(montant) as montant_total,
+        AVG(montant) as montant_moyen,
+        MAX(date_depense) as derniere_transaction
+      FROM depense d
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE fournisseur IS NOT NULL AND statut != 'rejete'
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND d.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
+        }
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        query += ` GROUP BY fournisseur ORDER BY montant_total DESC`;
+        const result = await this.query(query, values);
+        return result.rows;
+    }
+    async getDepensesByCategorie(anneeAcademiqueId) {
+        let query = `
+      SELECT 
+        categorie,
+        COUNT(*) as nb_depenses,
+        SUM(montant) as montant_total,
+        ROUND((SUM(montant) / (SELECT SUM(montant) FROM depense WHERE statut != 'rejete') * 100), 2) as pourcentage
+      FROM depense d
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE categorie IS NOT NULL AND statut != 'rejete'
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND d.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
+        }
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        query += ` GROUP BY categorie ORDER BY montant_total DESC`;
+        const result = await this.query(query, values);
+        return result.rows;
+    }
+    async getFournisseurs(search) {
+        let query = `
+      SELECT
+        fournisseur,
+        COUNT(*)::integer as nb_factures,
+        COALESCE(SUM(montant), 0)::numeric as montant_total,
+        COALESCE(AVG(montant), 0)::numeric as montant_moyen,
+        MAX(date_depense) as derniere_transaction
+      FROM depense
+      WHERE fournisseur IS NOT NULL AND fournisseur != '' AND statut != 'rejete'
+    `;
+        const values = [];
+        if (search) {
+            query += ` AND fournisseur ILIKE $1`;
+            values.push(`%${search}%`);
+        }
+        query += ` GROUP BY fournisseur ORDER BY montant_total DESC`;
+        try {
+            const result = await this.query(query, values);
+            if (Array.isArray(result)) {
+                console.log('[EconomatService] Fournisseurs found:', result.length);
+                return result;
+            }
+            console.log('[EconomatService] Fournisseurs found:', result.rows?.length || 0);
+            return result.rows || [];
+        }
+        catch (error) {
+            console.error('[EconomatService] Error fetching fournisseurs:', error);
+            return [];
+        }
+    }
+    async getFournisseurTransactions(fournisseur) {
+        const query = `
+      SELECT
+        d.id, d.libelle, d.montant, d.date_depense,
+        d.numero_facture, d.statut, d.facture_url,
+        d.categorie, aa.libelle as annee
+      FROM depense d
+      JOIN annee_academique aa ON d.annee_academique_id = aa.id
+      WHERE d.fournisseur = $1
+      ORDER BY d.date_depense DESC
+    `;
+        try {
+            const result = await this.query(query, [fournisseur]);
+            if (Array.isArray(result)) {
+                console.log('[EconomatService] Transactions found for fournisseur:', result.length);
+                return result;
+            }
+            console.log('[EconomatService] Transactions found for fournisseur:', result.rows?.length || 0);
+            return result.rows || [];
+        }
+        catch (error) {
+            console.error('[EconomatService] Error fetching fournisseur transactions:', error);
+            return [];
+        }
+    }
+    async getRecouvrementStats(anneeAcademiqueId) {
+        let query = `
+      SELECT
+        COUNT(DISTINCT i.id) as nb_inscriptions,
+        COALESCE(SUM(gt.montant_total), 0) as montant_attendu,
+        COALESCE(SUM(p.montant), 0) as montant_recouvre,
+        COALESCE(SUM(gt.montant_total) - COALESCE(SUM(p.montant), 0), 0) as montant_impaye,
+        ROUND((COALESCE(SUM(p.montant), 0) / NULLIF(SUM(gt.montant_total), 0) * 100), 2) as taux_recouvrement
+      FROM inscription i
+      JOIN grille_tarifaire gt ON i.parcours_id = gt.parcours_id
+        AND i.annee_academique_id = gt.annee_academique_id
+        AND i.annee_niveau = gt.annee_niveau
+      LEFT JOIN paiement p ON i.id = p.inscription_id AND p.statut = 'valide'
+      WHERE 1=1
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND i.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
+        }
+        else {
+            query += ` AND EXISTS (SELECT 1 FROM annee_academique aa WHERE aa.id = i.annee_academique_id AND aa.active = TRUE)`;
+        }
+        const result = await this.query(query, values);
+        if (Array.isArray(result)) {
+            if (result.length > 0) {
+                return result[0];
+            }
+        }
+        else if (result.rows && result.rows.length > 0) {
+            return result.rows[0];
+        }
+        return {
+            nb_inscriptions: 0,
+            montant_attendu: 0,
+            montant_recouvre: 0,
+            montant_impaye: 0,
+            taux_recouvrement: 0,
+        };
+    }
+    async getInscriptionsImpayees(filters) {
+        let query = `
+      SELECT
+        i.id as inscription_id,
+        et.matricule, et.nom, et.prenom,
+        p.nom as parcours,
+        gt.montant_total,
+        COALESCE(SUM(pa.montant), 0) as montant_paye,
+        (gt.montant_total - COALESCE(SUM(pa.montant), 0)) as reste_a_payer,
+        i.statut
+      FROM inscription i
+      JOIN etudiant et ON i.etudiant_id = et.id
+      JOIN parcours p ON i.parcours_id = p.id
+      JOIN grille_tarifaire gt ON i.parcours_id = gt.parcours_id
+        AND i.annee_academique_id = gt.annee_academique_id
+        AND i.annee_niveau = gt.annee_niveau
+      LEFT JOIN paiement pa ON i.id = pa.inscription_id AND pa.statut = 'valide'
+      WHERE 1=1
+    `;
+        const values = [];
+        let paramCount = 1;
+        if (filters.annee_academique_id) {
+            query += ` AND i.annee_academique_id = $${paramCount}`;
+            values.push(filters.annee_academique_id);
+            paramCount++;
+        }
+        if (filters.parcours_id) {
+            query += ` AND i.parcours_id = $${paramCount}`;
+            values.push(filters.parcours_id);
+            paramCount++;
+        }
+        if (filters.niveau) {
+            query += ` AND ne.code = $${paramCount}`;
+            values.push(filters.niveau);
+            paramCount++;
+        }
+        if (filters.search) {
+            query += ` AND (et.matricule ILIKE $${paramCount} OR et.nom ILIKE $${paramCount} OR et.prenom ILIKE $${paramCount})`;
+            values.push(`%${filters.search}%`);
+            paramCount++;
+        }
+        query += `
+      GROUP BY i.id, et.matricule, et.nom, et.prenom, p.nom, gt.montant_total, i.statut
+      HAVING (gt.montant_total - COALESCE(SUM(pa.montant), 0)) > 0
+      ORDER BY reste_a_payer DESC
+    `;
+        const result = await this.query(query, values);
+        if (Array.isArray(result)) {
+            return result;
+        }
+        return result.rows || [];
+    }
+    async getRecouvrementByParcours(anneeAcademiqueId) {
+        let query = `
+      SELECT
+        p.nom as parcours,
+        COUNT(DISTINCT i.id) as nb_etudiants,
+        SUM(gt.montant_total) as montant_attendu,
+        COALESCE(SUM(pa.montant), 0) as montant_recouvre,
+        ROUND((COALESCE(SUM(pa.montant), 0) / NULLIF(SUM(gt.montant_total), 0) * 100), 2) as taux
+      FROM inscription i
+      JOIN parcours p ON i.parcours_id = p.id
+      JOIN grille_tarifaire gt ON i.parcours_id = gt.parcours_id
+        AND i.annee_academique_id = gt.annee_academique_id
+        AND i.annee_niveau = gt.annee_niveau
+      LEFT JOIN paiement pa ON i.id = pa.inscription_id AND pa.statut = 'valide'
+      WHERE 1=1
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND i.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
+        }
+        else {
+            query += ` AND EXISTS (SELECT 1 FROM annee_academique aa WHERE aa.id = i.annee_academique_id AND aa.active = TRUE)`;
+        }
+        query += ` GROUP BY p.id, p.nom ORDER BY taux DESC`;
+        const result = await this.query(query, values);
+        if (Array.isArray(result)) {
+            return result;
+        }
+        return result.rows || [];
+    }
+    async getRapportJournalier(date) {
+        const paiementsQuery = `
+      SELECT 
+        p.recu_numero, p.montant, p.mode_paiement,
+        et.matricule, et.nom, et.prenom,
+        u.nom as caissier,
+        TO_CHAR(p.created_at, 'HH24:MI') as heure
+      FROM paiement p
+      JOIN inscription i ON p.inscription_id = i.id
+      JOIN etudiant et ON i.etudiant_id = et.id
+      LEFT JOIN utilisateur u ON p.caissier_id = u.id
+      WHERE p.date_paiement = $1 AND p.statut = 'valide'
+      ORDER BY p.created_at
+    `;
+        const modesQuery = `
+      SELECT 
+        mode_paiement,
+        COUNT(*) as nb_transactions,
+        SUM(montant) as montant_total
+      FROM paiement
+      WHERE date_paiement = $1 AND statut = 'valide'
+      GROUP BY mode_paiement
+    `;
+        const [paiementsResult, modesResult] = await Promise.all([
+            this.query(paiementsQuery, [date]),
+            this.query(modesQuery, [date]),
+        ]);
+        const total = paiementsResult.rows.reduce((sum, p) => sum + parseFloat(p.montant), 0);
+        return {
+            date: new Date(date),
+            paiements: paiementsResult.rows,
+            total_paiements: total,
+            nb_paiements: paiementsResult.rows.length,
+            par_mode_paiement: modesResult.rows,
+        };
     }
     async getRapportMensuel(mois, annee) {
-        const [recettes, depenses, nouvellesInscriptions, solde] = await Promise.all([
-            this.dataSource.query(`
-        SELECT COALESCE(SUM(montant), 0) as total, COUNT(*) as nb_transactions
-        FROM paiement
-        WHERE EXTRACT(MONTH FROM date_paiement) = $1 AND EXTRACT(YEAR FROM date_paiement) = $2
-          AND statut = 'valide'
-      `, [mois, annee]),
-            this.dataSource.query(`
-        SELECT COALESCE(SUM(montant), 0) as total, COUNT(*) as nb_transactions
-        FROM depense
-        WHERE EXTRACT(MONTH FROM date_depense) = $1 AND EXTRACT(YEAR FROM date_depense) = $2
-          AND statut = 'paye'
-      `, [mois, annee]),
-            this.dataSource.query(`
-        SELECT COUNT(*) as total
-        FROM inscription
-        WHERE EXTRACT(MONTH FROM date_inscription) = $1 AND EXTRACT(YEAR FROM date_inscription) = $2
-          AND statut = 'validee'
-      `, [mois, annee]),
-            this.getBilanFinancier(),
+        const recettesQuery = `
+      SELECT
+        COALESCE(SUM(p.montant), 0) as total
+      FROM paiement p
+      WHERE EXTRACT(MONTH FROM p.date_paiement) = $1
+        AND EXTRACT(YEAR FROM p.date_paiement) = $2
+        AND p.statut = 'valide'
+    `;
+        const depensesQuery = `
+      SELECT
+        COALESCE(SUM(d.montant), 0) as total
+      FROM depense d
+      WHERE EXTRACT(MONTH FROM d.date_depense) = $1
+        AND EXTRACT(YEAR FROM d.date_depense) = $2
+        AND d.statut = 'paye'
+    `;
+        const [recettesResult, depensesResult] = await Promise.all([
+            this.query(recettesQuery, [mois, annee]),
+            this.query(depensesQuery, [mois, annee]),
         ]);
+        const recettesRows = Array.isArray(recettesResult) ? recettesResult : (recettesResult.rows || []);
+        const depensesRows = Array.isArray(depensesResult) ? depensesResult : (depensesResult.rows || []);
+        const totalRecettes = parseFloat(recettesRows[0]?.total || 0);
+        const totalDepenses = parseFloat(depensesRows[0]?.total || 0);
         return {
-            periode: `${mois}/${annee}`,
-            recettes: recettes[0],
-            depenses: depenses[0],
-            nouvellesInscriptions: nouvellesInscriptions[0]?.total || 0,
-            solde: parseFloat(recettes[0]?.total || 0) - parseFloat(depenses[0]?.total || 0),
-            bilanGlobal: solde,
+            mois,
+            annee,
+            par_jour: [],
+            total_mois: totalRecettes,
+            nb_paiements: 0,
+            moyenne_journaliere: 0,
+            total_recettes: totalRecettes,
+            total_depenses: totalDepenses,
+            solde: totalRecettes - totalDepenses,
+        };
+    }
+    async getRapportAnnuel(anneeAcademiqueId) {
+        const recettesQuery = `
+      SELECT SUM(p.montant) as total
+      FROM paiement p
+      JOIN inscription i ON p.inscription_id = i.id
+      WHERE i.annee_academique_id = $1 AND p.statut = 'valide'
+    `;
+        const depensesQuery = `
+      SELECT SUM(montant) as total
+      FROM depense
+      WHERE annee_academique_id = $1 AND statut = 'paye'
+    `;
+        const anneeQuery = `
+      SELECT libelle FROM annee_academique WHERE id = $1
+    `;
+        const [recettesResult, depensesResult, anneeResult] = await Promise.all([
+            this.query(recettesQuery, [anneeAcademiqueId]),
+            this.query(depensesQuery, [anneeAcademiqueId]),
+            this.query(anneeQuery, [anneeAcademiqueId]),
+        ]);
+        const recettesRows = Array.isArray(recettesResult) ? recettesResult : (recettesResult.rows || []);
+        const depensesRows = Array.isArray(depensesResult) ? depensesResult : (depensesResult.rows || []);
+        const anneeRows = Array.isArray(anneeResult) ? anneeResult : (anneeResult.rows || []);
+        const recettes = parseFloat(recettesRows[0]?.total || 0);
+        const depenses = parseFloat(depensesRows[0]?.total || 0);
+        return {
+            annee_academique: anneeRows[0]?.libelle || '',
+            recettes_totales: recettes,
+            depenses_totales: depenses,
+            solde: recettes - depenses,
+            par_mois: [],
+            par_categorie_depense: [],
+            par_source_recette: [],
         };
     }
     async getBilanFinancier(anneeAcademiqueId) {
-        const anneeFilter = anneeAcademiqueId
-            ? `WHERE aa.id = '${anneeAcademiqueId}'`
-            : `WHERE aa.active = true`;
-        const [recettes, depenses, budget, creances] = await Promise.all([
-            this.dataSource.query(`
-        SELECT COALESCE(SUM(p.montant), 0) as total
-        FROM paiement p
-        JOIN inscription i ON i.id = p.inscription_id
-        JOIN annee_academique aa ON aa.id = i.annee_academique_id
-        ${anneeFilter.replace('WHERE', 'WHERE p.statut = \'valide\' AND')}
-      `),
-            this.dataSource.query(`
-        SELECT COALESCE(SUM(d.montant), 0) as total
-        FROM depense d
-        JOIN annee_academique aa ON aa.id = d.annee_academique_id
-        ${anneeFilter.replace('WHERE', 'WHERE d.statut = \'paye\' AND')}
-      `),
-            this.dataSource.query(`
-        SELECT COALESCE(SUM(b.montant_prevu), 0) as total_prevu,
-               COALESCE(SUM(b.montant_realise), 0) as total_realise
-        FROM budget b
-        JOIN annee_academique aa ON aa.id = b.annee_academique_id
-        ${anneeFilter}
-      `),
-            this.getStatsRecouvrement(anneeAcademiqueId),
+        const recettesQuery = `
+      SELECT 
+        SUM(p.montant) FILTER (WHERE gt.frais_scolarite > 0) as scolarite,
+        SUM(p.montant) FILTER (WHERE gt.frais_inscription > 0) as inscription,
+        SUM(p.montant) as total
+      FROM paiement p
+      JOIN inscription i ON p.inscription_id = i.id
+      JOIN grille_tarifaire gt ON i.parcours_id = gt.parcours_id
+        AND i.annee_academique_id = gt.annee_academique_id
+        AND i.annee_niveau = gt.annee_niveau
+      WHERE i.annee_academique_id = $1 AND p.statut = 'valide'
+    `;
+        const depensesQuery = `
+      SELECT 
+        SUM(montant) FILTER (WHERE categorie = 'personnel') as personnel,
+        SUM(montant) FILTER (WHERE categorie = 'equipement') as equipement,
+        SUM(montant) FILTER (WHERE categorie = 'fonctionnement') as fonctionnement,
+        SUM(montant) as total
+      FROM depense
+      WHERE annee_academique_id = $1 AND statut = 'paye'
+    `;
+        const subventionsQuery = `
+      SELECT COALESCE(SUM(montant_prevu), 0) as total
+      FROM budget
+      WHERE annee_academique_id = $1 AND categorie = 'subvention'
+    `;
+        const [recettesResult, depensesResult, subventionsResult] = await Promise.all([
+            this.query(recettesQuery, [anneeAcademiqueId]),
+            this.query(depensesQuery, [anneeAcademiqueId]),
+            this.query(subventionsQuery, [anneeAcademiqueId]),
         ]);
+        const recettes = recettesResult.rows[0];
+        const depenses = depensesResult.rows[0];
+        const subventions = parseFloat(subventionsResult.rows[0]?.total || 0);
+        const recettesTotales = parseFloat(recettes.total || 0) + subventions;
+        const depensesTotales = parseFloat(depenses.total || 0);
         return {
-            recettes: parseFloat(recettes[0]?.total || 0),
-            depenses: parseFloat(depenses[0]?.total || 0),
-            resultat: parseFloat(recettes[0]?.total || 0) - parseFloat(depenses[0]?.total || 0),
-            budget: {
-                prevu: parseFloat(budget[0]?.total_prevu || 0),
-                realise: parseFloat(budget[0]?.total_realise || 0),
-                ecart: parseFloat(budget[0]?.total_prevu || 0) - parseFloat(budget[0]?.total_realise || 0),
+            periode: anneeAcademiqueId,
+            recettes: {
+                scolarite: parseFloat(recettes.scolarite || 0),
+                inscription: parseFloat(recettes.inscription || 0),
+                subventions,
+                autres: 0,
+                total: recettesTotales,
             },
-            recouvrement: creances,
+            depenses: {
+                personnel: parseFloat(depenses.personnel || 0),
+                equipement: parseFloat(depenses.equipement || 0),
+                fonctionnement: parseFloat(depenses.fonctionnement || 0),
+                autres: depensesTotales - (parseFloat(depenses.personnel || 0) + parseFloat(depenses.equipement || 0) + parseFloat(depenses.fonctionnement || 0)),
+                total: depensesTotales,
+            },
+            resultat: recettesTotales - depensesTotales,
+            taux_execution_budget: 0,
         };
     }
-    async getPrevisionTresorerie(mois = 6) {
-        const previsions = [];
-        const today = new Date();
-        for (let i = 0; i < mois; i++) {
-            const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
-            const m = date.getMonth() + 1;
-            const a = date.getFullYear();
-            const echeances = await this.dataSource.query(`
-        SELECT COALESCE(SUM(montant_du), 0) as attendu
-        FROM echeancier
-        WHERE EXTRACT(MONTH FROM date_echeance) = $1 AND EXTRACT(YEAR FROM date_echeance) = $2
-          AND statut IN ('en_attente', 'en_retard')
-      `, [m, a]);
-            const depensesPrevues = await this.dataSource.query(`
-        SELECT COALESCE(SUM(montant_prevu), 0) / 12 as mensuel
-        FROM budget
-        JOIN annee_academique aa ON aa.id = annee_academique_id
-        WHERE aa.active = true
-      `);
-            previsions.push({
-                mois: m,
-                annee: a,
-                entreesAttendues: parseFloat(echeances[0]?.attendu || 0),
-                sortiesPrevues: parseFloat(depensesPrevues[0]?.mensuel || 0),
-                soldePrevisionnel: parseFloat(echeances[0]?.attendu || 0) - parseFloat(depensesPrevues[0]?.mensuel || 0),
-            });
+    async getSubventions(anneeAcademiqueId) {
+        let query = `
+      SELECT 
+        b.id, b.description as source, b.montant_prevu as montant_recu,
+        b.montant_realise as montant_utilise,
+        (b.montant_prevu - b.montant_realise) as solde,
+        b.created_at as date_reception,
+        aa.libelle as annee
+      FROM budget b
+      JOIN annee_academique aa ON b.annee_academique_id = aa.id
+      WHERE b.categorie = 'subvention'
+    `;
+        const values = [];
+        if (anneeAcademiqueId) {
+            query += ` AND b.annee_academique_id = $1`;
+            values.push(anneeAcademiqueId);
         }
-        return previsions;
+        else {
+            query += ` AND aa.active = TRUE`;
+        }
+        query += ` ORDER BY b.created_at DESC`;
+        const result = await this.query(query, values);
+        return result.rows;
+    }
+    async getSubventionUtilisation(subventionId) {
+        const query = `
+      SELECT 
+        d.libelle, d.montant, d.date_depense, d.statut,
+        b.description as source
+      FROM depense d
+      JOIN budget b ON d.budget_id = b.id
+      WHERE b.id = $1 AND b.categorie = 'subvention'
+      ORDER BY d.date_depense DESC
+    `;
+        const result = await this.query(query, [subventionId]);
+        return result.rows;
     }
 };
 exports.EconomatService = EconomatService;
-exports.EconomatService = EconomatService = EconomatService_1 = __decorate([
-    (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(finance_entities_1.Budget)),
-    __param(1, (0, typeorm_1.InjectRepository)(finance_entities_1.Depense)),
-    __param(2, (0, typeorm_1.InjectRepository)(logistics_entities_1.Stock)),
-    __param(3, (0, typeorm_1.InjectDataSource)()),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.DataSource])
+exports.EconomatService = EconomatService = __decorate([
+    (0, common_1.Injectable)({ scope: common_1.Scope.REQUEST }),
+    __param(0, (0, typeorm_1.InjectDataSource)('tenant')),
+    __param(1, (0, common_1.Inject)(core_1.REQUEST)),
+    __metadata("design:paramtypes", [typeorm_2.DataSource, Object])
 ], EconomatService);
 //# sourceMappingURL=economat.service.js.map

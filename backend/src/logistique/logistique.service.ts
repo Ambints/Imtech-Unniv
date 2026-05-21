@@ -697,7 +697,9 @@ export class LogistiqueService {
     return this.dataSource.query(`
       SELECT r.salle_id, s.nom AS salle_nom,
         r.date_reservation, r.heure_debut, r.heure_fin,
-        r.titre, r.statut, 'reservation' AS source
+        r.titre, r.statut, 'reservation' AS source,
+        NULL AS ue_nom, NULL AS enseignant_nom, NULL AS parcours_nom,
+        NULL AS type_seance, NULL AS annee_academique_nom
       FROM ${s}.reservation_salle r
       JOIN ${s}.salle s ON s.id = r.salle_id
       WHERE r.date_reservation BETWEEN $1 AND $2
@@ -707,9 +709,21 @@ export class LogistiqueService {
 
       SELECT e.salle_id, s.nom AS salle_nom,
         e.date_seance AS date_reservation, e.heure_debut, e.heure_fin,
-        'Cours' AS titre, e.statut, 'cours' AS source
+        COALESCE(ue.intitule, 'Cours') AS titre,
+        e.statut,
+        'cours' AS source,
+        ue.intitule AS ue_nom,
+        ens.nom || ' ' || ens.prenom AS enseignant_nom,
+        p.nom AS parcours_nom,
+        e.type_seance,
+        aa.nom AS annee_academique_nom
       FROM ${s}.emploi_du_temps e
       JOIN ${s}.salle s ON s.id = e.salle_id
+      LEFT JOIN ${s}.affectation_cours ac ON ac.id = e.affectation_id
+      LEFT JOIN ${s}.unite_enseignement ue ON ue.id = ac.ue_id
+      LEFT JOIN ${s}.enseignant ens ON ens.id = ue.enseignant_id
+      LEFT JOIN ${s}.parcours p ON p.id = ue.parcours_id
+      LEFT JOIN ${s}.annee_academique aa ON aa.id = e.annee_academique_id
       WHERE e.date_seance BETWEEN $1 AND $2
         AND e.statut != 'annule'
         AND e.salle_id IS NOT NULL

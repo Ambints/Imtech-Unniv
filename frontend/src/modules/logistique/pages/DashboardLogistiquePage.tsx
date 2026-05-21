@@ -22,7 +22,7 @@ export default function DashboardLogistiquePage() {
     );
   }
 
-  const reservationsEnAttente = reservations?.filter(r => r.statut === 'en_attente') || [];
+  const reservationsEnAttente = Array.isArray(reservations) ? reservations.filter(r => r.statut === 'en_attente') : [];
 
   return (
     <div className="container-fluid py-4">
@@ -202,7 +202,7 @@ export default function DashboardLogistiquePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {alertes.slice(0, 5).map((article) => (
+                  {Array.isArray(alertes) && alertes.length > 0 ? alertes.slice(0, 5).map((article) => (
                     <tr key={article.id}>
                       <td><code>{article.reference}</code></td>
                       <td className="fw-medium">{article.libelle}</td>
@@ -222,7 +222,13 @@ export default function DashboardLogistiquePage() {
                       </td>
                       <td className="text-muted">{article.fournisseur || '-'}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted py-3">
+                        Aucune alerte stock
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -254,7 +260,7 @@ export default function DashboardLogistiquePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ticketsUrgents.slice(0, 5).map((ticket) => (
+                  {Array.isArray(ticketsUrgents) && ticketsUrgents.length > 0 ? ticketsUrgents.slice(0, 5).map((ticket) => (
                     <tr key={ticket.id}>
                       <td className="fw-medium">{ticket.titre}</td>
                       <td>
@@ -284,7 +290,13 @@ export default function DashboardLogistiquePage() {
                         {new Date(ticket.date_signalement).toLocaleDateString('fr-FR')}
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={7} className="text-center text-muted py-3">
+                        Aucun ticket urgent
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -315,7 +327,7 @@ export default function DashboardLogistiquePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reservationsEnAttente.slice(0, 5).map((reservation) => (
+                  {Array.isArray(reservationsEnAttente) && reservationsEnAttente.length > 0 ? reservationsEnAttente.slice(0, 5).map((reservation) => (
                     <tr key={reservation.id}>
                       <td className="fw-medium">{reservation.titre}</td>
                       <td>
@@ -343,7 +355,13 @@ export default function DashboardLogistiquePage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted py-3">
+                        Aucune réservation en attente
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { EconomatController } from './economat.controller';
 import { EconomatService } from './economat.service';
-import { Budget, Depense } from '../finance/finance.entities';
-import { Stock } from '../logistics/logistics.entities';
+import { DepensesController } from './depenses.controller';
+import { DepensesService } from './depenses.service';
+import { RapportsController } from './rapports.controller';
+import { RapportsService } from './rapports.service';
+import { TenantConnectionService } from '../tenants/tenant-connection.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Budget, Depense, Stock])],
-  controllers: [EconomatController],
-  providers: [EconomatService],
-  exports: [EconomatService],
+  controllers: [EconomatController, DepensesController, RapportsController],
+  providers: [EconomatService, DepensesService, RapportsService, TenantConnectionService],
+  exports: [EconomatService, DepensesService, RapportsService],
 })
 export class EconomatModule {}
+
+// Made with Bob

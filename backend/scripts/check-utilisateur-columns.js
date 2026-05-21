@@ -3,56 +3,38 @@ const { Client } = require('pg');
 const client = new Client({
   host: 'localhost',
   port: 5432,
+  database: 'Imtech_SaaS',
   user: 'postgres',
   password: '2007',
-  database: 'Imtech_SaaS'
 });
 
-async function checkColumns() {
+async function checkUtilisateurColumns() {
   try {
     await client.connect();
-    console.log('✅ Connecté à la base de données\n');
-    
+    console.log('✅ Connected to database\n');
+
     const result = await client.query(`
-      SELECT column_name, data_type, character_maximum_length, is_nullable
+      SELECT column_name, data_type, is_nullable
       FROM information_schema.columns 
-      WHERE table_schema = 'tenant_ispm' 
-        AND table_name = 'utilisateur'
+      WHERE table_schema='tenant_test' AND table_name='utilisateur' 
       ORDER BY ordinal_position
     `);
-    
-    console.log('📋 Colonnes de tenant_ispm.utilisateur:\n');
-    console.log('Nom de colonne'.padEnd(30) + 'Type'.padEnd(20) + 'Nullable');
-    console.log('-'.repeat(70));
-    
+
+    console.log('Colonnes de la table utilisateur:');
+    console.log('='.repeat(60));
     result.rows.forEach(row => {
-      const name = row.column_name.padEnd(30);
-      const type = (row.data_type + (row.character_maximum_length ? `(${row.character_maximum_length})` : '')).padEnd(20);
-      const nullable = row.is_nullable;
-      console.log(`${name}${type}${nullable}`);
+      console.log(`- ${row.column_name.padEnd(25)} : ${row.data_type.padEnd(20)} (${row.is_nullable === 'YES' ? 'nullable' : 'NOT NULL'})`);
     });
-    
-    console.log('\n🔍 Recherche de colonnes password:');
-    const passwordCols = result.rows.filter(r => 
-      r.column_name.toLowerCase().includes('password') || 
-      r.column_name.toLowerCase().includes('mot_de_passe')
-    );
-    
-    if (passwordCols.length > 0) {
-      passwordCols.forEach(col => {
-        console.log(`  ✅ Trouvé: ${col.column_name} (${col.data_type})`);
-      });
-    } else {
-      console.log('  ❌ Aucune colonne password trouvée!');
-    }
-    
-  } catch (err) {
-    console.error('❌ Erreur:', err.message);
+    console.log('='.repeat(60));
+    console.log(`Total: ${result.rows.length} colonnes\n`);
+
+  } catch (error) {
+    console.error('❌ Error:', error.message);
   } finally {
     await client.end();
   }
 }
 
-checkColumns();
+checkUtilisateurColumns();
 
 // Made with Bob

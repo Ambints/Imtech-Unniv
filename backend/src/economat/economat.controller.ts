@@ -1,167 +1,221 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { EconomatService } from './economat.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { EconomatService } from './economat.service';
+import { CreateBudgetDto } from './dto/create-budget.dto';
+import { UpdateBudgetDto } from './dto/update-budget.dto';
+import { CreateDepenseDto } from './dto/create-depense.dto';
+import { ApproveDepenseDto, ValidatePresidentDto, MarkAsPaidDto } from './dto/approve-depense.dto';
+import { BudgetFiltersDto, DepenseFiltersDto, RecouvrementFiltersDto, RapportFiltersDto } from './dto/filters.dto';
 
-@ApiTags('Économat - Direction Financière')
-@ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('economat')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class EconomatController {
-  constructor(private readonly svc: EconomatService) {}
+  constructor(private readonly economatService: EconomatService) {}
 
-  // ========== BUDGET ==========
-  @Post('budgets')
+  // ==================== ANNÉES ACADÉMIQUES ====================
+
+  @Get('annee-academique')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Élaborer le budget annuel par département' })
-  createBudget(@Body() dto: any) {
-    return this.svc.createBudget(dto);
+  async getAnneesAcademiques() {
+    return this.economatService.getAnneesAcademiques();
   }
 
-  @Get('budgets')
-  @Roles('economat', 'admin', 'president', 'secretaire')
-  @ApiOperation({ summary: 'Liste des budgets' })
-  findBudgets(@Query() filters: any) {
-    return this.svc.findBudgets(filters);
-  }
+  // ==================== BUDGET ====================
 
-  @Get('budgets/annee/:anneeAcademiqueId')
-  @Roles('economat', 'admin', 'president', 'secretaire')
-  @ApiOperation({ summary: 'Budget complet d\'une année académique' })
-  getBudgetByAnnee(@Param('anneeAcademiqueId') anneeAcademiqueId: string) {
-    return this.svc.getBudgetByAnnee(anneeAcademiqueId);
-  }
-
-  @Patch('budgets/:id/allouer')
-  @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Modifier l\'allocation budgétaire' })
-  allouerBudget(@Param('id') id: string, @Body('montant') montant: number) {
-    return this.svc.allouerBudget(id, montant);
-  }
-
-  @Get('budgets/:id/execution')
-  @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Suivi d\'exécution du budget' })
-  getExecutionBudget(@Param('id') id: string) {
-    return this.svc.getExecutionBudget(id);
-  }
-
-  // ========== DEMANDES D'ACHAT ==========
-  @Post('demandes-achat')
-  @Roles('secretaire', 'responsable_pedagogique', 'admin')
-  @ApiOperation({ summary: 'Soumettre une demande d\'achat' })
-  createDemandeAchat(@Body() dto: any) {
-    return this.svc.createDemandeAchat(dto);
-  }
-
-  @Get('demandes-achat')
-  @Roles('economat', 'admin', 'secretaire', 'president')
-  @ApiOperation({ summary: 'Liste des demandes d\'achat' })
-  findDemandesAchat(@Query() filters: any) {
-    return this.svc.findDemandesAchat(filters);
-  }
-
-  @Patch('demandes-achat/:id/valider')
+  @Post('budget')
   @Roles('economat', 'admin')
-  @ApiOperation({ summary: 'Valider une demande d\'achat' })
-  validerDemandeAchat(@Param('id') id: string, @Body('validePar') validePar: string) {
-    return this.svc.validerDemandeAchat(id, validePar);
+  async createBudget(@Body(ValidationPipe) dto: CreateBudgetDto) {
+    return this.economatService.createBudget(dto);
   }
 
-  @Patch('demandes-achat/:id/rejeter')
+  @Get('budget')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Rejeter une demande d\'achat' })
-  rejeterDemandeAchat(@Param('id') id: string, @Body() dto: { validePar: string; motif: string }) {
-    return this.svc.rejeterDemandeAchat(id, dto);
+  async getBudgets(@Query(ValidationPipe) filters: BudgetFiltersDto) {
+    return this.economatService.getBudgets(filters);
   }
 
-  // ========== DÉPENSES ==========
-  @Post('depenses')
-  @Roles('economat', 'admin', 'secretaire')
-  @ApiOperation({ summary: 'Enregistrer une dépense' })
-  createDepense(@Body() dto: any) {
-    return this.svc.createDepense(dto);
-  }
-
-  @Get('depenses')
-  @Roles('economat', 'admin', 'president', 'secretaire')
-  @ApiOperation({ summary: 'Liste des dépenses' })
-  findDepenses(@Query() filters: any) {
-    return this.svc.findDepenses(filters);
-  }
-
-  @Patch('depenses/:id/approuver')
+  @Get('budget/stats')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Approuver une dépense' })
-  approuverDepense(@Param('id') id: string, @Body() dto: { approuvePar: string }) {
-    return this.svc.approuverDepense(id, dto.approuvePar);
+  async getBudgetStats(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+    return this.economatService.getBudgetStats(anneeAcademiqueId);
   }
 
-  @Get('depenses/categories')
+  @Get('budget/by-departement')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Répartition des dépenses par catégorie' })
-  getDepensesParCategorie(@Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
-    return this.svc.getDepensesParCategorie(anneeAcademiqueId);
+  async getBudgetByDepartement(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+    return this.economatService.getBudgetByDepartement(anneeAcademiqueId);
   }
 
-  // ========== STOCK ==========
-  @Get('stock/alertes')
-  @Roles('economat', 'admin', 'logistique')
-  @ApiOperation({ summary: 'Alertes de stock bas' })
-  getStockAlertes() {
-    return this.svc.getStockAlertes();
-  }
-
-  @Get('stock/valeur')
+  @Get('budget/:id')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Valeur totale du stock' })
-  getValeurStock() {
-    return this.svc.getValeurStock();
+  async getBudgetById(@Param('id') id: string) {
+    return this.economatService.getBudgetById(id);
   }
 
-  // ========== RECOUVREMENT ==========
+  @Put('budget/:id')
+  @Roles('economat', 'admin')
+  async updateBudget(
+    @Param('id') id: string,
+    @Body(ValidationPipe) dto: UpdateBudgetDto,
+  ) {
+    return this.economatService.updateBudget(id, dto);
+  }
+
+  // ==================== DEPENSES ====================
+  // DÉSACTIVÉ - Utiliser DepensesController à la place
+
+  // @Post('depenses')
+  // @Roles('economat', 'admin')
+  // async createDepense(@Body(ValidationPipe) dto: CreateDepenseDto) {
+  //   return this.economatService.createDepense(dto);
+  // }
+
+  // @Get('depenses')
+  // @Roles('economat', 'admin', 'president')
+  // async getDepenses(@Query(ValidationPipe) filters: DepenseFiltersDto) {
+  //   return this.economatService.getDepenses(filters);
+  // }
+
+  // @Get('depenses/stats')
+  // @Roles('economat', 'admin', 'president')
+  // async getDepenseStats(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+  //   return this.economatService.getDepenseStats(anneeAcademiqueId);
+  // }
+
+  // @Get('depenses/by-fournisseur')
+  // @Roles('economat', 'admin', 'president')
+  // async getDepensesByFournisseur(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+  //   return this.economatService.getDepensesByFournisseur(anneeAcademiqueId);
+  // }
+
+  // @Get('depenses/by-categorie')
+  // @Roles('economat', 'admin', 'president')
+  // async getDepensesByCategorie(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+  //   return this.economatService.getDepensesByCategorie(anneeAcademiqueId);
+  // }
+
+  // @Get('depenses/:id')
+  // @Roles('economat', 'admin', 'president')
+  // async getDepenseById(@Param('id') id: string) {
+  //   return this.economatService.getDepenseById(id);
+  // }
+
+  // @Patch('depenses/:id/approve')
+  // @Roles('economat', 'admin')
+  // async approveDepense(
+  //   @Param('id') id: string,
+  //   @Body(ValidationPipe) dto: ApproveDepenseDto,
+  // ) {
+  //   return this.economatService.approveDepense(id, dto);
+  // }
+
+  // @Patch('depenses/:id/validate-president')
+  // @Roles('president', 'admin')
+  // async validateByPresident(
+  //   @Param('id') id: string,
+  //   @Body(ValidationPipe) dto: ValidatePresidentDto,
+  // ) {
+  //   return this.economatService.validateByPresident(id, dto);
+  // }
+
+  // @Patch('depenses/:id/mark-paid')
+  // @Roles('economat', 'admin')
+  // async markAsPaid(
+  //   @Param('id') id: string,
+  //   @Body(ValidationPipe) dto: MarkAsPaidDto,
+  // ) {
+  //   return this.economatService.markAsPaid(id, dto);
+  // }
+
+  // ==================== FOURNISSEURS ====================
+
+  @Get('fournisseurs')
+  @Roles('economat', 'admin', 'president')
+  async getFournisseurs(@Query('search') search?: string) {
+    return this.economatService.getFournisseurs(search);
+  }
+
+  @Get('fournisseurs/:fournisseur/transactions')
+  @Roles('economat', 'admin', 'president')
+  async getFournisseurTransactions(@Param('fournisseur') fournisseur: string) {
+    return this.economatService.getFournisseurTransactions(fournisseur);
+  }
+
+  // ==================== RECOUVREMENT ====================
+
   @Get('recouvrement/stats')
-  @Roles('economat', 'admin', 'president', 'secretaire')
-  @ApiOperation({ summary: 'Statistiques de recouvrement des frais' })
-  getStatsRecouvrement(@Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
-    return this.svc.getStatsRecouvrement(anneeAcademiqueId);
+  @Roles('economat', 'admin', 'president')
+  async getRecouvrementStats(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+    return this.economatService.getRecouvrementStats(anneeAcademiqueId);
   }
 
   @Get('recouvrement/impayes')
-  @Roles('economat', 'admin', 'president', 'secretaire')
-  @ApiOperation({ summary: 'Liste des impayés' })
-  getImpayes(@Query() filters: any) {
-    return this.svc.getImpayes(filters);
+  @Roles('economat', 'admin', 'president')
+  async getInscriptionsImpayees(@Query(ValidationPipe) filters: RecouvrementFiltersDto) {
+    return this.economatService.getInscriptionsImpayees(filters);
   }
 
-  @Get('recouvrement/creances')
+  @Get('recouvrement/by-parcours')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Âge des créances' })
-  getCreances(@Query('jours') jours: number = 30) {
-    return this.svc.getCreancesAging(jours);
+  async getRecouvrementByParcours(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+    return this.economatService.getRecouvrementByParcours(anneeAcademiqueId);
   }
 
-  // ========== AUDIT ET REPORTING ==========
-  @Get('audit/rapport-mensuel')
+  // ==================== RAPPORTS ====================
+
+  @Get('rapports/journalier')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Rapport financier mensuel pour le Président' })
-  getRapportMensuel(@Query('mois') mois: number, @Query('annee') annee: number) {
-    return this.svc.getRapportMensuel(mois, annee);
+  async getRapportJournalier(@Query('date') date: string) {
+    return this.economatService.getRapportJournalier(date);
   }
 
-  @Get('audit/bilan')
+  @Get('rapports/mensuel')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Bilan financier' })
-  getBilanFinancier(@Query('anneeAcademiqueId') anneeAcademiqueId?: string) {
-    return this.svc.getBilanFinancier(anneeAcademiqueId);
+  async getRapportMensuel(
+    @Query('mois') mois: string,
+    @Query('annee') annee: number,
+  ) {
+    return this.economatService.getRapportMensuel(mois, annee);
   }
 
-  @Get('tresorerie')
+  @Get('rapports/annuel')
   @Roles('economat', 'admin', 'president')
-  @ApiOperation({ summary: 'Prévision de trésorerie' })
-  getPrevisionTresorerie(@Query('mois') mois: number = 6) {
-    return this.svc.getPrevisionTresorerie(mois);
+  async getRapportAnnuel(@Query('annee_academique_id') anneeAcademiqueId: string) {
+    return this.economatService.getRapportAnnuel(anneeAcademiqueId);
+  }
+
+  @Get('rapports/bilan')
+  @Roles('economat', 'admin', 'president')
+  async getBilanFinancier(@Query('annee_academique_id') anneeAcademiqueId: string) {
+    return this.economatService.getBilanFinancier(anneeAcademiqueId);
+  }
+
+  // ==================== SUBVENTIONS ====================
+
+  @Get('subventions')
+  @Roles('economat', 'admin', 'president')
+  async getSubventions(@Query('annee_academique_id') anneeAcademiqueId?: string) {
+    return this.economatService.getSubventions(anneeAcademiqueId);
+  }
+
+  @Get('subventions/:id/utilisation')
+  @Roles('economat', 'admin', 'president')
+  async getSubventionUtilisation(@Param('id') id: string) {
+    return this.economatService.getSubventionUtilisation(id);
   }
 }
+
+// Made with Bob

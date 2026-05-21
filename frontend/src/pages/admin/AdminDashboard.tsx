@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../api/client';
@@ -1186,6 +1187,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
               </div>
               </div>
             </div>
+
+          {/* Configuration des Moyens de Paiement */}
+          <div className="col-12">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">
+                  <CreditCard size={20} className="me-2" />
+                  Configuration des Moyens de Paiement
+                </h5>
+                <p className="text-muted mb-3">
+                  Configurez les informations de paiement (comptes bancaires, Mobile Money) affichées aux étudiants lors des inscriptions.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => navigate('/admin/configuration-paiement')}
+                >
+                  <Settings size={18} className="me-2" />
+                  Gérer les Moyens de Paiement
+                </button>
+              </div>
+            </div>
+          </div>
           </div>
 
           {/* Boutons d'action */}
@@ -1323,7 +1347,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       <>
         <div className="card border-0 shadow-sm">
           <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-4">
+            <div
+              className="d-flex justify-content-between align-items-center mb-4"
+              style={{
+                position: 'sticky',
+                top: 0,
+                backgroundColor: 'white',
+                zIndex: 10,
+                paddingTop: '1rem',
+                paddingBottom: '1rem',
+                marginTop: '-1rem',
+                marginLeft: '-1.25rem',
+                marginRight: '-1.25rem',
+                paddingLeft: '1.25rem',
+                paddingRight: '1.25rem',
+                borderBottom: '1px solid #dee2e6'
+              }}
+            >
               <h5 className="card-title mb-0">
                 <UserCog size={20} className="me-2" />
                 Gestion des Utilisateurs
@@ -1409,9 +1449,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
         </div>
 
         {/* Modal de formulaire */}
-        {showUserModal && (
-          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
+        {showUserModal && createPortal(
+          <div
+            className="modal show d-block"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1050,
+              overflow: 'auto'
+            }}
+          >
+            <div className="modal-dialog modal-dialog-centered" style={{ margin: '1.75rem auto' }}>
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">
@@ -1548,7 +1600,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                 </form>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </>
     );
@@ -2137,8 +2190,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
             </table>
 
             {/* Modal Assignation Rapide Secrétaire */}
-            {showAssignSecretaireModal && assigningParcours && (
-              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            {showAssignSecretaireModal && assigningParcours && createPortal(
+              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050, overflow: 'auto' }}>
                 <div className="modal-dialog modal-dialog-centered">
                   <div className="modal-content">
                     <div className="modal-header">
@@ -2210,12 +2263,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
 
             {/* Modal Assignation Rapide RP */}
-            {showAssignRPModal && assigningParcours && (
-              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            {showAssignRPModal && assigningParcours && createPortal(
+              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050, overflow: 'auto' }}>
                 <div className="modal-dialog modal-dialog-centered">
                   <div className="modal-content">
                     <div className="modal-header">
@@ -2281,7 +2335,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
@@ -2742,8 +2797,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   const [editingAnnee, setEditingAnnee] = useState<any>(null);
   const [anneeForm, setAnneeForm] = useState({
     libelle: '',
-    annee_debut: new Date().getFullYear(),
-    annee_fin: new Date().getFullYear() + 1,
     date_debut: '',
     date_fin: '',
     active: true
@@ -2756,8 +2809,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
 
       const payload = {
         libelle: anneeForm.libelle,
-        anneeDebut: anneeForm.annee_debut,
-        anneeFin: anneeForm.annee_fin,
         dateDebut: anneeForm.date_debut || null,
         dateFin: anneeForm.date_fin || null,
         active: anneeForm.active
@@ -2775,8 +2826,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       setEditingAnnee(null);
       setAnneeForm({
         libelle: '',
-        annee_debut: new Date().getFullYear(),
-        annee_fin: new Date().getFullYear() + 1,
         date_debut: '',
         date_fin: '',
         active: true
@@ -2837,8 +2886,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
               setEditingAnnee(null);
               setAnneeForm({
                 libelle: '',
-                annee_debut: new Date().getFullYear(),
-                annee_fin: new Date().getFullYear() + 1,
                 date_debut: '',
                 date_fin: '',
                 active: true
@@ -2872,8 +2919,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
               <thead className="table-light">
                 <tr>
                   <th>Libellé</th>
-                  <th style={{ width: '150px' }}>Période</th>
-                  <th style={{ width: '200px' }}>Dates</th>
+                  <th style={{ width: '150px' }}>Date de début</th>
+                  <th style={{ width: '150px' }}>Date de fin</th>
                   <th style={{ width: '100px' }} className="text-center">Statut</th>
                   <th style={{ width: '150px' }} className="text-center">Actions</th>
                 </tr>
@@ -2885,16 +2932,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                       <div className="fw-medium">{annee.libelle}</div>
                     </td>
                     <td>
-                      <span className="badge bg-danger bg-opacity-10 text-danger">
-                        {annee.annee_debut} - {annee.annee_fin}
-                      </span>
+                      <small className="text-muted">
+                        {annee.dateDebut ? (
+                          new Date(annee.dateDebut).toLocaleDateString('fr-FR')
+                        ) : (
+                          'Non défini'
+                        )}
+                      </small>
                     </td>
                     <td>
                       <small className="text-muted">
-                        {annee.date_debut && annee.date_fin ? (
-                          <>
-                            {new Date(annee.date_debut).toLocaleDateString('fr-FR')} - {new Date(annee.date_fin).toLocaleDateString('fr-FR')}
-                          </>
+                        {annee.dateFin ? (
+                          new Date(annee.dateFin).toLocaleDateString('fr-FR')
                         ) : (
                           'Non défini'
                         )}
@@ -2917,10 +2966,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                             setEditingAnnee(annee);
                             setAnneeForm({
                               libelle: annee.libelle,
-                              annee_debut: annee.annee_debut,
-                              annee_fin: annee.annee_fin,
-                              date_debut: annee.date_debut || '',
-                              date_fin: annee.date_fin || '',
+                              date_debut: annee.dateDebut || '',
+                              date_fin: annee.dateFin || '',
                               active: annee.active
                             });
                             setShowAnneeForm(true);
@@ -2955,8 +3002,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       </div>
 
       {/* Modal Formulaire */}
-      {showAnneeForm && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {showAnneeForm && createPortal(
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050, overflow: 'auto' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
@@ -2982,30 +3029,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                     onChange={(e) => setAnneeForm({ ...anneeForm, libelle: e.target.value })}
                     placeholder="Ex: Année Académique 2024-2025"
                   />
-                </div>
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Année Début *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={anneeForm.annee_debut}
-                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_debut: parseInt(e.target.value) })}
-                      min="2000"
-                      max="2100"
-                    />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Année Fin *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={anneeForm.annee_fin}
-                      onChange={(e) => setAnneeForm({ ...anneeForm, annee_fin: parseInt(e.target.value) })}
-                      min="2000"
-                      max="2100"
-                    />
-                  </div>
                 </div>
                 <div className="row">
                   <div className="col-md-6 mb-3">
@@ -3055,7 +3078,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
                   type="button"
                   className="btn btn-danger"
                   onClick={handleCreateAnnee}
-                  disabled={!anneeForm.libelle || !anneeForm.annee_debut || !anneeForm.annee_fin}
+                  disabled={!anneeForm.libelle}
                 >
                   <SaveIcon size={16} className="me-2" />
                   {editingAnnee ? 'Modifier' : 'Créer'}
@@ -3063,7 +3086,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -3547,9 +3571,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
   }
 
   return (
-    <div className="container-fluid py-4">
-      {/* En-tête */}
-      <div className="row mb-4">
+    <div className="container-fluid" style={{ paddingTop: 0 }}>
+      {/* En-tête fixe */}
+      <div
+        className="row mb-4"
+        style={{
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          zIndex: 100,
+          paddingTop: '1.5rem',
+          paddingBottom: '1rem',
+          borderBottom: '1px solid #dee2e6',
+          marginLeft: 0,
+          marginRight: 0
+        }}
+      >
         <div className="col">
           <h2 className="mb-1">Administration</h2>
           <p className="text-muted mb-0">Gestion complète de l'université</p>
@@ -3557,7 +3594,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'ov
       </div>
 
       {/* Contenu selon l'onglet actif */}
-      <div className="row">
+      <div className="row" style={{ paddingTop: '1rem' }}>
         <div className="col">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'config' && renderConfig()}

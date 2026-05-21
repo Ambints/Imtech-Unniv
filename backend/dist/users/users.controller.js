@@ -24,11 +24,28 @@ let UsersController = class UsersController {
         this.svc = svc;
     }
     async create(dto, req) {
-        if (req.user?.role === 'admin' && !dto.tenantId) {
-            dto.tenantId = req.user.tenantId;
+        console.log('[UsersController] Create user request:', {
+            requestingUserRole: req.user?.role,
+            requestingUserTenantId: req.user?.tenantId,
+            dtoTenantId: dto.tenantId,
+            dtoRole: dto.role
+        });
+        if (dto.role === 'super_admin') {
+            if (req.user?.role !== 'super_admin') {
+                throw new common_1.BadRequestException('Seul un super_admin peut créer un autre super_admin');
+            }
+            console.log('[UsersController] Creating super_admin');
+            return this.svc.create(dto);
         }
-        if (!dto.tenantId && req.user?.role !== 'super_admin') {
-            throw new common_1.BadRequestException('TenantId requis pour créer un utilisateur');
+        if (req.user?.role === 'admin') {
+            if (!req.user.tenantId) {
+                throw new common_1.BadRequestException('Votre compte n\'est pas associé à une université. Contactez le super admin.');
+            }
+            dto.tenantId = req.user.tenantId;
+            console.log('[UsersController] Admin creating user in tenant:', dto.tenantId);
+        }
+        if (req.user?.role === 'super_admin' && !dto.tenantId) {
+            throw new common_1.BadRequestException('TenantId requis pour créer un utilisateur d\'université');
         }
         return this.svc.create(dto);
     }

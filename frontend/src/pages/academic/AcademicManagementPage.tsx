@@ -48,8 +48,10 @@ export const AcademicManagementPage: React.FC = () => {
   const [showEtudiantForm, setShowEtudiantForm] = useState(false);
   const [etudiantForm, setEtudiantForm] = useState({
     id: '', matricule: '', nom: '', prenom: '', dateNaissance: '',
-    sexe: 'M', nationalite: 'Malagasy', email: '', telephone: '',
-    adresse: '', nomParent: '', telephoneParent: ''
+    lieuNaissance: '', sexe: 'M', nationalite: 'Malagasy',
+    email: '', telephone: '', adresse: '',
+    nomParent: '', telephoneParent: '', emailParent: '',
+    religion: '', situationFamiliale: ''
   });
 
   // Chargement initial
@@ -230,8 +232,10 @@ export const AcademicManagementPage: React.FC = () => {
   const resetEtudiantForm = () => {
     setEtudiantForm({
       id: '', matricule: '', nom: '', prenom: '', dateNaissance: '',
-      sexe: 'M', nationalite: 'Malagasy', email: '', telephone: '',
-      adresse: '', nomParent: '', telephoneParent: ''
+      lieuNaissance: '', sexe: 'M', nationalite: 'Malagasy',
+      email: '', telephone: '', adresse: '',
+      nomParent: '', telephoneParent: '', emailParent: '',
+      religion: '', situationFamiliale: ''
     });
   };
 
@@ -864,6 +868,35 @@ const EtudiantFormComponent: React.FC<any> = ({ form, setForm, onSubmit, onCance
           />
         </div>
         <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Lieu de Naissance</label>
+          <input
+            type="text"
+            value={form.lieuNaissance}
+            onChange={e => setForm((f: any) => ({ ...f, lieuNaissance: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sexe</label>
+          <select
+            value={form.sexe}
+            onChange={e => setForm((f: any) => ({ ...f, sexe: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          >
+            <option value="M">Masculin</option>
+            <option value="F">Féminin</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Nationalité</label>
+          <input
+            type="text"
+            value={form.nationalite}
+            onChange={e => setForm((f: any) => ({ ...f, nationalite: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Email</label>
           <input
             type="email"
@@ -880,6 +913,65 @@ const EtudiantFormComponent: React.FC<any> = ({ form, setForm, onSubmit, onCance
             onChange={e => setForm((f: any) => ({ ...f, telephone: e.target.value }))}
             style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
           />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Adresse</label>
+          <input
+            type="text"
+            value={form.adresse}
+            onChange={e => setForm((f: any) => ({ ...f, adresse: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Nom du parent/tuteur</label>
+          <input
+            type="text"
+            value={form.nomParent}
+            onChange={e => setForm((f: any) => ({ ...f, nomParent: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Téléphone parent</label>
+          <input
+            type="tel"
+            value={form.telephoneParent}
+            onChange={e => setForm((f: any) => ({ ...f, telephoneParent: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Email parent</label>
+          <input
+            type="email"
+            value={form.emailParent}
+            onChange={e => setForm((f: any) => ({ ...f, emailParent: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Religion</label>
+          <input
+            type="text"
+            value={form.religion}
+            onChange={e => setForm((f: any) => ({ ...f, religion: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Situation familiale</label>
+          <select
+            value={form.situationFamiliale}
+            onChange={e => setForm((f: any) => ({ ...f, situationFamiliale: e.target.value }))}
+            style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 9, fontSize: 14 }}
+          >
+            <option value="">Sélectionner...</option>
+            <option value="celibataire">Célibataire</option>
+            <option value="marie">Marié(e)</option>
+            <option value="divorce">Divorcé(e)</option>
+            <option value="veuf">Veuf/Veuve</option>
+          </select>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>

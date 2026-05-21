@@ -401,19 +401,38 @@ let AcademicService = AcademicService_1 = class AcademicService {
     }
     saisirAbsence(tid, dto) { return this.saisirPresence(tid, dto); }
     getAbsencesEtudiant(tid, etudiantId) { return this.getPresencesEtudiant(tid, etudiantId); }
-    getSalles(tid) { return this.salleRepo.find(); }
-    createSalle(tid, dto) {
+    async getSalles(tid) {
+        await this.tenantConnection.setTenantSchema(tid);
+        return this.salleRepo.find();
+    }
+    async createSalle(tid, dto) {
+        await this.tenantConnection.setTenantSchema(tid);
         return this.salleRepo.save(this.salleRepo.create(dto));
     }
-    getEDT(tid, parcoursId) {
+    async getEDT(tid, parcoursId) {
+        if (tid)
+            await this.tenantConnection.setTenantSchema(tid);
         return this.edtRepo.find();
     }
-    createEDT(tid, dto) {
+    async createEDT(tid, dto) {
+        await this.tenantConnection.setTenantSchema(tid);
         return this.edtRepo.save(this.edtRepo.create(dto));
     }
     async getAnneesAcademiques(tid) {
         await this.tenantConnection.setTenantSchema(tid);
+        await this.desactiverAnneesExpirees(tid);
         return this.anneeRepo.find({ order: { dateDebut: 'DESC' } });
+    }
+    async desactiverAnneesExpirees(tid) {
+        await this.tenantConnection.setTenantSchema(tid);
+        const aujourdhui = new Date();
+        await this.anneeRepo
+            .createQueryBuilder()
+            .update()
+            .set({ active: false })
+            .where('date_fin < :aujourdhui', { aujourdhui })
+            .andWhere('active = :active', { active: true })
+            .execute();
     }
     async createAnneeAcademique(tid, dto) {
         await this.tenantConnection.setTenantSchema(tid);

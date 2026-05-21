@@ -23,11 +23,11 @@ export default function PlanningEntretienPage() {
     );
   }
 
-  const planningsByDay = plannings?.reduce((acc, p) => {
+  const planningsByDay = Array.isArray(plannings) ? plannings.reduce((acc, p) => {
     if (!acc[p.jour_semaine]) acc[p.jour_semaine] = [];
     acc[p.jour_semaine].push(p);
     return acc;
-  }, {} as Record<number, typeof plannings>);
+  }, {} as Record<number, typeof plannings>) : {};
 
   return (
     <div className="container-fluid py-4">

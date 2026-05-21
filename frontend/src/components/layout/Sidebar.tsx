@@ -7,7 +7,7 @@ import {
   Clock, AlertTriangle, EyeIcon, CheckCircle, CalendarDays, Scroll, BanknoteIcon, Receipt, CircleDot,
   Briefcase, ArrowRightLeft, Landmark, CreditCard, Printer, Wallet, MapPin, Sparkles, Target,
   Wrench, School, Package, Brush, Zap, Map, Droplets, Home, MessageSquare, User, Pencil, CheckSquare,
-  GraduationCap as GradCap, Folder, FlaskConical, LogOut, X, Menu, Settings, Shield
+  GraduationCap as GradCap, Folder, FlaskConical, LogOut, X, Menu, Settings, Shield, Plus
 } from 'lucide-react';
 
 type MenuItem = { label: string; icon: React.ReactNode; path: string; badge?: number };
@@ -78,14 +78,13 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Délibérations', icon: <Trophy size={18} />, path: '/scolarite/deliberations' },
     { label: 'Génération Diplômes', icon: <GraduationCap size={18} />, path: '/scolarite/diplomes' },
     { label: 'Attestations', icon: <FileText size={18} />, path: '/scolarite/attestations' },
-    { label: 'Transferts & Équivalences', icon: <ArrowRightLeft size={18} />, path: '/scolarite/transferts' },
   ],
   economat: [
     { label: 'Budget Annuel', icon: <Briefcase size={18} />, path: '/economat/budget' },
     { label: 'Suivi Dépenses', icon: <Wallet size={18} />, path: '/economat/depenses' },
     { label: 'Fournisseurs', icon: <Landmark size={18} />, path: '/economat/fournisseurs' },
     { label: 'Recouvrement Global', icon: <Banknote size={18} />, path: '/economat/recouvrement' },
-    { label: 'Rapport Financier', icon: <BarChart3 size={18} />, path: '/economat/rapport' },
+    { label: 'Rapport Financier', icon: <BarChart3 size={18} />, path: '/economat/rapports' },
     { label: 'Subventions', icon: <Landmark size={18} />, path: '/economat/subventions' },
   ],
   caissier: [
@@ -103,13 +102,31 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Congés & Absences', icon: <MapPin size={18} />, path: '/rh/conges' },
     { label: 'Évaluations', icon: <Sparkles size={18} />, path: '/rh/evaluations' },
     { label: 'Recrutement', icon: <Target size={18} />, path: '/rh/recrutement' },
+    { label: 'Affectation Cours', icon: <BookOpen size={18} />, path: '/rh/affectation-cours' },
+  ],
+  logistique: [
+    { label: 'Dashboard', icon: <Home size={18} />, path: '/logistique' },
+    { label: 'Bâtiments', icon: <Building2 size={18} />, path: '/logistique/batiments' },
+    { label: 'Salles', icon: <School size={18} />, path: '/logistique/salles' },
+    { label: 'Tickets Maintenance', icon: <Wrench size={18} />, path: '/logistique/tickets' },
+    { label: 'Stock & Inventaire', icon: <Package size={18} />, path: '/logistique/stock' },
+    { label: 'Réservations', icon: <Calendar size={18} />, path: '/logistique/reservations' },
+    { label: 'Calendrier Salles', icon: <CalendarDays size={18} />, path: '/logistique/calendrier' },
+    { label: 'Planning Entretien', icon: <Brush size={18} />, path: '/logistique/planning-entretien' },
+    { label: 'Rapports Entretien', icon: <FileText size={18} />, path: '/logistique/rapports-entretien' },
+    { label: 'Demandes Ressources', icon: <Send size={18} />, path: '/logistique/demandes-ressource' },
   ],
   responsable_logistique: [
+    { label: 'Dashboard', icon: <Home size={18} />, path: '/logistique' },
+    { label: 'Bâtiments', icon: <Building2 size={18} />, path: '/logistique/batiments' },
+    { label: 'Salles', icon: <School size={18} />, path: '/logistique/salles' },
     { label: 'Tickets Maintenance', icon: <Wrench size={18} />, path: '/logistique/tickets' },
-    { label: 'Salles & Réservations', icon: <School size={18} />, path: '/logistique/salles' },
-    { label: 'Stocks & Inventaire', icon: <Package size={18} />, path: '/logistique/stocks' },
-    { label: 'Planning Nettoyage', icon: <Brush size={18} />, path: '/logistique/nettoyage' },
-    { label: 'Énergie & Équipements', icon: <Zap size={18} />, path: '/logistique/energie' },
+    { label: 'Stock & Inventaire', icon: <Package size={18} />, path: '/logistique/stock' },
+    { label: 'Réservations', icon: <Calendar size={18} />, path: '/logistique/reservations' },
+    { label: 'Calendrier Salles', icon: <CalendarDays size={18} />, path: '/logistique/calendrier' },
+    { label: 'Planning Entretien', icon: <Brush size={18} />, path: '/logistique/planning-entretien' },
+    { label: 'Rapports Entretien', icon: <FileText size={18} />, path: '/logistique/rapports-entretien' },
+    { label: 'Demandes Ressources', icon: <Send size={18} />, path: '/logistique/demandes-ressource' },
   ],
   service_entretien: [
     { label: 'Mon Planning', icon: <CalendarDays size={18} />, path: '/entretien/planning' },
@@ -138,9 +155,6 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Saisie des Notes', icon: <Pencil size={18} />, path: '/portail/enseignant/notes' },
     { label: 'Présences Étudiants', icon: <CheckSquare size={18} />, path: '/portail/enseignant/presences' },
     { label: 'Mes Étudiants', icon: <GradCap size={18} />, path: '/portail/enseignant/etudiants' },
-    { label: 'Ressources Pédagogiques', icon: <Folder size={18} />, path: '/portail/enseignant/ressources' },
-    { label: 'Messagerie', icon: <MessageSquare size={18} />, path: '/portail/enseignant/messagerie' },
-    { label: 'Demandes Matériel', icon: <FlaskConical size={18} />, path: '/portail/enseignant/demandes' },
   ],
 };
 
@@ -148,8 +162,9 @@ const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Administrateur', resp_pedagogique: 'Resp. Pédagogique',
   secretaire_parcours: 'Secrétaire Parcours', surveillant_general: 'Surveillant Général',
   scolarite: 'Service Scolarité', economat: 'Économat (CFO)', caissier: 'Caissier',
-  rh: 'Ressources Humaines', logistique: 'Resp. Logistique',
-  entretien: 'Service Entretien', etudiant: 'Étudiant', parent: 'Parent', enseignant: 'Enseignant',
+  rh: 'Ressources Humaines', logistique: 'Resp. Logistique', responsable_logistique: 'Resp. Logistique',
+  entretien: 'Service Entretien', service_entretien: 'Service Entretien',
+  etudiant: 'Étudiant', parent: 'Parent', enseignant: 'Enseignant',
   communication: 'Communication', admin: 'Administrateur', president: 'Président',
 };
 

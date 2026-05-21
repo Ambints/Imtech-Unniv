@@ -161,6 +161,13 @@ export const RHDashboard: React.FC = () => {
       icon: <Target size={24} />,
       color: '#06b6d4',
       route: '/rh/recrutement'
+    },
+    {
+      title: 'Affectation Cours',
+      description: 'Gestion des UE et affectation aux enseignants',
+      icon: <Users size={24} />,
+      color: '#14b8a6',
+      route: '/rh/affectation-cours'
     }
   ];
 

@@ -48,41 +48,26 @@ let TenantsController = class TenantsController {
     findAll() {
         return this.svc.findAll();
     }
-    findOne(id) {
-        console.log(`🔍 Controller - Recherche du tenant: ${id}`);
-        try {
-            const result = this.svc.findOne(id);
-            console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
-            return result;
-        }
-        catch (error) {
-            console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
-            throw error;
-        }
+    getPlans() {
+        return this.svc.getAllPlans();
+    }
+    getPlan(id) {
+        return this.svc.getPlanById(id);
+    }
+    createPlan(dto) {
+        return this.svc.createPlan(dto);
+    }
+    updatePlan(id, dto) {
+        return this.svc.updatePlan(id, dto);
+    }
+    deletePlan(id) {
+        return this.svc.deletePlan(id);
     }
     findBySlug(slug) {
         return this.svc.findBySlug(slug);
     }
-    update(id, dto) {
-        return this.svc.update(id, dto);
-    }
-    remove(id) {
-        return this.svc.remove(id);
-    }
-    dashboard(id) {
-        return this.svc.getDashboard(id);
-    }
-    getFullConfig(id) {
-        return this.svc.getFullConfig(id);
-    }
     getSubscriptions() {
         return this.svc.getSubscriptions();
-    }
-    updateSubscription(id, dto) {
-        return this.svc.updateSubscription(id, dto);
-    }
-    removeSubscription(id) {
-        return this.svc.removeSubscription(id);
     }
     async checkTenantTable() {
         console.log('🔍 Debug - Vérification de la table tenant...');
@@ -112,6 +97,36 @@ let TenantsController = class TenantsController {
                 schemas: []
             };
         }
+    }
+    findOne(id) {
+        console.log(`🔍 Controller - Recherche du tenant: ${id}`);
+        try {
+            const result = this.svc.findOne(id);
+            console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
+            return result;
+        }
+        catch (error) {
+            console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
+            throw error;
+        }
+    }
+    update(id, dto) {
+        return this.svc.update(id, dto);
+    }
+    remove(id) {
+        return this.svc.remove(id);
+    }
+    dashboard(id) {
+        return this.svc.getDashboard(id);
+    }
+    getFullConfig(id) {
+        return this.svc.getFullConfig(id);
+    }
+    updateSubscription(id, dto) {
+        return this.svc.updateSubscription(id, dto);
+    }
+    removeSubscription(id) {
+        return this.svc.removeSubscription(id);
     }
 };
 exports.TenantsController = TenantsController;
@@ -170,6 +185,88 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('plans'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des plans d\'abonnement disponibles' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des plans' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "getPlans", null);
+__decorate([
+    (0, common_1.Get)('plans/:id'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Détails d\'un plan d\'abonnement' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Détails du plan' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Plan non trouvé' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "getPlan", null);
+__decorate([
+    (0, common_1.Post)('plans'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer un nouveau plan d\'abonnement' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Plan créé avec succès' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Données invalides' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "createPlan", null);
+__decorate([
+    (0, common_1.Patch)('plans/:id'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un plan d\'abonnement' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Plan mis à jour' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Plan non trouvé' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "updatePlan", null);
+__decorate([
+    (0, common_1.Delete)('plans/:id'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un plan d\'abonnement' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Plan supprimé' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Plan utilisé par des tenants' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Plan non trouvé' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "deletePlan", null);
+__decorate([
+    (0, common_1.Get)('by-slug/:slug'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: "Trouver une université par son slug" }),
+    __param(0, (0, common_1.Param)('slug')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "findBySlug", null);
+__decorate([
+    (0, common_1.Get)('subscriptions/all'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des abonnements avec statistiques' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des abonnements' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "getSubscriptions", null);
+__decorate([
+    (0, common_1.Get)('debug/check-table'),
+    (0, roles_decorator_1.Roles)('super_admin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Vérifier le contenu de la table tenant (debug)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Contenu de la table tenant' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "checkTenantTable", null);
+__decorate([
     (0, common_1.Get)(':id'),
     (0, roles_decorator_1.Roles)('super_admin'),
     (0, swagger_1.ApiOperation)({ summary: "Détails d'une université" }),
@@ -180,15 +277,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Get)('by-slug/:slug'),
-    (0, roles_decorator_1.Roles)('super_admin'),
-    (0, swagger_1.ApiOperation)({ summary: "Trouver une université par son slug" }),
-    __param(0, (0, common_1.Param)('slug')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], TenantsController.prototype, "findBySlug", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     (0, roles_decorator_1.Roles)('super_admin'),
@@ -229,15 +317,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "getFullConfig", null);
 __decorate([
-    (0, common_1.Get)('subscriptions/all'),
-    (0, roles_decorator_1.Roles)('super_admin'),
-    (0, swagger_1.ApiOperation)({ summary: 'Liste des abonnements avec statistiques' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des abonnements' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], TenantsController.prototype, "getSubscriptions", null);
-__decorate([
     (0, common_1.Post)(':id/subscription'),
     (0, roles_decorator_1.Roles)('super_admin'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer ou modifier l\'abonnement d\'une université' }),
@@ -260,15 +339,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "removeSubscription", null);
-__decorate([
-    (0, common_1.Get)('debug/check-table'),
-    (0, roles_decorator_1.Roles)('super_admin'),
-    (0, swagger_1.ApiOperation)({ summary: 'Vérifier le contenu de la table tenant (debug)' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Contenu de la table tenant' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], TenantsController.prototype, "checkTenantTable", null);
 exports.TenantsController = TenantsController = __decorate([
     (0, swagger_1.ApiTags)('Super Admin - Gestion des Universités'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

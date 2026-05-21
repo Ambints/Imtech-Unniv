@@ -123,6 +123,7 @@ export declare class AcademicService {
     getEDT(tid?: string, parcoursId?: string): Promise<EmploiDuTemps[]>;
     createEDT(tid: string, dto: any): Promise<EmploiDuTemps[]>;
     getAnneesAcademiques(tid: string): Promise<AnneeAcademique[]>;
+    desactiverAnneesExpirees(tid: string): Promise<void>;
     createAnneeAcademique(tid: string, dto: any): Promise<AnneeAcademique[]>;
     updateAnneeAcademique(tid: string, id: string, dto: any): Promise<any>;
     activerAnneeAcademique(tid: string, id: string): Promise<{

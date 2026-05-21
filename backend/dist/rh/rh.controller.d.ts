@@ -38,4 +38,13 @@ export declare class RHController {
     findRecrutements(filters: any): Promise<any[]>;
     getStatsRH(): Promise<any>;
     getStatsHeuresComp(annee: number, mois: number): Promise<any>;
+    creerCours(dto: any): Promise<any>;
+    getCours(filters: any): Promise<any[]>;
+    getCoursById(id: string): Promise<any>;
+    modifierCours(id: string, dto: any): Promise<any>;
+    affecterEnseignantCours(dto: any): Promise<any>;
+    getAffectationsCours(filters: any): Promise<any[]>;
+    supprimerAffectationCours(id: string): Promise<void>;
+    getParcoursDisponibles(): Promise<any[]>;
+    getEnseignantsDisponibles(): Promise<any[]>;
 }

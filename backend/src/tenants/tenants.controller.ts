@@ -70,21 +70,49 @@ export class TenantsController {
     return this.svc.findAll();
   }
 
-  @Get(':id')
+  @Get('plans')
   @Roles('super_admin')
-  @ApiOperation({ summary: "Détails d'une université" })
-  @ApiResponse({ status: 200, description: 'Détails de l\'université' })
-  @ApiResponse({ status: 404, description: 'Université non trouvée' })
-  findOne(@Param('id') id: string) {
-    console.log(`🔍 Controller - Recherche du tenant: ${id}`);
-    try {
-      const result = this.svc.findOne(id);
-      console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
-      return result;
-    } catch (error) {
-      console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
-      throw error;
-    }
+  @ApiOperation({ summary: 'Liste des plans d\'abonnement disponibles' })
+  @ApiResponse({ status: 200, description: 'Liste des plans' })
+  getPlans() {
+    return this.svc.getAllPlans();
+  }
+
+  @Get('plans/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Détails d\'un plan d\'abonnement' })
+  @ApiResponse({ status: 200, description: 'Détails du plan' })
+  @ApiResponse({ status: 404, description: 'Plan non trouvé' })
+  getPlan(@Param('id') id: string) {
+    return this.svc.getPlanById(id);
+  }
+
+  @Post('plans')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Créer un nouveau plan d\'abonnement' })
+  @ApiResponse({ status: 201, description: 'Plan créé avec succès' })
+  @ApiResponse({ status: 400, description: 'Données invalides' })
+  createPlan(@Body() dto: any) {
+    return this.svc.createPlan(dto);
+  }
+
+  @Patch('plans/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Modifier un plan d\'abonnement' })
+  @ApiResponse({ status: 200, description: 'Plan mis à jour' })
+  @ApiResponse({ status: 404, description: 'Plan non trouvé' })
+  updatePlan(@Param('id') id: string, @Body() dto: any) {
+    return this.svc.updatePlan(id, dto);
+  }
+
+  @Delete('plans/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Supprimer un plan d\'abonnement' })
+  @ApiResponse({ status: 200, description: 'Plan supprimé' })
+  @ApiResponse({ status: 400, description: 'Plan utilisé par des tenants' })
+  @ApiResponse({ status: 404, description: 'Plan non trouvé' })
+  deletePlan(@Param('id') id: string) {
+    return this.svc.deletePlan(id);
   }
 
   @Get('by-slug/:slug')
@@ -94,63 +122,12 @@ export class TenantsController {
     return this.svc.findBySlug(slug);
   }
 
-  @Patch(':id')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Modifier une université (White Label, configuration)' })
-  @ApiResponse({ status: 200, description: 'Université mise à jour' })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
-    return this.svc.update(id, dto);
-  }
-
-  @Delete(':id')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Supprimer une université (et son schéma PostgreSQL)' })
-  @ApiResponse({ status: 204, description: 'Université supprimée' })
-  remove(@Param('id') id: string) {
-    return this.svc.remove(id);
-  }
-
-  @Get(':id/dashboard')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Tableau de bord Super Admin d\'une université' })
-  dashboard(@Param('id') id: string) {
-    return this.svc.getDashboard(id);
-  }
-
-  @Get(':id/config')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Configuration complète (White Label) d\'une université' })
-  getFullConfig(@Param('id') id: string) {
-    return this.svc.getFullConfig(id);
-  }
-
   @Get('subscriptions/all')
   @Roles('super_admin')
   @ApiOperation({ summary: 'Liste des abonnements avec statistiques' })
   @ApiResponse({ status: 200, description: 'Liste des abonnements' })
   getSubscriptions() {
     return this.svc.getSubscriptions();
-  }
-
-  @Post(':id/subscription')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Créer ou modifier l\'abonnement d\'une université' })
-  @ApiResponse({ status: 200, description: 'Abonnement mis à jour' })
-  @ApiResponse({ status: 404, description: 'Université non trouvée' })
-  updateSubscription(
-    @Param('id') id: string,
-    @Body() dto: { plan: string; status: string; startDate?: string; endDate?: string; monthlyPrice?: number; maxUsers?: number }
-  ) {
-    return this.svc.updateSubscription(id, dto);
-  }
-
-  @Delete(':id/subscription')
-  @Roles('super_admin')
-  @ApiOperation({ summary: 'Supprimer/Résilier l\'abonnement d\'une université' })
-  @ApiResponse({ status: 200, description: 'Abonnement résilié' })
-  @ApiResponse({ status: 404, description: 'Université non trouvée' })
-  removeSubscription(@Param('id') id: string) {
-    return this.svc.removeSubscription(id);
   }
 
   @Get('debug/check-table')
@@ -187,5 +164,74 @@ export class TenantsController {
         schemas: []
       };
     }
+  }
+
+  @Get(':id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: "Détails d'une université" })
+  @ApiResponse({ status: 200, description: 'Détails de l\'université' })
+  @ApiResponse({ status: 404, description: 'Université non trouvée' })
+  findOne(@Param('id') id: string) {
+    console.log(`🔍 Controller - Recherche du tenant: ${id}`);
+    try {
+      const result = this.svc.findOne(id);
+      console.log(`✅ Controller - Résultat trouvé pour: ${id}`);
+      return result;
+    } catch (error) {
+      console.log(`❌ Controller - Erreur pour ${id}: ${error}`);
+      throw error;
+    }
+  }
+
+  @Patch(':id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Modifier une université (White Label, configuration)' })
+  @ApiResponse({ status: 200, description: 'Université mise à jour' })
+  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
+    return this.svc.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Supprimer une université (et son schéma PostgreSQL)' })
+  @ApiResponse({ status: 204, description: 'Université supprimée' })
+  remove(@Param('id') id: string) {
+    return this.svc.remove(id);
+  }
+
+  @Get(':id/dashboard')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Tableau de bord Super Admin d\'une université' })
+  dashboard(@Param('id') id: string) {
+    return this.svc.getDashboard(id);
+  }
+
+  @Get(':id/config')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Configuration complète (White Label) d\'une université' })
+  getFullConfig(@Param('id') id: string) {
+    return this.svc.getFullConfig(id);
+  }
+
+
+  @Post(':id/subscription')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Créer ou modifier l\'abonnement d\'une université' })
+  @ApiResponse({ status: 200, description: 'Abonnement mis à jour' })
+  @ApiResponse({ status: 404, description: 'Université non trouvée' })
+  updateSubscription(
+    @Param('id') id: string,
+    @Body() dto: { plan: string; status: string; startDate?: string; endDate?: string; monthlyPrice?: number; maxUsers?: number }
+  ) {
+    return this.svc.updateSubscription(id, dto);
+  }
+
+  @Delete(':id/subscription')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Supprimer/Résilier l\'abonnement d\'une université' })
+  @ApiResponse({ status: 200, description: 'Abonnement résilié' })
+  @ApiResponse({ status: 404, description: 'Université non trouvée' })
+  removeSubscription(@Param('id') id: string) {
+    return this.svc.removeSubscription(id);
   }
 }

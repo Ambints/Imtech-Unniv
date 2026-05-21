@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import {
   BookText, Pencil, CheckSquare, GraduationCap, Folder, FlaskConical,
   Calendar, Clock, Users, FileText, Upload, Download, Plus, Search,
-  Filter, BarChart3, Award, AlertCircle, CheckCircle, MessageSquare,
-  Loader2, Send, Mail, UserCheck
+  Filter, BarChart3, Award, AlertCircle, CheckCircle,
+  Loader2, UserCheck
 } from 'lucide-react';
 
 interface Cours {
@@ -53,16 +53,6 @@ interface Ressource {
   cours_id?: string;
 }
 
-interface Message {
-  id: string;
-  destinataire: string;
-  sujet: string;
-  contenu: string;
-  date_envoi: string;
-  lu: boolean;
-  type: 'direct' | 'masse';
-}
-
 interface Demande {
   id: string;
   type_ressource: string;
@@ -85,18 +75,15 @@ export const EnseignantPortal: React.FC = () => {
   const navigate = useNavigate();
   
   // Déterminer l'onglet actif depuis l'URL
-  const getTabFromPath = (): 'cours' | 'notes' | 'presences' | 'etudiants' | 'ressources' | 'messagerie' | 'demandes' => {
+  const getTabFromPath = (): 'cours' | 'notes' | 'presences' | 'etudiants' => {
     const path = location.pathname;
     if (path.includes('/notes')) return 'notes';
     if (path.includes('/presences')) return 'presences';
     if (path.includes('/etudiants')) return 'etudiants';
-    if (path.includes('/ressources')) return 'ressources';
-    if (path.includes('/messagerie')) return 'messagerie';
-    if (path.includes('/demandes')) return 'demandes';
     return 'cours';
   };
   
-  const [activeTab, setActiveTab] = useState<'cours' | 'notes' | 'presences' | 'etudiants' | 'ressources' | 'messagerie' | 'demandes'>(getTabFromPath());
+  const [activeTab, setActiveTab] = useState<'cours' | 'notes' | 'presences' | 'etudiants'>(getTabFromPath());
   const [loading, setLoading] = useState(true);
   
   // Synchroniser l'onglet avec l'URL
@@ -109,11 +96,7 @@ export const EnseignantPortal: React.FC = () => {
   const [stats, setStats] = useState<Stats>({ nb_cours: 0, nb_etudiants: 0, nb_notes_a_saisir: 0, nb_ressources: 0 });
   const [sessionsEvaluation, setSessionsEvaluation] = useState<SessionEvaluation[]>([]);
   const [etudiants, setEtudiants] = useState<Etudiant[]>([]);
-  const [ressources, setRessources] = useState<Ressource[]>([]);
-  const [demandes, setDemandes] = useState<Demande[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [selectedCours, setSelectedCours] = useState<string>('');
-  const [typeRessource, setTypeRessource] = useState<'support' | 'exercice' | 'sujet_examen' | 'correction'>('support');
   const [presenceSignee, setPresenceSignee] = useState(false);
 
   // Chargement initial
@@ -127,10 +110,7 @@ export const EnseignantPortal: React.FC = () => {
       await Promise.all([
         loadMesCours(),
         loadStats(),
-        loadSessionsEvaluation(),
-        loadRessources(),
-        loadDemandes(),
-        loadMessages()
+        loadSessionsEvaluation()
       ]);
     } catch (error) {
       console.error('Erreur chargement données:', error);
@@ -176,32 +156,6 @@ export const EnseignantPortal: React.FC = () => {
     }
   };
 
-  const loadRessources = async () => {
-    try {
-      const { data } = await api.get('/portail/enseignant/supports-cours');
-      setRessources(data);
-    } catch (error) {
-      console.error('Erreur chargement ressources:', error);
-    }
-  };
-
-  const loadDemandes = async () => {
-    try {
-      const { data } = await api.get('/portail/enseignant/mes-demandes-ressources');
-      setDemandes(data);
-    } catch (error) {
-      console.error('Erreur chargement demandes:', error);
-    }
-  };
-
-  const loadMessages = async () => {
-    try {
-      const { data } = await api.get('/portail/enseignant/mes-messages');
-      setMessages(data);
-    } catch (error) {
-      console.error('Erreur chargement messages:', error);
-    }
-  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -239,13 +193,6 @@ export const EnseignantPortal: React.FC = () => {
       color: '#f59e0b',
       bgColor: 'rgba(245, 158, 11, 0.1)'
     },
-    {
-      label: 'Ressources',
-      value: stats.nb_ressources.toString(),
-      icon: <Folder size={20} />,
-      color: '#8b5cf6',
-      bgColor: 'rgba(139, 92, 246, 0.1)'
-    }
   ];
 
   const renderCours = () => (
@@ -284,25 +231,15 @@ export const EnseignantPortal: React.FC = () => {
               </div>
 
               <div className="d-flex gap-2">
-                <button 
+                <button
                   className="btn btn-sm btn-primary flex-grow-1"
-                  onClick={() => {
-                    setActiveTab('ressources');
-                    setSelectedCours(cours.id);
-                  }}
-                >
-                  <FileText size={14} className="me-1" />
-                  Ressources
-                </button>
-                <button 
-                  className="btn btn-sm btn-outline-primary"
                   onClick={() => {
                     setActiveTab('notes');
                     setSelectedCours(cours.id);
                   }}
                 >
                   <Pencil size={14} className="me-1" />
-                  Notes
+                  Saisir Notes
                 </button>
                 <button 
                   className="btn btn-sm btn-outline-primary"
@@ -583,363 +520,6 @@ export const EnseignantPortal: React.FC = () => {
     </div>
   );
 
-  const renderRessources = () => {
-    const filteredRessources = ressources.filter(r =>
-      typeRessource === 'support' ? r.type_ressource === 'support' :
-      typeRessource === 'exercice' ? r.type_ressource === 'exercice' :
-      typeRessource === 'sujet_examen' ? r.type_ressource === 'sujet_examen' :
-      r.type_ressource === 'correction'
-    );
-
-    const getTypeLabel = (type: string) => {
-      switch(type) {
-        case 'support': return 'Support de cours';
-        case 'exercice': return 'Exercice';
-        case 'sujet_examen': return 'Sujet d\'examen';
-        case 'correction': return 'Correction';
-        default: return type;
-      }
-    };
-
-    const getTypeColor = (type: string) => {
-      switch(type) {
-        case 'support': return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' };
-        case 'exercice': return { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' };
-        case 'sujet_examen': return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
-        case 'correction': return { bg: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' };
-        default: return { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
-      }
-    };
-
-    return (
-      <div className="card border-0 shadow-sm" style={{ borderRadius: 12 }}>
-        <div className="card-body p-4">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h5 className="fw-bold mb-0" style={{ color: '#1e293b' }}>
-              <Folder size={20} className="me-2" />
-              Ressources Pédagogiques
-            </h5>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                window.location.href = '/portail/enseignant/upload-ressource';
-              }}
-            >
-              <Upload size={16} className="me-1" />
-              Ajouter une ressource
-            </button>
-          </div>
-
-          {/* Filtres par type */}
-          <div className="d-flex gap-2 mb-4 flex-wrap">
-            {[
-              { key: 'support', label: 'Supports', icon: <FileText size={14} /> },
-              { key: 'exercice', label: 'Exercices', icon: <Pencil size={14} /> },
-              { key: 'sujet_examen', label: 'Sujets examens', icon: <Award size={14} /> },
-              { key: 'correction', label: 'Corrections', icon: <CheckCircle size={14} /> }
-            ].map((type) => (
-              <button
-                key={type.key}
-                onClick={() => setTypeRessource(type.key as any)}
-                className="btn btn-sm d-flex align-items-center gap-2"
-                style={{
-                  background: typeRessource === type.key ? 'linear-gradient(135deg, #1a5276, #148f77)' : '#f8fafc',
-                  color: typeRessource === type.key ? '#fff' : '#64748b',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600
-                }}
-              >
-                {type.icon}
-                {type.label}
-              </button>
-            ))}
-          </div>
-
-          {filteredRessources.length === 0 ? (
-            <div className="alert alert-info">
-              <AlertCircle size={20} className="me-2" />
-              Aucune ressource de type "{getTypeLabel(typeRessource)}" disponible.
-            </div>
-          ) : (
-            <div className="d-flex flex-column gap-2">
-              {filteredRessources.map((ressource) => {
-                const colors = getTypeColor(ressource.type_ressource);
-                return (
-                  <div
-                    key={ressource.id}
-                    className="p-3 d-flex justify-content-between align-items-center"
-                    style={{
-                      background: '#f8fafc',
-                      borderRadius: 10,
-                      border: '1px solid #e5e7eb'
-                    }}
-                  >
-                    <div className="d-flex align-items-center gap-3">
-                      <div
-                        className="d-flex align-items-center justify-content-center"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          background: colors.bg,
-                          color: colors.color
-                        }}
-                      >
-                        <FileText size={20} />
-                      </div>
-                      <div>
-                        <div className="d-flex align-items-center gap-2 mb-1">
-                          <span className="fw-medium" style={{ fontSize: 13, color: '#1e293b' }}>
-                            {ressource.titre}
-                          </span>
-                          <span
-                            className="badge"
-                            style={{
-                              background: colors.bg,
-                              color: colors.color,
-                              fontSize: 10
-                            }}
-                          >
-                            {getTypeLabel(ressource.type_ressource)}
-                          </span>
-                        </div>
-                        <div className="text-muted" style={{ fontSize: 11 }}>
-                          {ressource.type_fichier.toUpperCase()} • {formatFileSize(ressource.taille_fichier)} • {formatDate(ressource.date_depot)} • {ressource.nb_telechargements} téléchargements
-                        </div>
-                      </div>
-                    </div>
-                    <div className="d-flex gap-2">
-                      <a
-                        href={ressource.fichier_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        <Download size={14} />
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderMessagerie = () => (
-    <div className="card border-0 shadow-sm" style={{ borderRadius: 12 }}>
-      <div className="card-body p-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h5 className="fw-bold mb-0" style={{ color: '#1e293b' }}>
-            <MessageSquare size={20} className="me-2" />
-            Messagerie & Communication
-          </h5>
-          <button 
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              window.location.href = '/portail/enseignant/nouveau-message';
-            }}
-          >
-            <Send size={16} className="me-1" />
-            Nouveau Message
-          </button>
-        </div>
-
-        {/* Options de communication */}
-        <div className="row g-3 mb-4">
-          <div className="col-12 col-md-4">
-            <div 
-              className="p-3 text-center"
-              style={{
-                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                borderRadius: 12,
-                color: '#fff',
-                cursor: 'pointer'
-              }}
-              onClick={() => window.location.href = '/portail/enseignant/message-direct'}
-            >
-              <Mail size={32} className="mb-2" />
-              <div className="fw-bold mb-1" style={{ fontSize: 14 }}>Message Direct</div>
-              <div style={{ fontSize: 11, opacity: 0.9 }}>Envoyer à un étudiant spécifique</div>
-            </div>
-          </div>
-          <div className="col-12 col-md-4">
-            <div 
-              className="p-3 text-center"
-              style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                borderRadius: 12,
-                color: '#fff',
-                cursor: 'pointer'
-              }}
-              onClick={() => window.location.href = '/portail/enseignant/message-classe'}
-            >
-              <Users size={32} className="mb-2" />
-              <div className="fw-bold mb-1" style={{ fontSize: 14 }}>Message de Classe</div>
-              <div style={{ fontSize: 11, opacity: 0.9 }}>Envoyer à une classe entière</div>
-            </div>
-          </div>
-          <div className="col-12 col-md-4">
-            <div 
-              className="p-3 text-center"
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                borderRadius: 12,
-                color: '#fff',
-                cursor: 'pointer'
-              }}
-              onClick={() => window.location.href = '/portail/enseignant/message-parcours'}
-            >
-              <GraduationCap size={32} className="mb-2" />
-              <div className="fw-bold mb-1" style={{ fontSize: 14 }}>Message Parcours/Niveau</div>
-              <div style={{ fontSize: 11, opacity: 0.9 }}>Filtrer par parcours ou niveau</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Historique des messages */}
-        <div className="mb-3">
-          <h6 className="fw-bold mb-3" style={{ fontSize: 14, color: '#64748b' }}>
-            Messages récents
-          </h6>
-        </div>
-
-        {messages.length === 0 ? (
-          <div className="alert alert-info">
-            <AlertCircle size={20} className="me-2" />
-            Aucun message envoyé pour le moment.
-          </div>
-        ) : (
-          <div className="d-flex flex-column gap-2">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className="p-3"
-                style={{
-                  background: '#f8fafc',
-                  borderRadius: 10,
-                  border: '1px solid #e5e7eb'
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                  <div>
-                    <div className="fw-bold mb-1" style={{ fontSize: 14, color: '#1e293b' }}>
-                      {message.sujet}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      À: {message.destinataire} • {formatDate(message.date_envoi)}
-                    </div>
-                  </div>
-                  <span
-                    className="badge"
-                    style={{
-                      background: message.type === 'direct' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                      color: message.type === 'direct' ? '#3b82f6' : '#10b981',
-                      fontSize: 10
-                    }}
-                  >
-                    {message.type === 'direct' ? 'Direct' : 'Masse'}
-                  </span>
-                </div>
-                <div className="text-muted" style={{ fontSize: 13 }}>
-                  {message.contenu.substring(0, 100)}...
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderDemandes = () => (
-    <div className="card border-0 shadow-sm" style={{ borderRadius: 12 }}>
-      <div className="card-body p-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h5 className="fw-bold mb-0" style={{ color: '#1e293b' }}>
-            <FlaskConical size={20} className="me-2" />
-            Demandes de Matériel & Salles
-          </h5>
-          <button 
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              window.location.href = '/portail/enseignant/nouvelle-demande';
-            }}
-          >
-            <Plus size={16} className="me-1" />
-            Nouvelle Demande
-          </button>
-        </div>
-
-        {demandes.length === 0 ? (
-          <div className="alert alert-info">
-            <AlertCircle size={20} className="me-2" />
-            Aucune demande en cours. Créez-en une si vous avez besoin de matériel ou d'une salle.
-          </div>
-        ) : (
-          <div className="d-flex flex-column gap-3">
-            {demandes.map((demande) => (
-              <div
-                key={demande.id}
-                className="p-3"
-                style={{
-                  background: '#f8fafc',
-                  borderRadius: 10,
-                  borderLeft: `3px solid ${
-                    demande.priorite === 'Haute' ? '#ef4444' : demande.priorite === 'Moyenne' ? '#f59e0b' : '#3b82f6'
-                  }`
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                  <div>
-                    <span
-                      className="badge mb-2"
-                      style={{
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        color: '#3b82f6',
-                        fontSize: 10
-                      }}
-                    >
-                      {demande.type_ressource}
-                    </span>
-                    <div className="fw-bold mb-1" style={{ fontSize: 14, color: '#1e293b' }}>
-                      {demande.motif}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      {formatDate(demande.date_souhaitee)}
-                    </div>
-                  </div>
-                  <span
-                    className="badge"
-                    style={{
-                      background:
-                        demande.statut === 'approuvee'
-                          ? 'rgba(16, 185, 129, 0.1)'
-                          : demande.statut === 'livree'
-                          ? 'rgba(59, 130, 246, 0.1)'
-                          : 'rgba(245, 158, 11, 0.1)',
-                      color:
-                        demande.statut === 'approuvee'
-                          ? '#10b981'
-                          : demande.statut === 'livree'
-                          ? '#3b82f6'
-                          : '#f59e0b'
-                    }}
-                  >
-                    {demande.statut}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -1002,10 +582,7 @@ export const EnseignantPortal: React.FC = () => {
             { key: 'cours', label: 'Mes Cours', icon: <BookText size={16} />, path: '/portail/enseignant' },
             { key: 'notes', label: 'Saisie Notes', icon: <Pencil size={16} />, path: '/portail/enseignant/notes' },
             { key: 'presences', label: 'Présences', icon: <CheckSquare size={16} />, path: '/portail/enseignant/presences' },
-            { key: 'etudiants', label: 'Étudiants', icon: <GraduationCap size={16} />, path: '/portail/enseignant/etudiants' },
-            { key: 'ressources', label: 'Ressources', icon: <Folder size={16} />, path: '/portail/enseignant/ressources' },
-            { key: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, path: '/portail/enseignant/messagerie' },
-            { key: 'demandes', label: 'Demandes', icon: <FlaskConical size={16} />, path: '/portail/enseignant/demandes' }
+            { key: 'etudiants', label: 'Étudiants', icon: <GraduationCap size={16} />, path: '/portail/enseignant/etudiants' }
           ].map((tab) => (
             <button
               key={tab.key}
@@ -1034,9 +611,6 @@ export const EnseignantPortal: React.FC = () => {
       {activeTab === 'notes' && renderNotes()}
       {activeTab === 'presences' && renderPresences()}
       {activeTab === 'etudiants' && renderEtudiants()}
-      {activeTab === 'ressources' && renderRessources()}
-      {activeTab === 'messagerie' && renderMessagerie()}
-      {activeTab === 'demandes' && renderDemandes()}
     </div>
   );
 };

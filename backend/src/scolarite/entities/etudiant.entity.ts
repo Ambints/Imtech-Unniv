@@ -12,7 +12,6 @@ import { Note } from './note.entity';
 import { Inscription } from './inscription.entity';
 import { ResultatSemestre } from './resultat-semestre.entity';
 import { Diplome } from './diplome.entity';
-import { TransfertEtudiant } from './transfert-etudiant.entity';
 import { ArchiveScolarite } from './archive-scolarite.entity';
 import { Parcours } from './parcours.entity';
 
@@ -86,9 +85,6 @@ export class Etudiant {
 
   @OneToMany(() => Diplome, (diplome) => diplome.etudiant)
   diplomes: Diplome[];
-
-  @OneToMany(() => TransfertEtudiant, (transfert) => transfert.etudiant)
-  transferts: TransfertEtudiant[];
 
   @OneToMany(() => ArchiveScolarite, (archive) => archive.etudiant)
   archives: ArchiveScolarite[];

@@ -79,6 +79,9 @@ let TenantCreationService = TenantCreationService_1 = class TenantCreationServic
                 console.error(`❌ Erreur de lecture du script SQL: ${error}`);
                 throw new Error(`Impossible de lire le script SQL: ${error}`);
             }
+            this.logger.log(`🔧 Préparation du script pour ${schemaName}`);
+            sqlScript = sqlScript.replace(/{SCHEMA_NAME}/g, schemaName);
+            this.logger.log(`✅ Placeholder {SCHEMA_NAME} remplacé par ${schemaName}`);
             this.logger.log(`🔧 Initialisation des tables de base dans ${schemaName}`);
             await queryRunner.query(`SET search_path TO "${schemaName}"`);
             this.logger.log(`✅ search_path défini sur ${schemaName}`);

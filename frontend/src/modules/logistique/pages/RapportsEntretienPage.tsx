@@ -108,7 +108,7 @@ export default function RapportsEntretienPage() {
                 <div>
                   <p className="text-muted mb-1 small">Réalisés</p>
                   <h4 className="mb-0 text-success">
-                    {rapports?.filter(r => r.statut === 'realise').length || 0}
+                    {Array.isArray(rapports) ? rapports.filter(r => r.statut === 'realise').length : 0}
                   </h4>
                 </div>
                 <div className="bg-success bg-opacity-10 p-3 rounded">
@@ -138,7 +138,7 @@ export default function RapportsEntretienPage() {
                 </tr>
               </thead>
               <tbody>
-                {rapports?.map((rapport) => (
+                {Array.isArray(rapports) && rapports.length > 0 ? rapports.map((rapport) => (
                   <tr key={rapport.id}>
                     <td>
                       {new Date(rapport.date_realisation).toLocaleDateString('fr-FR')}
@@ -170,7 +170,13 @@ export default function RapportsEntretienPage() {
                       ) : '-'}
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={8} className="text-center text-muted py-4">
+                      Aucun rapport trouvé
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

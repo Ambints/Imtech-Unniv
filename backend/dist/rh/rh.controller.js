@@ -113,6 +113,33 @@ let RHController = class RHController {
     getStatsHeuresComp(annee, mois) {
         return this.svc.getStatsHeuresComplementaires(annee, mois);
     }
+    creerCours(dto) {
+        return this.svc.creerCours(dto);
+    }
+    getCours(filters) {
+        return this.svc.getCours(filters);
+    }
+    getCoursById(id) {
+        return this.svc.getCoursById(id);
+    }
+    modifierCours(id, dto) {
+        return this.svc.modifierCours(id, dto);
+    }
+    affecterEnseignantCours(dto) {
+        return this.svc.affecterEnseignantCours(dto);
+    }
+    getAffectationsCours(filters) {
+        return this.svc.getAffectationsCours(filters);
+    }
+    supprimerAffectationCours(id) {
+        return this.svc.supprimerAffectationCours(id);
+    }
+    getParcoursDisponibles() {
+        return this.svc.getParcoursDisponibles();
+    }
+    getEnseignantsDisponibles() {
+        return this.svc.getEnseignantsDisponibles();
+    }
 };
 exports.RHController = RHController;
 __decorate([
@@ -392,6 +419,86 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", void 0)
 ], RHController.prototype, "getStatsHeuresComp", null);
+__decorate([
+    (0, common_1.Post)('cours'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique'),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer une unité d\'enseignement (UE)' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "creerCours", null);
+__decorate([
+    (0, common_1.Get)('cours'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des unités d\'enseignement' }),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getCours", null);
+__decorate([
+    (0, common_1.Get)('cours/:id'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Détails d\'une unité d\'enseignement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getCoursById", null);
+__decorate([
+    (0, common_1.Patch)('cours/:id'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier une unité d\'enseignement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "modifierCours", null);
+__decorate([
+    (0, common_1.Post)('affectations-cours'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique'),
+    (0, swagger_1.ApiOperation)({ summary: 'Affecter un enseignant à un cours' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "affecterEnseignantCours", null);
+__decorate([
+    (0, common_1.Get)('affectations-cours'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des affectations de cours' }),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getAffectationsCours", null);
+__decorate([
+    (0, common_1.Patch)('affectations-cours/:id/supprimer'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer une affectation de cours' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "supprimerAffectationCours", null);
+__decorate([
+    (0, common_1.Get)('parcours-disponibles'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des parcours disponibles' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getParcoursDisponibles", null);
+__decorate([
+    (0, common_1.Get)('enseignants-disponibles'),
+    (0, roles_decorator_1.Roles)('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des enseignants disponibles' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RHController.prototype, "getEnseignantsDisponibles", null);
 exports.RHController = RHController = __decorate([
     (0, swagger_1.ApiTags)('RH - Ressources Humaines (Responsable RH)'),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),

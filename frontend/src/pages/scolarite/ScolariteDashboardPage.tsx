@@ -177,7 +177,6 @@ export const ScolariteDashboardPage: React.FC = () => {
           <TabsTrigger value="deliberation">Délibérations</TabsTrigger>
           <TabsTrigger value="diplomes">Diplômes</TabsTrigger>
           <TabsTrigger value="archives">Archives</TabsTrigger>
-          <TabsTrigger value="transferts">Transferts</TabsTrigger>
         </TabsList>
 
         {/* Onglet Aperçu */}
@@ -500,27 +499,6 @@ export const ScolariteDashboardPage: React.FC = () => {
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Module d'archives à implémenter</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Onglet Transferts (placeholder) */}
-        <TabsContent value="transferts" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Transferts et Équivalences
-              </CardTitle>
-              <CardDescription>
-                Gestion des transferts d'étudiants et reconnaissance d'équivalences
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Module de transferts à implémenter</p>
               </div>
             </CardContent>
           </Card>

@@ -47,9 +47,10 @@ export default function ReservationsPage() {
     );
   }
 
-  const enAttente = reservations?.filter(r => r.statut === 'en_attente') || [];
-  const approuvees = reservations?.filter(r => r.statut === 'approuvee') || [];
-  const autres = reservations?.filter(r => !['en_attente', 'approuvee'].includes(r.statut)) || [];
+  const reservationsArray = Array.isArray(reservations) ? reservations : [];
+  const enAttente = reservationsArray.filter(r => r.statut === 'en_attente');
+  const approuvees = reservationsArray.filter(r => r.statut === 'approuvee');
+  const autres = reservationsArray.filter(r => !['en_attente', 'approuvee'].includes(r.statut));
 
   return (
     <div className="container-fluid py-4">

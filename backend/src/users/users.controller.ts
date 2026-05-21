@@ -16,14 +16,34 @@ export class UsersController {
   @Roles('admin', 'super_admin')
   @ApiOperation({ summary: 'Creer un utilisateur' })
   async create(@Body() dto: any, @Request() req) {
-    // Pour super_admin, tenantId peut être fourni dans le DTO
-    // Pour admin, utiliser le tenantId de l'utilisateur connecté
-    if (req.user?.role === 'admin' && !dto.tenantId) {
-      dto.tenantId = req.user.tenantId;
+    console.log('[UsersController] Create user request:', {
+      requestingUserRole: req.user?.role,
+      requestingUserTenantId: req.user?.tenantId,
+      dtoTenantId: dto.tenantId,
+      dtoRole: dto.role
+    });
+    
+    // Cas 1: Création d'un super_admin
+    if (dto.role === 'super_admin') {
+      if (req.user?.role !== 'super_admin') {
+        throw new BadRequestException('Seul un super_admin peut créer un autre super_admin');
+      }
+      console.log('[UsersController] Creating super_admin');
+      return this.svc.create(dto);
     }
     
-    if (!dto.tenantId && req.user?.role !== 'super_admin') {
-      throw new BadRequestException('TenantId requis pour créer un utilisateur');
+    // Cas 2: Admin créant un utilisateur dans son université
+    if (req.user?.role === 'admin') {
+      if (!req.user.tenantId) {
+        throw new BadRequestException('Votre compte n\'est pas associé à une université. Contactez le super admin.');
+      }
+      dto.tenantId = req.user.tenantId;
+      console.log('[UsersController] Admin creating user in tenant:', dto.tenantId);
+    }
+    
+    // Cas 3: Super admin créant un utilisateur pour une université
+    if (req.user?.role === 'super_admin' && !dto.tenantId) {
+      throw new BadRequestException('TenantId requis pour créer un utilisateur d\'université');
     }
     
     return this.svc.create(dto);

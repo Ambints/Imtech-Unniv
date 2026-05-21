@@ -230,4 +230,70 @@ export class RHController {
   getStatsHeuresComp(@Query('annee') annee: number, @Query('mois') mois: number) {
     return this.svc.getStatsHeuresComplementaires(annee, mois);
   }
+
+  // ========== GESTION DES COURS (UE) ==========
+  @Post('cours')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique')
+  @ApiOperation({ summary: 'Créer une unité d\'enseignement (UE)' })
+  creerCours(@Body() dto: any) {
+    return this.svc.creerCours(dto);
+  }
+
+  @Get('cours')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire')
+  @ApiOperation({ summary: 'Liste des unités d\'enseignement' })
+  getCours(@Query() filters: any) {
+    return this.svc.getCours(filters);
+  }
+
+  @Get('cours/:id')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire')
+  @ApiOperation({ summary: 'Détails d\'une unité d\'enseignement' })
+  getCoursById(@Param('id') id: string) {
+    return this.svc.getCoursById(id);
+  }
+
+  @Patch('cours/:id')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique')
+  @ApiOperation({ summary: 'Modifier une unité d\'enseignement' })
+  modifierCours(@Param('id') id: string, @Body() dto: any) {
+    return this.svc.modifierCours(id, dto);
+  }
+
+  // ========== AFFECTATION DES ENSEIGNANTS AUX COURS ==========
+  @Post('affectations-cours')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique')
+  @ApiOperation({ summary: 'Affecter un enseignant à un cours' })
+  affecterEnseignantCours(@Body() dto: any) {
+    return this.svc.affecterEnseignantCours(dto);
+  }
+
+  @Get('affectations-cours')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire')
+  @ApiOperation({ summary: 'Liste des affectations de cours' })
+  getAffectationsCours(@Query() filters: any) {
+    return this.svc.getAffectationsCours(filters);
+  }
+
+  @Patch('affectations-cours/:id/supprimer')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique')
+  @ApiOperation({ summary: 'Supprimer une affectation de cours' })
+  supprimerAffectationCours(@Param('id') id: string) {
+    return this.svc.supprimerAffectationCours(id);
+  }
+
+  // ========== DONNÉES AUXILIAIRES POUR AFFECTATIONS ==========
+  @Get('parcours-disponibles')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire')
+  @ApiOperation({ summary: 'Liste des parcours disponibles' })
+  getParcoursDisponibles() {
+    return this.svc.getParcoursDisponibles();
+  }
+
+  @Get('enseignants-disponibles')
+  @Roles('rh', 'responsable_rh', 'admin', 'responsable_pedagogique', 'secretaire')
+  @ApiOperation({ summary: 'Liste des enseignants disponibles' })
+  getEnseignantsDisponibles() {
+    return this.svc.getEnseignantsDisponibles();
+  }
 }

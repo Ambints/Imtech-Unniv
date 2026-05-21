@@ -46,6 +46,9 @@ export class UsersService {
     const password = dto.password || this.generateSecurePassword();
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Invalider le cache des utilisateurs
+    await this.cacheService.invalidatePattern('users:*');
+
     // Si c'est un super_admin, créer dans la table super_admin
     if (dto.role === 'super_admin') {
       const existingSuperAdmin = await this.superAdminRepo.findOne({ where: { email: dto.email } });
@@ -102,8 +105,8 @@ export class UsersService {
 
       // Vérifier si la table utilisateur existe dans le schéma
       const tableCheckQuery = `
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_schema = $1 AND table_name = 'utilisateur'
       `;
       const tableExists = await this.dataSource.query(tableCheckQuery, [tenant.schemaName]);
@@ -132,6 +135,57 @@ export class UsersService {
         !dto.password, // password_reset_required
         !dto.password ? new Date() : null // last_password_reset
       ]);
+
+      const userId = result[0].id;
+
+      // Si le rôle est "enseignant", créer automatiquement l'enregistrement dans la table enseignant
+      if (dto.role === 'enseignant') {
+        try {
+          // Générer un matricule unique pour l'enseignant
+          // Count existing enseignants to generate next matricule
+          const countQuery = `
+            SELECT COUNT(*) as count
+            FROM "${tenant.schemaName}".enseignant
+          `;
+          const countResult = await this.dataSource.query(countQuery);
+          const nextNum = (parseInt(countResult[0]?.count || 0) + 1);
+          const matricule = `ENS${String(nextNum).padStart(5, '0')}`;
+
+          console.log(`Génération du matricule: ${matricule} (next_num: ${nextNum})`);
+
+          // Créer l'enregistrement enseignant avec les données fournies
+          const insertEnseignantQuery = `
+            INSERT INTO "${tenant.schemaName}".enseignant
+            (utilisateur_id, matricule, nom, prenom, titre, grade, specialite, email, telephone, actif)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, matricule
+          `;
+          
+          const enseignantResult = await this.dataSource.query(insertEnseignantQuery, [
+            userId,
+            matricule,
+            dto.nom,
+            dto.prenom,
+            dto.titre || null,
+            dto.grade || null,
+            dto.specialite || null,
+            dto.email,
+            dto.telephone || null,
+            true
+          ]);
+
+          console.log(`Enregistrement enseignant créé avec matricule ${matricule} pour l'utilisateur ${dto.email}`);
+          
+          result[0].enseignantId = enseignantResult[0].id;
+          result[0].matricule = enseignantResult[0].matricule;
+        } catch (error: any) {
+          console.error('Erreur lors de la création de l\'enregistrement enseignant:', error);
+          console.error('Détails de l\'erreur:', error.stack);
+          // Supprimer l'utilisateur créé en cas d'erreur
+          await this.dataSource.query(`DELETE FROM "${tenant.schemaName}".utilisateur WHERE id = $1`, [userId]);
+          throw new ConflictException('Erreur lors de la création du profil enseignant: ' + error.message);
+        }
+      }
 
       // Envoyer l'email avec les identifiants si le mot de passe a été généré
       if (!dto.password) {
@@ -202,8 +256,8 @@ export class UsersService {
   }
 
   async findAll(
-    tid?: string, 
-    role?: string, 
+    tid?: string,
+    role?: string,
     university?: string,
     page: number = 1,
     limit: number = 50
@@ -226,11 +280,15 @@ export class UsersService {
     let totalCount = 0;
     
     for (const tenant of tenants) {
-      // Skip if tenant filter is specified and doesn't match
+      // Skip if tenant filter is specified and doesn't match (by ID or name)
       if (tid && tenant.id !== tid) continue;
       
-      // Skip if university filter is specified and doesn't match
-      if (university && tenant.nom.toLowerCase().indexOf(university.toLowerCase()) === -1) continue;
+      // Skip if university filter is specified and doesn't match (by ID or name)
+      if (university) {
+        const matchById = tenant.id === university;
+        const matchByName = tenant.nom.toLowerCase().indexOf(university.toLowerCase()) !== -1;
+        if (!matchById && !matchByName) continue;
+      }
       
       const schemaName = tenant.schemaName;
       
@@ -266,14 +324,17 @@ export class UsersService {
           createdAt: u.created_at,
           telephone: u.telephone,
           photoUrl: u.photo_url,
-          tenantId: u.tenant_id,
-          university: u.university,
+          tenantId: tenant.id,
+          university: tenant.nom,
         })));
       } catch (err: any) {
         // Skip tenants with missing schemas
         console.warn(`Failed to query schema ${tenant.schemaName}:`, err?.message || String(err));
       }
     }
+    
+    // Mettre en cache le résultat
+    await this.cacheService.set(cacheKey, allUsers, 300); // 5 minutes
     
     return allUsers;
   }
@@ -381,6 +442,9 @@ export class UsersService {
 
   async update(id: string, dto: any): Promise<any> {
     console.log(`[UsersService] Updating user ${id} with data:`, { ...dto, password: dto.password ? '***' : undefined });
+    
+    // Invalider le cache des utilisateurs
+    await this.cacheService.invalidatePattern('users:*');
     
     // Try to find user in tenant schemas
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
@@ -493,6 +557,9 @@ export class UsersService {
   }
 
   async remove(id: string): Promise<void> {
+    // Invalider le cache des utilisateurs
+    await this.cacheService.invalidatePattern('users:*');
+    
     // Try to find and delete user in tenant schemas
     const tenants = await this.tenantRepo.find({ where: { actif: true } });
     

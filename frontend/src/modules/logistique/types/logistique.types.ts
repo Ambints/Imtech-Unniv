@@ -261,6 +261,11 @@ export interface CalendrierEvent {
   titre: string;
   statut: string;
   source: 'reservation' | 'cours';
+  ue_nom?: string;
+  enseignant_nom?: string;
+  parcours_nom?: string;
+  type_seance?: string;
+  annee_academique_nom?: string;
 }
 
 // Made with Bob

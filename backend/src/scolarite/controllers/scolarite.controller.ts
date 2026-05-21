@@ -139,59 +139,6 @@ export class ScolariteController {
     }
   }
 
-  @Get('transferts')
-  @Roles('admin', 'scolarite', 'responsable_pedagogique')
-  async getTransferts(
-    @Req() req: any,
-    @Param('tenantId') tenantId: string,
-    @Query('etudiantId') etudiantId?: string
-  ) {
-    try {
-      return await this.scolariteService.getTransferts(req.tenantSchema, etudiantId);
-    } catch (error: any) {
-      throw new BadRequestException(error.message);
-    }
-  }
-
-  @Post('transferts')
-  @Roles('admin', 'scolarite')
-  async createTransfert(
-    @Req() req: any,
-    @Param('tenantId') tenantId: string,
-    @Body() body: { etudiantId: string; motif: string; universiteDestination: string }
-  ) {
-    try {
-      return await this.scolariteService.createTransfert(
-        req.tenantSchema,
-        body.etudiantId,
-        body.motif,
-        body.universiteDestination
-      );
-    } catch (error: any) {
-      throw new BadRequestException(error.message);
-    }
-  }
-
-  @Post('transferts/:transfertId/statut')
-  @Roles('admin', 'scolarite')
-  async updateTransfertStatut(
-    @Req() req: any,
-    @Param('tenantId') tenantId: string,
-    @Param('transfertId') transfertId: string,
-    @Body() body: { statut: string; commentaire?: string }
-  ) {
-    try {
-      return await this.scolariteService.updateTransertStatut(
-        req.tenantSchema,
-        transfertId,
-        body.statut,
-        body.commentaire
-      );
-    } catch (error: any) {
-      throw new BadRequestException(error.message);
-    }
-  }
-
   @Get('deliberations')
   @Roles('admin', 'scolarite', 'responsable_pedagogique')
   async getDeliberations(@Req() req: any, @Param('tenantId') tenantId: string) {

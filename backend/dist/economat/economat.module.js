@@ -8,20 +8,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EconomatModule = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
 const economat_controller_1 = require("./economat.controller");
 const economat_service_1 = require("./economat.service");
-const finance_entities_1 = require("../finance/finance.entities");
-const logistics_entities_1 = require("../logistics/logistics.entities");
+const depenses_controller_1 = require("./depenses.controller");
+const depenses_service_1 = require("./depenses.service");
+const rapports_controller_1 = require("./rapports.controller");
+const rapports_service_1 = require("./rapports.service");
+const tenant_connection_service_1 = require("../tenants/tenant-connection.service");
 let EconomatModule = class EconomatModule {
 };
 exports.EconomatModule = EconomatModule;
 exports.EconomatModule = EconomatModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([finance_entities_1.Budget, finance_entities_1.Depense, logistics_entities_1.Stock])],
-        controllers: [economat_controller_1.EconomatController],
-        providers: [economat_service_1.EconomatService],
-        exports: [economat_service_1.EconomatService],
+        controllers: [economat_controller_1.EconomatController, depenses_controller_1.DepensesController, rapports_controller_1.RapportsController],
+        providers: [economat_service_1.EconomatService, depenses_service_1.DepensesService, rapports_service_1.RapportsService, tenant_connection_service_1.TenantConnectionService],
+        exports: [economat_service_1.EconomatService, depenses_service_1.DepensesService, rapports_service_1.RapportsService],
     })
 ], EconomatModule);
 //# sourceMappingURL=economat.module.js.map

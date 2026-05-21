@@ -1,12 +1,14 @@
 import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './tenant.entity';
+import { Plan } from './plan.entity';
 import { TenantCreationService } from './tenant-creation.service';
-import { CreateTenantDto, UpdateTenantDto } from './dto';
+import { CreateTenantDto, UpdateTenantDto, CreatePlanDto, UpdatePlanDto } from './dto';
 export declare class TenantsService {
     private repo;
+    private planRepo;
     private tenantCreationService;
     private dataSource;
-    constructor(repo: Repository<Tenant>, tenantCreationService: TenantCreationService, dataSource: DataSource);
+    constructor(repo: Repository<Tenant>, planRepo: Repository<Plan>, tenantCreationService: TenantCreationService, dataSource: DataSource);
     create(dto: CreateTenantDto): Promise<Tenant>;
     findAll(): Promise<Tenant[]>;
     findOne(id: string): Promise<Tenant>;
@@ -34,4 +36,9 @@ export declare class TenantsService {
     getMyTenantConfig(tenantId: string): Promise<Tenant>;
     updateMyTenantConfig(tenantId: string, dto: UpdateTenantDto): Promise<Tenant>;
     getMyTenantStats(tenantId: string): Promise<any>;
+    getAllPlans(): Promise<Plan[]>;
+    getPlanById(id: string): Promise<Plan>;
+    createPlan(dto: CreatePlanDto): Promise<Plan>;
+    updatePlan(id: string, dto: UpdatePlanDto): Promise<Plan>;
+    deletePlan(id: string): Promise<void>;
 }

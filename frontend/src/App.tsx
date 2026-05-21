@@ -24,6 +24,7 @@ import { Subscriptions } from './pages/super-admin/Subscriptions';
 import { EditSubscription } from './pages/super-admin/EditSubscription';
 import { UserManagement } from './pages/super-admin/UserManagement';
 import { UserForm } from './pages/super-admin/UserForm';
+import { ConfigurationPaiementPage } from './pages/super-admin/ConfigurationPaiement';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { GestionNiveauxPage } from './pages/admin/GestionNiveauxPage';
 // Import du nouveau module Président
@@ -53,13 +54,11 @@ const RecusQuittancesPage = lazy(() => import('./pages/caisse/RecusQuittancesPag
 const ImpayesPage = lazy(() => import('./pages/caisse/ImpayesPage').then(module => ({ default: module.ImpayesPage })));
 const ReportingPage = lazy(() => import('./pages/caisse/ReportingPage').then(module => ({ default: module.ReportingPage })));
 
-// Lazy load enseignant messagerie components
-const MessageDirectPage = lazy(() => import('./pages/portals/enseignant/MessageDirectPage').then(module => ({ default: module.MessageDirectPage })));
-const MessageClassePage = lazy(() => import('./pages/portals/enseignant/MessageClassePage').then(module => ({ default: module.MessageClassePage })));
+// Lazy load enseignant components
 const UploadRessourcePage = lazy(() => import('./pages/portals/enseignant/UploadRessourcePage'));
-const MessageParcoursPage = lazy(() => import('./pages/portals/enseignant/MessageParcoursPage').then(module => ({ default: module.MessageParcoursPage })));
 const ValidationPaiementsPage = lazy(() => import('./pages/caisse/ValidationPaiementsPage').then(module => ({ default: module.ValidationPaiementsPage })));
 import { LogistiquePage } from './pages/logistics/LogistiquePage';
+import LogistiqueModule from './modules/logistique';
 import { EtudiantPortal } from './pages/portals/EtudiantPortal';
 import { NotesEtudiantPage } from './pages/portals/etudiant/NotesEtudiantPage';
 import { CoursEtudiantPage } from './pages/portals/etudiant/CoursEtudiantPage';
@@ -82,7 +81,13 @@ import {
 import { EnseignantPortal } from './pages/portals/EnseignantPortal';
 import { CommunicationPage } from './pages/communication/CommunicationPage';
 import { RHPage } from './pages/rh/RHPage';
-import { EconomatPage } from './pages/economat/EconomatPage';
+import EconomatLayout from './pages/economat/EconomatLayout';
+import BudgetAnnuelPage from './pages/economat/BudgetAnnuelPage';
+import SuiviDepensesPage from './pages/economat/SuiviDepensesPage';
+import FournisseursPage from './pages/economat/FournisseursPage';
+import RecouvrementGlobalPage from './pages/economat/RecouvrementGlobalPage';
+import RapportFinancierPage from './pages/economat/RapportFinancierPage';
+import SubventionsPage from './pages/economat/SubventionsPage';
 import { NotesPage } from './pages/academic/NotesPage';
 import { AcademicManagementPage } from './pages/academic/AcademicManagementPage';
 import ResponsablePedagogiquePage from './pages/pedagogique/ResponsablePedagogiquePage';
@@ -111,7 +116,6 @@ import ScolariteDashboard from './pages/scolarite/ScolariteDashboard';
 import DeliberationsPage from './pages/scolarite/DeliberationsPage';
 import ScolariteDiplomesPage from './pages/scolarite/DiplomesPage';
 import AttestationsPage from './pages/scolarite/AttestationsPage';
-import TransfertsPage from './pages/scolarite/TransfertsPage';
 import {
   BookOpen, BookText, CheckCircle,
   CalendarDays, ClipboardList, AlertTriangle, Briefcase, BarChart3, Users, FileText,
@@ -257,6 +261,7 @@ const App: React.FC = () => {
         <Route path="/admin" element={<Wrapped><AdminDashboard defaultTab="dashboard" /></Wrapped>} />
         <Route path="/admin/users" element={<Wrapped><AdminDashboard defaultTab="users" /></Wrapped>} />
         <Route path="/admin/config" element={<Wrapped><AdminDashboard defaultTab="config" /></Wrapped>} />
+        <Route path="/admin/configuration-paiement" element={<Wrapped><ConfigurationPaiementPage /></Wrapped>} />
         <Route path="/admin/portals" element={<Wrapped><AdminDashboard defaultTab="portals" /></Wrapped>} />
         <Route path="/admin/academic" element={<Wrapped><AdminDashboard defaultTab="academic" /></Wrapped>} />
         <Route path="/admin/niveaux" element={<Wrapped><GestionNiveauxPage /></Wrapped>} />
@@ -314,11 +319,14 @@ const App: React.FC = () => {
         <Route path="/caisse/rapports" element={<Wrapped><Suspense fallback={<PageLoader />}><ReportingPage /></Suspense></Wrapped>} />
 
         {/* Economat */}
-        <Route path="/economat/budget" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
-        <Route path="/economat/depenses" element={<Wrapped><FinanceManagementPage /></Wrapped>} />
-        <Route path="/economat/fournisseurs" element={<Wrapped><EconomatPage /></Wrapped>} />
-        <Route path="/economat/recouvrement" element={<Wrapped><EconomatPage /></Wrapped>} />
-        <Route path="/economat/rapport" element={<Wrapped><EconomatPage /></Wrapped>} />
+        <Route path="/economat" element={<Wrapped><EconomatLayout /></Wrapped>}>
+          <Route path="budget" element={<BudgetAnnuelPage />} />
+          <Route path="depenses" element={<SuiviDepensesPage />} />
+          <Route path="fournisseurs" element={<FournisseursPage />} />
+          <Route path="recouvrement" element={<RecouvrementGlobalPage />} />
+          <Route path="rapports" element={<RapportFinancierPage />} />
+          <Route path="subventions" element={<SubventionsPage />} />
+        </Route>
         <Route path="/rh/*" element={<Wrapped><RHPage /></Wrapped>} />
 
         {/* Communication */}
@@ -362,16 +370,12 @@ const App: React.FC = () => {
         <Route path="/scolarite/deliberations" element={<Wrapped><DeliberationsPage /></Wrapped>} />
         <Route path="/scolarite/diplomes" element={<Wrapped><ScolariteDiplomesPage /></Wrapped>} />
         <Route path="/scolarite/attestations" element={<Wrapped><AttestationsPage /></Wrapped>} />
-        <Route path="/scolarite/transferts" element={<Wrapped><TransfertsPage /></Wrapped>} />
         <Route path="/scolarite/calcul-moyennes" element={<Wrapped><Placeholder title="Calcul des Moyennes" icon={<Calculator size={64} color="#94a3b8" />} desc="Calcul automatique des moyennes pondérées par coefficients ECTS." /></Wrapped>} />
         <Route path="/scolarite/verrouillage" element={<Wrapped><Placeholder title="Verrouillage des Notes" icon={<Lock size={64} color="#94a3b8" />} desc="Verrouiller les notes après délibération de jury." /></Wrapped>} />
         <Route path="/scolarite/releves" element={<Wrapped><Placeholder title="Relevés de Notes" icon={<FileText size={64} color="#94a3b8" />} desc="Générer et valider les relevés officiels en PDF." /></Wrapped>} />
 
-        {/* Logistique */}
-        <Route path="/logistique/tickets" element={<Wrapped><LogistiquePage /></Wrapped>} />
-        <Route path="/logistique/stocks" element={<Wrapped><LogistiquePage /></Wrapped>} />
-        <Route path="/logistique/nettoyage" element={<Wrapped><LogistiquePage /></Wrapped>} />
-        <Route path="/logistique/salles" element={<Wrapped><Placeholder title="Salles & Réservations" icon={<School size={64} color="#94a3b8" />} desc="Allocation dynamique des salles, amphithéâtres et laboratoires." /></Wrapped>} />
+        {/* Logistique - Module Complet */}
+        <Route path="/logistique/*" element={<Wrapped><LogistiqueModule /></Wrapped>} />
 
         {/* Portails Utilisateurs */}
         <Route path="/portail/etudiant" element={<Wrapped><InscriptionGuard><EtudiantPortal /></InscriptionGuard></Wrapped>} />
@@ -398,10 +402,6 @@ const App: React.FC = () => {
         <Route path="/portail/enseignant/etudiants" element={<Wrapped><EnseignantPortal /></Wrapped>} />
         <Route path="/portail/enseignant/ressources" element={<Wrapped><EnseignantPortal /></Wrapped>} />
         <Route path="/portail/enseignant/upload-ressource" element={<Wrapped><UploadRessourcePage /></Wrapped>} />
-        <Route path="/portail/enseignant/messagerie" element={<Wrapped><EnseignantPortal /></Wrapped>} />
-        <Route path="/portail/enseignant/message-direct" element={<Wrapped><MessageDirectPage /></Wrapped>} />
-        <Route path="/portail/enseignant/message-classe" element={<Wrapped><MessageClassePage /></Wrapped>} />
-        <Route path="/portail/enseignant/message-parcours" element={<Wrapped><MessageParcoursPage /></Wrapped>} />
         <Route path="/portail/enseignant/demandes" element={<Wrapped><EnseignantPortal /></Wrapped>} />
 
         {/* Catch-all */}

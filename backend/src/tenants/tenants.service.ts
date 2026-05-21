@@ -2,8 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './tenant.entity';
+import { Plan } from './plan.entity';
 import { TenantCreationService } from './tenant-creation.service';
-import { CreateTenantDto, UpdateTenantDto } from './dto';
+import { CreateTenantDto, UpdateTenantDto, CreatePlanDto, UpdatePlanDto } from './dto';
 
 // Helper pour extraire le message d'erreur
 function getErrorMessage(error: unknown): string {
@@ -15,6 +16,7 @@ function getErrorMessage(error: unknown): string {
 export class TenantsService {
   constructor(
     @InjectRepository(Tenant) private repo: Repository<Tenant>,
+    @InjectRepository(Plan) private planRepo: Repository<Plan>,
     private tenantCreationService: TenantCreationService,
     @InjectDataSource() private dataSource: DataSource,
   ) {}
@@ -52,9 +54,18 @@ export class TenantsService {
       console.log('─────────────────────────────────────────');
       console.log(`🔍 Appel du service de création de schéma pour: ${schemaName}`);
       console.log(`🔍 Service disponible: ${!!this.tenantCreationService}`);
+      console.log(`🔍 Type du service: ${typeof this.tenantCreationService}`);
+      console.log(`🔍 Méthode createTenantSchema disponible: ${typeof this.tenantCreationService?.createTenantSchema}`);
       
-      await this.tenantCreationService.createTenantSchema(schemaName);
-      console.log('✅ Schéma PostgreSQL créé avec succès');
+      console.log('🚀 Appel de createTenantSchema...');
+      try {
+        await this.tenantCreationService.createTenantSchema(schemaName);
+        console.log('✅ Schéma PostgreSQL créé avec succès');
+      } catch (createError) {
+        console.error('❌ Erreur dans createTenantSchema:', createError);
+        console.error('❌ Stack:', createError instanceof Error ? createError.stack : 'N/A');
+        throw createError;
+      }
 
       console.log('');
       console.log('💾 ÉTAPE 2/3: Enregistrement dans la table tenant');
@@ -212,6 +223,10 @@ export class TenantsService {
                'prixMensuel', 'maxUtilisateurs']
     });
 
+    // Récupérer tous les plans pour obtenir les limites
+    const plans = await this.planRepo.find();
+    const planLimits = new Map(plans.map(p => [p.name.toLowerCase(), { maxUsers: p.maxUsers, maxStudents: p.maxStudents }]));
+
     // Helper pour convertir une date en string ISO
     const toISODate = (date: any): string => {
       if (!date) return new Date().toISOString();
@@ -245,6 +260,10 @@ export class TenantsService {
           }
         }
 
+        // Récupérer les limites du plan
+        const planName = (tenant.planAbonnement || 'basic').toLowerCase();
+        const limits = planLimits.get(planName) || { maxUsers: 100, maxStudents: 500 };
+
         return {
           id: tenant.id,
           tenantId: tenant.slug,
@@ -254,7 +273,8 @@ export class TenantsService {
           startDate: toISODate(tenant.dateDebutAbonnement),
           endDate: toISODate(tenant.dateFinAbonnement) || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
           monthlyPrice: Number(tenant.prixMensuel) || 50000,
-          maxUsers: tenant.maxUtilisateurs || 100,
+          maxUsers: tenant.maxUtilisateurs || limits.maxUsers,
+          maxStudents: limits.maxStudents,
           currentUsers,
           currentStudents,
           features: this.getPlanFeatures(tenant.planAbonnement || 'basic'),
@@ -402,22 +422,43 @@ export class TenantsService {
         byRole[row.role] = parseInt(row.count);
       });
       
-      // 2. Statistiques académiques
-      const parcoursCount = await connection.query(
-        `SELECT COUNT(*) as count FROM ${schemaName}.parcours WHERE actif = true`
-      );
+      // 2. Statistiques académiques (avec gestion d'erreur pour tables manquantes)
+      let parcoursCount = [{ count: '0' }];
+      let ueCount = [{ count: '0' }];
+      let studentsCount = [{ count: '0' }];
+      let teachersCount = [{ count: '0' }];
       
-      const ueCount = await connection.query(
-        `SELECT COUNT(*) as count FROM ${schemaName}.unite_enseignement`
-      );
+      try {
+        parcoursCount = await connection.query(
+          `SELECT COUNT(*) as count FROM ${schemaName}.parcours WHERE actif = true`
+        );
+      } catch (err) {
+        console.warn(`Table parcours non trouvée dans ${schemaName}`);
+      }
       
-      const studentsCount = await connection.query(
-        `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'etudiant' AND actif = true`
-      );
+      try {
+        ueCount = await connection.query(
+          `SELECT COUNT(*) as count FROM ${schemaName}.unite_enseignement`
+        );
+      } catch (err) {
+        console.warn(`Table unite_enseignement non trouvée dans ${schemaName}`);
+      }
       
-      const teachersCount = await connection.query(
-        `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'enseignant' AND actif = true`
-      );
+      try {
+        studentsCount = await connection.query(
+          `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'etudiant' AND actif = true`
+        );
+      } catch (err) {
+        console.warn(`Erreur lors du comptage des étudiants dans ${schemaName}`);
+      }
+      
+      try {
+        teachersCount = await connection.query(
+          `SELECT COUNT(*) as count FROM ${schemaName}.utilisateur WHERE role = 'enseignant' AND actif = true`
+        );
+      } catch (err) {
+        console.warn(`Erreur lors du comptage des enseignants dans ${schemaName}`);
+      }
       
       // 3. Statistiques financières
       const monthlyRevenue = await connection.query(`
@@ -448,10 +489,10 @@ export class TenantsService {
           byRole
         },
         academic: {
-          parcours: parseInt(parcoursCount[0]?.count || 0),
-          courses: parseInt(ueCount[0]?.count || 0),
-          students: parseInt(studentsCount[0]?.count || 0),
-          teachers: parseInt(teachersCount[0]?.count || 0)
+          parcours: parseInt(parcoursCount[0]?.count || '0'),
+          courses: parseInt(ueCount[0]?.count || '0'),
+          students: parseInt(studentsCount[0]?.count || '0'),
+          teachers: parseInt(teachersCount[0]?.count || '0')
         },
         finance: {
           monthlyRevenue: parseFloat(monthlyRevenue[0]?.total || 0),
@@ -475,5 +516,66 @@ export class TenantsService {
         system: { uptime: 99.9, lastBackup: new Date().toISOString(), storageUsed: 0, storageTotal: 100 }
       };
     }
+  }
+
+  // ==================== CRUD PLANS D'ABONNEMENT ====================
+
+  async getAllPlans(): Promise<Plan[]> {
+    return this.planRepo.find({
+      order: { createdAt: 'ASC' }
+    });
+  }
+
+  async getPlanById(id: string): Promise<Plan> {
+    const plan = await this.planRepo.findOne({ where: { id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan ${id} not found`);
+    }
+    return plan;
+  }
+
+  async createPlan(dto: CreatePlanDto): Promise<Plan> {
+    const plan = this.planRepo.create({
+      name: dto.name,
+      description: dto.description,
+      monthlyPrice: dto.monthlyPrice,
+      maxUsers: dto.maxUsers,
+      maxStudents: dto.maxStudents,
+      features: dto.features || [],
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
+    });
+    
+    return this.planRepo.save(plan);
+  }
+
+  async updatePlan(id: string, dto: UpdatePlanDto): Promise<Plan> {
+    const plan = await this.getPlanById(id);
+    
+    if (dto.name !== undefined) plan.name = dto.name;
+    if (dto.description !== undefined) plan.description = dto.description;
+    if (dto.monthlyPrice !== undefined) plan.monthlyPrice = dto.monthlyPrice;
+    if (dto.maxUsers !== undefined) plan.maxUsers = dto.maxUsers;
+    if (dto.maxStudents !== undefined) plan.maxStudents = dto.maxStudents;
+    if (dto.features !== undefined) plan.features = dto.features;
+    if (dto.isActive !== undefined) plan.isActive = dto.isActive;
+    
+    return this.planRepo.save(plan);
+  }
+
+  async deletePlan(id: string): Promise<void> {
+    const plan = await this.getPlanById(id);
+    
+    // Vérifier si des tenants utilisent ce plan
+    const tenantsUsingPlan = await this.repo.count({
+      where: { planAbonnement: id }
+    });
+    
+    if (tenantsUsingPlan > 0) {
+      throw new BadRequestException(
+        `Cannot delete plan ${plan.name}. ${tenantsUsingPlan} tenant(s) are currently using this plan. Please reassign them to another plan first.`
+      );
+    }
+    
+    await this.planRepo.remove(plan);
   }
 }

@@ -86,7 +86,12 @@ export class TenantCreationService {
         throw new Error(`Impossible de lire le script SQL: ${error}`);
       }
 
-      // 5. Exécuter le script dans le contexte du nouveau schéma
+      // 5. Remplacer le placeholder {SCHEMA_NAME} par le nom réel du schéma
+      this.logger.log(`🔧 Préparation du script pour ${schemaName}`);
+      sqlScript = sqlScript.replace(/{SCHEMA_NAME}/g, schemaName);
+      this.logger.log(`✅ Placeholder {SCHEMA_NAME} remplacé par ${schemaName}`);
+
+      // 6. Exécuter le script dans le contexte du nouveau schéma
       this.logger.log(`🔧 Initialisation des tables de base dans ${schemaName}`);
 
       // Définir le search_path pour ce schéma

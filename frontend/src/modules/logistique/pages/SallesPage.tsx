@@ -144,7 +144,7 @@ export default function SallesPage() {
               <div className="d-flex justify-content-between">
                 <div>
                   <p className="text-muted mb-1 small">Total salles</p>
-                  <h4 className="mb-0">{salles?.length || 0}</h4>
+                  <h4 className="mb-0">{Array.isArray(salles) ? salles.length : 0}</h4>
                 </div>
                 <div className="bg-primary bg-opacity-10 p-3 rounded">
                   <i className="bi bi-door-open text-primary fs-4"></i>
@@ -160,7 +160,7 @@ export default function SallesPage() {
                 <div>
                   <p className="text-muted mb-1 small">Disponibles</p>
                   <h4 className="mb-0 text-success">
-                    {salles?.filter(s => s.disponible).length || 0}
+                    {Array.isArray(salles) ? salles.filter(s => s.disponible).length : 0}
                   </h4>
                 </div>
                 <div className="bg-success bg-opacity-10 p-3 rounded">
@@ -177,7 +177,7 @@ export default function SallesPage() {
                 <div>
                   <p className="text-muted mb-1 small">Capacité totale</p>
                   <h4 className="mb-0">
-                    {salles?.reduce((sum, s) => sum + s.capacite, 0) || 0}
+                    {Array.isArray(salles) ? salles.reduce((sum, s) => sum + s.capacite, 0) : 0}
                   </h4>
                 </div>
                 <div className="bg-info bg-opacity-10 p-3 rounded">
@@ -191,7 +191,7 @@ export default function SallesPage() {
 
       {/* Grille salles */}
       <div className="row g-3">
-        {salles?.map((salle) => (
+        {Array.isArray(salles) && salles.length > 0 ? salles.map((salle) => (
           <div key={salle.id} className="col-md-6 col-lg-4">
             <div className={`card border-0 shadow-sm h-100 salle-card ${salle.disponible ? 'disponible' : 'indisponible'}`}>
               <div className="card-body">
@@ -246,7 +246,14 @@ export default function SallesPage() {
               </div>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="col-12">
+            <div className="alert alert-info">
+              <i className="bi bi-info-circle me-2"></i>
+              Aucune salle trouvée
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal création */}
@@ -269,7 +276,7 @@ export default function SallesPage() {
                       <label className="form-label">Bâtiment *</label>
                       <select name="batiment_id" className="form-select" required>
                         <option value="">Sélectionner...</option>
-                        {batiments?.map((b) => (
+                        {(batiments || []).map((b) => (
                           <option key={b.id} value={b.id}>{b.nom}</option>
                         ))}
                       </select>
